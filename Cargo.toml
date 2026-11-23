@@ -1,0 +1,10 @@
+[package]
+name = "adbreak"
+version = "0.1.0"
+edition = "2024"
+description = "Find commercial breaks in TV recordings from decoded pictures and sound: black-and-silent edges plus the network logo. No dependencies; bring your own decoder."
+license = "MIT OR Apache-2.0"
+keywords = ["commercial", "comskip", "television", "video", "dvr"]
+categories = ["multimedia::video"]
+
+[dependencies]
