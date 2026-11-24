@@ -22,8 +22,8 @@ defaults:
 jobs:
   rust:
     name: Rust (fmt, tests, clippy)
-    # The library is pure Rust; Linux runners are enough.
-    runs-on: ubuntu-latest
+    # The command decodes through barm/avkit (VideoToolbox, AudioToolbox).
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust

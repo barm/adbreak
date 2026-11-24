@@ -106,9 +106,9 @@ async fn save(State(data): State<Shared>, Path(id): Path<String>, Json(mut label
     Ok(Json(labels))
 }
 
-/// The copy and its captions, with range requests for seeking.
+/// The copy (its playlist and media, with range requests) and its captions.
 async fn file(State(data): State<Shared>, Path((id, name)): Path<(String, String)>, req: Request) -> Result<Response, Error> {
-    if !["media.mp4", "captions.vtt"].contains(&name.as_str()) {
+    if !["index.m3u8", "media.mp4", "captions.vtt"].contains(&name.as_str()) {
         return Err(Error(StatusCode::NOT_FOUND, anyhow::anyhow!("no such file")));
     }
     let id = data.resolve(&id)?;

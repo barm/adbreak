@@ -1,18 +1,16 @@
-//! The outside programs `suggest` runs: ffmpeg (decoding for the detector) and Comskip.
+//! Media work for `import` and `suggest`: avkit's hardware decoding (the copy, the detector's pictures and sound)
+//! and Comskip, the one outside program (optional).
 
 use adbreak::{Config, Detector, Frame};
 use adbreak_labels::Span;
 use anyhow::{Context, Result, bail};
-use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
-use std::sync::mpsc;
 
 /// The same picture size and rate the DVR scans at.
 const W: usize = 480;
 const H: usize = 270;
 const FPS: f64 = 10.0;
-const RATE: u32 = 16_000;
 
 /// `name` from the flag or environment, else from `PATH`, else from Homebrew's prefix.
 pub fn find(given: Option<&Path>, name: &str) -> Option<PathBuf> {
@@ -23,84 +21,42 @@ pub fn find(given: Option<&Path>, name: &str) -> Option<PathBuf> {
     std::env::split_paths(&path).chain([PathBuf::from("/opt/homebrew/bin"), PathBuf::from("/usr/local/bin")]).map(|d| d.join(name)).find(|p| p.is_file())
 }
 
-enum Msg {
-    Frame(f64, Vec<u8>),
-    Audio(f64, Vec<f32>),
+/// Hands what avkit decodes to the detector.
+struct Feed(Detector);
+
+impl fmp4_scan::Sink for Feed {
+    fn picture(&mut self, pts: f64, width: usize, height: usize, luma: &[u8]) {
+        self.0.push_frame(Frame { pts, width, height, luma });
+    }
+    fn sound(&mut self, pts: f64, rate: u32, samples: &[f32]) {
+        self.0.push_audio(pts, rate, samples);
+    }
 }
 
-/// Runs the adbreak detector over a media file, decoded by ffmpeg (pictures and sound in two processes).
-pub fn detect(ffmpeg: &Path, media: &Path) -> Result<Vec<Span>> {
-    let spawn = |args: &[&str]| {
-        Command::new(ffmpeg)
-            .args(["-nostdin", "-v", "error", "-i"])
-            .arg(media)
-            .args(args)
-            .stdout(Stdio::piped())
-            .spawn()
-            .with_context(|| format!("running {}", ffmpeg.display()))
-    };
-    let vf = format!("fps={FPS},scale={W}:{H},format=gray");
-    let mut video = spawn(&["-an", "-sn", "-vf", &vf, "-f", "rawvideo", "-"])?;
-    let rate = RATE.to_string();
-    let mut audio = spawn(&["-vn", "-sn", "-ac", "1", "-ar", &rate, "-f", "f32le", "-"])?;
-    let (tx, rx) = mpsc::sync_channel::<Msg>(64);
-    let (mut vout, mut aout) = (video.stdout.take().unwrap(), audio.stdout.take().unwrap());
-    let vtx = tx.clone();
-    let vthread = std::thread::spawn(move || -> std::io::Result<()> {
-        for i in 0u64.. {
-            let mut buf = vec![0u8; W * H];
-            if read_full(&mut vout, &mut buf)? < buf.len() {
-                return Ok(());
-            }
-            if vtx.send(Msg::Frame(i as f64 / FPS, buf)).is_err() {
-                return Ok(());
-            }
-        }
-        Ok(())
-    });
-    let athread = std::thread::spawn(move || -> std::io::Result<()> {
-        let chunk = RATE as usize / 10;
-        let mut at = 0u64;
-        loop {
-            let mut buf = vec![0u8; chunk * 4];
-            let n = read_full(&mut aout, &mut buf)? / 4;
-            if n == 0 {
-                return Ok(());
-            }
-            let samples = buf.as_chunks::<4>().0.iter().take(n).map(|b| f32::from_le_bytes(*b)).collect();
-            if tx.send(Msg::Audio(at as f64 / RATE as f64, samples)).is_err() {
-                return Ok(());
-            }
-            at += n as u64;
-        }
-    });
-    let mut det = Detector::new(Config::default());
-    for m in rx {
-        match m {
-            Msg::Frame(pts, luma) => det.push_frame(Frame { pts, width: W, height: H, luma: &luma }),
-            Msg::Audio(pts, s) => det.push_audio(pts, RATE, &s),
-        }
-    }
-    vthread.join().expect("video reader")?;
-    athread.join().expect("audio reader")?;
-    for (what, mut child) in [("video", video), ("audio", audio)] {
-        if !child.wait()?.success() {
-            bail!("ffmpeg ({what}) failed on {}", media.display());
-        }
-    }
-    det.finish();
-    Ok(det.breaks().into_iter().map(|b| Span::new(b.start, b.end)).collect())
+/// Runs the adbreak detector over a recording (a fragmented MP4: HEVC, AAC).
+pub fn detect(media: &Path) -> Result<Vec<Span>> {
+    let mut feed = Feed(Detector::new(Config::default()));
+    fmp4_scan::scan_file(media, W, H, FPS, &mut feed).with_context(|| format!("decoding {}", media.display()))?;
+    feed.0.finish();
+    Ok(feed.0.breaks().into_iter().map(|b| Span::new(b.start, b.end)).collect())
 }
 
-fn read_full(r: &mut impl Read, buf: &mut [u8]) -> std::io::Result<usize> {
-    let mut n = 0;
-    while n < buf.len() {
-        match r.read(&mut buf[n..])? {
-            0 => break,
-            k => n += k,
+/// Makes the dataset's copy of a recording (a fragmented MP4: HEVC, AAC) in `out`: `height` lines, every picture
+/// (break edges are a few pictures long), mono sound; `media.mp4` with `index.m3u8` to seek by. Returns its length.
+pub fn shrink(input: &Path, out: &Path, height: u32) -> Result<f64> {
+    let settings = fmp4_shrink::Settings { height, ..Default::default() };
+    let started = std::time::Instant::now();
+    let mut shown = 0.0;
+    let s = fmp4_shrink::shrink(input, out, &settings, &mut |secs| {
+        if secs - shown >= 1200.0 {
+            shown = secs;
+            eprintln!("  {:.0} min, {:.0}x real time", secs / 60.0, secs / started.elapsed().as_secs_f64().max(0.001));
         }
-    }
-    Ok(n)
+    })
+    .with_context(|| format!("making the copy of {}", input.display()))?;
+    let kbps = s.bytes as f64 * 8.0 / s.duration.max(1.0) / 1000.0;
+    eprintln!("  {}x{}, {} MB, {kbps:.0} kbit/s, in {:.0} s", s.width, s.height, s.bytes / 1_000_000, started.elapsed().as_secs_f64());
+    Ok(s.duration)
 }
 
 /// Settings checked against frames on US network recordings: every detection method, an EDL out.
@@ -137,48 +93,6 @@ pub fn parse_edl(text: &str) -> Vec<Span> {
             Some(Span::new(f.next()?.ok()?, f.next()?.ok()?))
         })
         .collect()
-}
-
-/// Makes the dataset's copy of a recording: `height` lines, the original frame rate (break edges are a few frames
-/// long), mono 16 kHz sound, as one MP4 that plays straight from a file. About 0.5 GB for three hours at 360p.
-pub fn transcode(ffmpeg: &Path, input: &Path, output: &Path, height: u32) -> Result<()> {
-    let tmp = output.with_extension("partial.mp4");
-    let scale = format!("scale=-2:{height}");
-    // Hardware HEVC at constant quality on macOS; software H.264 elsewhere.
-    let video: &[&str] = if cfg!(target_os = "macos") {
-        &["-c:v", "hevc_videotoolbox", "-q:v", "50", "-tag:v", "hvc1"]
-    } else {
-        &["-c:v", "libx264", "-crf", "28", "-preset", "faster"]
-    };
-    let hwaccel: &[&str] = if cfg!(target_os = "macos") { &["-hwaccel", "videotoolbox"] } else { &[] };
-    let status = Command::new(ffmpeg)
-        .args(["-nostdin", "-v", "error", "-stats", "-y"])
-        .args(hwaccel)
-        .arg("-i")
-        .arg(input)
-        .args(["-map", "0:v:0", "-map", "0:a:0?", "-sn", "-dn", "-vf", &scale])
-        .args(video)
-        .args(["-c:a", "aac", "-ac", "1", "-ar", "16000", "-b:a", "32k", "-movflags", "+faststart", "-f", "mp4"])
-        .arg(&tmp)
-        .status()
-        .with_context(|| format!("running {}", ffmpeg.display()))?;
-    if !status.success() {
-        let _ = std::fs::remove_file(&tmp);
-        bail!("ffmpeg couldn't transcode {}", input.display());
-    }
-    std::fs::rename(&tmp, output)?;
-    Ok(())
-}
-
-/// The media's length in seconds, from ffprobe next to ffmpeg.
-pub fn duration(ffmpeg: &Path, media: &Path) -> Result<f64> {
-    let ffprobe = ffmpeg.with_file_name("ffprobe");
-    let out = Command::new(&ffprobe)
-        .args(["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0"])
-        .arg(media)
-        .output()
-        .with_context(|| format!("running {}", ffprobe.display()))?;
-    String::from_utf8_lossy(&out.stdout).trim().parse().with_context(|| format!("no duration for {}", media.display()))
 }
 
 #[cfg(test)]
