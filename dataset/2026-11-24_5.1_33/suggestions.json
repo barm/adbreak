@@ -1,0 +1,121 @@
+{
+  "format": 1,
+  "recording": {
+    "source": "dvr",
+    "job": 33,
+    "channel": "5.1",
+    "network": "KPIX-TV",
+    "title": "step3 5.1",
+    "start": "2026-11-24T07:06:41Z",
+    "duration": 10797.38649200127
+  },
+  "sources": [
+    {
+      "name": "captions",
+      "detail": "uncaptioned: window 30 s, coverage < 0.5, at least 30 s",
+      "breaks": [
+        {
+          "start": 342.0,
+          "end": 387.0
+        },
+        {
+          "start": 416.0,
+          "end": 469.0
+        },
+        {
+          "start": 1042.0,
+          "end": 1091.0
+        },
+        {
+          "start": 1122.0,
+          "end": 1215.0
+        },
+        {
+          "start": 1414.0,
+          "end": 1504.0
+        },
+        {
+          "start": 1533.0,
+          "end": 1621.0
+        },
+        {
+          "start": 2150.0,
+          "end": 2250.0
+        },
+        {
+          "start": 2572.0,
+          "end": 2617.0
+        },
+        {
+          "start": 3090.0,
+          "end": 3297.0
+        },
+        {
+          "start": 3900.0,
+          "end": 3970.0
+        },
+        {
+          "start": 4345.0,
+          "end": 4390.0
+        },
+        {
+          "start": 4780.0,
+          "end": 4955.0
+        },
+        {
+          "start": 5735.0,
+          "end": 5806.0
+        },
+        {
+          "start": 6169.0,
+          "end": 6214.0
+        },
+        {
+          "start": 6285.0,
+          "end": 6315.0
+        },
+        {
+          "start": 6663.0,
+          "end": 6868.0
+        },
+        {
+          "start": 7529.0,
+          "end": 7629.0
+        },
+        {
+          "start": 7964.0,
+          "end": 8009.0
+        },
+        {
+          "start": 8080.0,
+          "end": 8162.0
+        },
+        {
+          "start": 8438.0,
+          "end": 8643.0
+        },
+        {
+          "start": 8931.0,
+          "end": 9000.0
+        },
+        {
+          "start": 9729.0,
+          "end": 9865.0
+        },
+        {
+          "start": 10464.0,
+          "end": 10539.0
+        },
+        {
+          "start": 10584.0,
+          "end": 10637.0
+        }
+      ]
+    },
+    {
+      "name": "dvr",
+      "detail": "the DVR's own scan",
+      "breaks": []
+    }
+  ]
+}

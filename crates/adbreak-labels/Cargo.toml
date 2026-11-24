@@ -1,0 +1,13 @@
+[package]
+name = "adbreak-labels"
+version = "0.1.0"
+edition = "2024"
+description = "Labelled commercial breaks for TV recordings: the dataset format, suggestions to review, and scoring a detector against labels."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/barm/adbreak"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+
+[dev-dependencies]
+serde_json = "1"

@@ -1,0 +1,9 @@
+[package]
+name = "adbreak-captions"
+version = "0.1.0"
+edition = "2024"
+description = "Commercial-break hints from a TV recording's closed captions (WebVTT): where captions stop, and roll-up against pop-on style."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/barm/adbreak"
+
+[dependencies]
