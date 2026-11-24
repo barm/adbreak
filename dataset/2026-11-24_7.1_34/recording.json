@@ -1,0 +1,9 @@
+{
+  "source": "dvr",
+  "job": 34,
+  "channel": "7.1",
+  "network": "KGO-HD",
+  "title": "dataset ABC KGO daytime",
+  "start": "2026-11-24T17:38:17+00:00",
+  "duration": 5410.154633333285
+}

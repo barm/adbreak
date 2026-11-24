@@ -80,8 +80,8 @@ def table(d: Data, p: np.ndarray, q: np.ndarray, drop_captions: bool = False) ->
     return np.stack(cols, 1).astype(np.float32)
 
 
-def to_breaks(t: np.ndarray, p: np.ndarray, edges: np.ndarray, threshold: float = 0.5, min_len: float = 20.0,
-              max_gap: float = 8.0, snap: float = 8.0) -> list[dict]:
+def to_breaks(t: np.ndarray, p: np.ndarray, edges: np.ndarray, threshold: float = 0.35, min_len: float = 30.0,
+              max_gap: float = 25.0, snap: float = 20.0) -> list[dict]:
     on = p >= threshold
     spans, start = [], None
     for i, v in enumerate(on):
