@@ -545,8 +545,8 @@
       "detail": "frames (mobileclip2-s0, logistic regression) + captions (text and timing) + black/silence, gradient-boosted over windows to 150 s; edges snapped to black-and-silent moments; leave-one-recording-out",
       "breaks": [
         {
-          "start": 750.89,
-          "end": 896.0
+          "start": 723.0,
+          "end": 893.0
         },
         {
           "start": 1330.8,
@@ -554,14 +554,14 @@
         },
         {
           "start": 1643.3,
-          "end": 1761.0
+          "end": 1759.0
         },
         {
           "start": 2329.96,
-          "end": 2465.89
+          "end": 2528.0
         },
         {
-          "start": 2734.0,
+          "start": 2723.0,
           "end": 2794.45
         },
         {
@@ -570,7 +570,7 @@
         },
         {
           "start": 3885.11,
-          "end": 4021.03
+          "end": 4064.0
         },
         {
           "start": 4683.33,
@@ -581,27 +581,27 @@
           "end": 5241.92
         },
         {
-          "start": 5373.49,
+          "start": 5353.0,
           "end": 5509.57
         },
         {
           "start": 5951.7,
-          "end": 6183.0
+          "end": 6174.0
         },
         {
           "start": 6488.45,
-          "end": 6557.0
+          "end": 6567.0
         },
         {
           "start": 6826.39,
-          "end": 7006.0
+          "end": 7034.0
         },
         {
-          "start": 7289.02,
+          "start": 7268.0,
           "end": 7410.04
         },
         {
-          "start": 7604.73,
+          "start": 7554.0,
           "end": 7740.47
         },
         {
@@ -610,15 +610,15 @@
         },
         {
           "start": 8927.91,
-          "end": 9063.3
+          "end": 9088.0
         },
         {
-          "start": 9316.21,
-          "end": 9443.0
+          "start": 9273.0,
+          "end": 9450.0
         },
         {
           "start": 10086.03,
-          "end": 10245.0
+          "end": 10261.0
         },
         {
           "start": 10583.99,
