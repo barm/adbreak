@@ -1,0 +1,131 @@
+{
+  "format": 1,
+  "recording": {
+    "source": "dvr",
+    "job": 11,
+    "channel": "11.1",
+    "network": "KNTV HD",
+    "title": "Vikings at 49ers (Mexico City)",
+    "start": "2026-11-23T01:18:00+00:00",
+    "duration": 11340.01201666626
+  },
+  "reviewed": [
+    {
+      "start": 0.0,
+      "end": 11340.01201666626
+    }
+  ],
+  "breaks": [
+    {
+      "start": 750.9,
+      "end": 897.0,
+      "kind": "ad"
+    },
+    {
+      "start": 1330.8,
+      "end": 1466.0,
+      "kind": "ad"
+    },
+    {
+      "start": 1643.3,
+      "end": 1793.0,
+      "kind": "ad"
+    },
+    {
+      "start": 2330.0,
+      "end": 2487.5,
+      "kind": "ad"
+    },
+    {
+      "start": 2658.8,
+      "end": 2796.5,
+      "kind": "ad"
+    },
+    {
+      "start": 3648.2,
+      "end": 3770.0,
+      "kind": "ad"
+    },
+    {
+      "start": 3885.1,
+      "end": 4022.0,
+      "kind": "ad"
+    },
+    {
+      "start": 4464.0,
+      "end": 4498.0,
+      "kind": "ad"
+    },
+    {
+      "start": 4683.3,
+      "end": 4821.0,
+      "kind": "ad"
+    },
+    {
+      "start": 5106.3,
+      "end": 5258.0,
+      "kind": "ad"
+    },
+    {
+      "start": 5373.5,
+      "end": 5510.0,
+      "kind": "ad"
+    },
+    {
+      "start": 5940.0,
+      "end": 6154.0,
+      "kind": "ad"
+    },
+    {
+      "start": 6486.0,
+      "end": 6568.0,
+      "kind": "ad"
+    },
+    {
+      "start": 6808.0,
+      "end": 6982.0,
+      "kind": "ad"
+    },
+    {
+      "start": 7289.0,
+      "end": 7415.0,
+      "kind": "ad"
+    },
+    {
+      "start": 7604.7,
+      "end": 7759.0,
+      "kind": "ad"
+    },
+    {
+      "start": 8288.3,
+      "end": 8425.0,
+      "kind": "ad"
+    },
+    {
+      "start": 8927.9,
+      "end": 9063.0,
+      "kind": "ad"
+    },
+    {
+      "start": 9316.2,
+      "end": 9444.0,
+      "kind": "ad"
+    },
+    {
+      "start": 10086.1,
+      "end": 10210.0,
+      "kind": "ad"
+    },
+    {
+      "start": 10583.9,
+      "end": 10722.0,
+      "kind": "ad"
+    },
+    {
+      "start": 10871.9,
+      "end": 11024.5,
+      "kind": "ad"
+    }
+  ],
+  "notes": "Labelled by Claude, 2026-11-24. Break starts are the black edge adbreak and Comskip agree on; ends checked in frames around both sources' ends (to a few seconds) and set at the first live coverage. Sponsored squeezebacks and promo banners over aerials count as ad; sponsored programme features (SNF Sights, halftime segments) count as programme. Only the first 24 min were skimmed in full: a break both sources missed could be absent. Not yet checked by a person."
+}
