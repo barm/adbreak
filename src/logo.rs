@@ -37,7 +37,15 @@ impl Logo {
         for (c, map) in maps.iter_mut().enumerate() {
             let x0 = if c % 2 == 0 { INSET_X } else { 1.0 - INSET_X - BOX_W };
             let y0 = if c < 2 { INSET_Y } else { 1.0 - INSET_Y - BOX_H };
-            *map = edge_map(w, h, luma, (x0 * w as f64) as usize, (y0 * h as f64) as usize, ((BOX_W * w as f64) as usize).max(GW), ((BOX_H * h as f64) as usize).max(GH));
+            *map = edge_map(
+                w,
+                h,
+                luma,
+                (x0 * w as f64) as usize,
+                (y0 * h as f64) as usize,
+                ((BOX_W * w as f64) as usize).max(GW),
+                ((BOX_H * h as f64) as usize).max(GH),
+            );
         }
         self.seconds[sec] = Some(maps);
     }
@@ -74,10 +82,7 @@ impl Logo {
         if size < 20 {
             return vec![None; self.seconds.len()];
         }
-        self.seconds
-            .iter()
-            .map(|s| s.as_ref().map(|m| overlap(&m[corner], &tmpl) * 2 > size))
-            .collect()
+        self.seconds.iter().map(|s| s.as_ref().map(|m| overlap(&m[corner], &tmpl) * 2 > size)).collect()
     }
 }
 

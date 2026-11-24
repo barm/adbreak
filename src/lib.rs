@@ -125,13 +125,8 @@ impl Detector {
     /// Black-and-silent edges (seconds), the candidate break boundaries.
     pub fn edges(&self) -> Vec<f64> {
         let s = self.cfg.edge_slack_secs;
-        let mut e: Vec<f64> = self
-            .black
-            .runs
-            .iter()
-            .filter(|(a, b)| self.silence.runs.iter().any(|(sa, sb)| *sa <= b + s && *sb >= a - s))
-            .map(|(a, b)| (a + b) / 2.0)
-            .collect();
+        let mut e: Vec<f64> =
+            self.black.runs.iter().filter(|(a, b)| self.silence.runs.iter().any(|(sa, sb)| *sa <= b + s && *sb >= a - s)).map(|(a, b)| (a + b) / 2.0).collect();
         e.sort_by(f64::total_cmp);
         e
     }
