@@ -561,23 +561,19 @@
       "detail": "frames (mobileclip2-s0, logistic regression) + captions (text and timing) + black/silence, gradient-boosted over windows to 150 s; edges snapped to black-and-silent moments; leave-one-recording-out",
       "breaks": [
         {
-          "start": 327.0,
+          "start": 328.0,
           "end": 457.01
         },
         {
-          "start": 1042.0,
+          "start": 1043.0,
           "end": 1207.41
         },
         {
-          "start": 1413.0,
+          "start": 1415.0,
           "end": 1603.99
         },
         {
           "start": 2073.44,
-          "end": 2149.53
-        },
-        {
-          "start": 2209.61,
           "end": 2281.28
         },
         {
@@ -590,10 +586,6 @@
         },
         {
           "start": 3823.52,
-          "end": 3899.61
-        },
-        {
-          "start": 3959.69,
           "end": 4031.84
         },
         {
@@ -606,14 +598,10 @@
         },
         {
           "start": 5658.14,
-          "end": 5734.51
-        },
-        {
-          "start": 5794.59,
           "end": 5866.19
         },
         {
-          "start": 6153.73,
+          "start": 6137.53,
           "end": 6365.58
         },
         {
@@ -622,10 +610,6 @@
         },
         {
           "start": 7452.19,
-          "end": 7528.57
-        },
-        {
-          "start": 7588.65,
           "end": 7660.25
         },
         {
@@ -637,15 +621,15 @@
           "end": 8641.83
         },
         {
-          "start": 8858.0,
+          "start": 8866.0,
           "end": 8994.86
         },
         {
-          "start": 9742.0,
+          "start": 9734.0,
           "end": 9879.19
         },
         {
-          "start": 10471.0,
+          "start": 10469.0,
           "end": 10629.59
         }
       ]
