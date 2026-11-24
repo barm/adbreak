@@ -87,7 +87,7 @@ const KINDS = ["ad", "promo", "paid_programming"];
 const KIND_COLOR = { ad: "var(--ad)", promo: "var(--promo)", paid_programming: "var(--paid)" };
 const SOURCE_COLOR = { comskip: "#3e63dd", captions: "#12a594", adbreak: "#ad7f58", dvr: "#8b8d98" };
 const ZOOMS = [null, 3600, 1200, 300, 60, 15];
-let S = null; // { job, labels, sources, cues, covered, dur }
+let S = null; // { id, labels, sources, cues, covered, dur }
 let sel = null, pending = null, zoom = 0, saveTimer = null, drag = null;
 
 function fmt(t) {
@@ -112,52 +112,42 @@ async function showList() {
   try {
     const rows = await api("/api/recordings");
     const t = document.createElement("table");
-    t.innerHTML = "<tr><th>Job</th><th>Title</th><th>Channel</th><th>Recorded</th><th>Length</th><th>Reviewed</th><th>Breaks</th><th>Suggestions</th></tr>";
+    t.innerHTML = "<tr><th>Recording</th><th>Title</th><th>Channel</th><th>Recorded</th><th>Length</th><th>Reviewed</th><th>Breaks</th><th>Suggestions</th></tr>";
     for (const r of rows) {
-      const tr = t.insertRow(); tr.className = "click";
-      tr.onclick = () => location.hash = `#/${r.job}`;
+      const tr = t.insertRow(); tr.className = r.media ? "click" : "dim";
+      if (r.media) tr.onclick = () => location.hash = `#/${r.id}`;
       const pct = r.duration ? Math.round(100 * r.reviewed / r.duration) : 0;
-      for (const c of [r.job, r.title, r.channel, new Date(r.start).toLocaleString(), fmt(r.duration).replace(/\.\d$/, ""), pct ? pct + "%" : "", r.breaks || "", r.sources.join(", ") || "none: run adbreak suggest " + r.job])
+      for (const c of [r.id, r.title, `${r.channel} ${r.network}`, new Date(r.start).toLocaleString(), fmt(r.duration).replace(/\.\d$/, ""), pct ? pct + "%" : "", r.breaks || "", r.media ? (r.sources.join(", ") || "none: run adbreak suggest " + r.id) : "no media: import it again"])
         tr.insertCell().textContent = c;
     }
+    if (!rows.length) t.insertRow().insertCell().textContent = "Nothing imported yet: adbreak import <dir>";
     $("list").replaceChildren(t);
     status(`${rows.length} recordings`);
   } catch (e) { status(e.message, true); }
 }
 
 // ---- review ----
-async function showReview(job) {
+async function showReview(id) {
   $("list").hidden = true; $("review").hidden = false;
   status("loading…");
   sel = null; pending = null;
   try {
-    const d = await api(`/api/recordings/${job}`);
+    const d = await api(`/api/recordings/${id}`);
     const sources = (d.suggestions ? d.suggestions.sources : []);
-    S = { job, labels: d.labels, sources, cues: [], covered: new Uint8Array(0), dur: d.labels.recording.duration };
+    S = { id, labels: d.labels, sources, cues: [], covered: new Uint8Array(0), dur: d.labels.recording.duration };
     const r = d.labels.recording;
     $("crumb").textContent = `${r.title} · ${r.channel} ${r.network} · ${new Date(r.start).toLocaleString()}`;
     $("notes").value = d.labels.notes || "";
-    await attach(`/dvr/hls/${job}/index.m3u8`);
-    loadCaptions(job);
-    status(sources.length ? "" : `no suggestions yet: run  adbreak suggest ${job}`);
+    v.src = `/files/${id}/media.mp4`;
+    loadCaptions(id);
+    status(sources.length ? "" : `no suggestions yet: run  adbreak suggest ${id}`);
     renderList(); draw();
   } catch (e) { status(e.message, true); }
 }
 
-async function attach(url) {
-  if (v.canPlayType("application/vnd.apple.mpegurl")) { v.src = url; return; }
-  if (!window.Hls) await new Promise((ok, fail) => {
-    const s = document.createElement("script");
-    s.src = "https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js"; s.onload = ok; s.onerror = () => fail(new Error("no HLS playback: this browser needs hls.js, which didn't load"));
-    document.head.append(s);
-  });
-  if (window._hls) window._hls.destroy();
-  window._hls = new Hls({ maxBufferLength: 30 }); window._hls.loadSource(url); window._hls.attachMedia(v);
-}
-
-async function loadCaptions(job) {
+async function loadCaptions(id) {
   try {
-    const r = await fetch(`/dvr/hls/${job}/captions.vtt`);
+    const r = await fetch(`/files/${id}/captions.vtt`);
     if (!r.ok) return;
     const text = await r.text();
     const ts = (s) => s.split(":").reduce((a, x) => a * 60 + parseFloat(x), 0);
@@ -297,7 +287,7 @@ function changed() {
 async function save() {
   S.labels.notes = $("notes").value;
   try {
-    const saved = await api(`/api/recordings/${S.job}/labels`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(S.labels) });
+    const saved = await api(`/api/recordings/${S.id}/labels`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(S.labels) });
     S.labels.reviewed = saved.reviewed; status("saved"); draw();
   } catch (e) { status("not saved: " + e.message, true); }
 }
@@ -383,7 +373,7 @@ function tick() {
 requestAnimationFrame(tick);
 addEventListener("resize", draw);
 
-function route() { const m = location.hash.match(/^#\/(\d+)/); m ? showReview(+m[1]) : showList(); }
+function route() { const m = location.hash.match(/^#\/(.+)/); m ? showReview(decodeURIComponent(m[1])) : showList(); }
 addEventListener("hashchange", route);
 route();
 </script>
