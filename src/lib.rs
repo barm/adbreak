@@ -3,7 +3,7 @@
 //! Over-the-air TV carries no markers for its ad breaks, so they have to be found in the picture and sound. This
 //! crate does that from decoded data only, with no dependencies: feed it frames (8-bit luma, any size) and mono
 //! audio samples with their timestamps, in any order and as they arrive, and ask for the breaks at any time.
-//! Decoding is up to you (ffmpeg, a platform decoder, …).
+//! Decoding is up to you (a platform decoder, a software one, …).
 //!
 //! How it decides, tuned on US network broadcasts:
 //! - A break **starts** at an *edge*: a moment that is both black and silent, which networks put around breaks
