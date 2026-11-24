@@ -1,0 +1,121 @@
+{
+  "format": 1,
+  "recording": {
+    "source": "dvr",
+    "job": 33,
+    "channel": "5.1",
+    "network": "KPIX-TV",
+    "title": "step3 5.1",
+    "start": "2026-11-24T07:06:41+00:00",
+    "duration": 10797.386588889365
+  },
+  "reviewed": [
+    {
+      "start": 0.0,
+      "end": 10797.386588889365
+    }
+  ],
+  "breaks": [
+    {
+      "start": 325.9,
+      "end": 456.0,
+      "kind": "ad"
+    },
+    {
+      "start": 1040.5,
+      "end": 1206.6,
+      "kind": "ad"
+    },
+    {
+      "start": 1413.0,
+      "end": 1443.0,
+      "kind": "promo"
+    },
+    {
+      "start": 1443.0,
+      "end": 1603.4,
+      "kind": "ad"
+    },
+    {
+      "start": 2073.4,
+      "end": 2281.2,
+      "kind": "ad"
+    },
+    {
+      "start": 2540.7,
+      "end": 2768.6,
+      "kind": "ad"
+    },
+    {
+      "start": 3092.9,
+      "end": 3296.0,
+      "kind": "ad"
+    },
+    {
+      "start": 3823.5,
+      "end": 4031.8,
+      "kind": "ad"
+    },
+    {
+      "start": 4313.8,
+      "end": 4542.2,
+      "kind": "ad"
+    },
+    {
+      "start": 4782.2,
+      "end": 5073.3,
+      "kind": "ad"
+    },
+    {
+      "start": 5659.4,
+      "end": 5866.2,
+      "kind": "ad"
+    },
+    {
+      "start": 6138.7,
+      "end": 6365.6,
+      "kind": "ad"
+    },
+    {
+      "start": 6665.1,
+      "end": 6866.9,
+      "kind": "ad"
+    },
+    {
+      "start": 7453.5,
+      "end": 7660.2,
+      "kind": "ad"
+    },
+    {
+      "start": 7933.7,
+      "end": 8161.1,
+      "kind": "ad"
+    },
+    {
+      "start": 8440.0,
+      "end": 8642.4,
+      "kind": "ad"
+    },
+    {
+      "start": 8873.0,
+      "end": 8995.6,
+      "kind": "ad"
+    },
+    {
+      "start": 9728.0,
+      "end": 9748.0,
+      "kind": "promo"
+    },
+    {
+      "start": 9748.0,
+      "end": 9879.8,
+      "kind": "ad"
+    },
+    {
+      "start": 10463.0,
+      "end": 10630.4,
+      "kind": "ad"
+    }
+  ],
+  "notes": "Labelled by Claude from frames (contact sheets every 10 s, then 1 s around each edge), 2026-11-24. KPIX news leaves for breaks through a live-camera bumper with no black frame; the break starts after it. KPIX's own Food for Bay Area Families appeal is labelled promo. Allen Media shows run into the next episode with no break. Not yet checked by a person."
+}
