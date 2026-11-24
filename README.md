@@ -11,24 +11,31 @@ It started inside [barm/dvr](https://github.com/barm/dvr), which still uses it t
 
 ## Layout
 
-- `crates/adbreak`: the detector library. Pure Rust, no dependencies, `#![forbid(unsafe_code)]`. You decode;
-  it takes 8-bit luma frames and mono audio samples with their timestamps and returns breaks.
-- `crates/adbreak-captions`: break hints from closed captions (WebVTT).
-- `crates/adbreak-labels`: the dataset format (labels, suggestions) and scoring.
-- `crates/adbreak-cli`: the `adbreak` command, below.
-- `dataset/`: one directory per labelled recording: `labels.json` (a person's) and `suggestions.json` (the
-  automatic sources'). No video: recordings stay on the DVR.
+- `rust/`: a Cargo workspace.
+  - `crates/adbreak`: the detector library. Pure Rust, no dependencies, `#![forbid(unsafe_code)]`. You decode;
+    it takes 8-bit luma frames and mono audio samples with their timestamps and returns breaks.
+  - `crates/adbreak-captions`: break hints from closed captions (WebVTT).
+  - `crates/adbreak-labels`: the dataset format (recordings, labels, suggestions) and scoring.
+  - `crates/adbreak-cli`: the `adbreak` command, below.
+- `web/`: the labelling page (`label.html`, plain JS, built into the `adbreak` binary).
+- `ml/`: Python for training (to come).
+- `dataset/`: one directory per recording: `recording.json`, `labels.json` (a person's) and `suggestions.json`
+  (the automatic sources'). No media: that lives in the media store, outside the repository, because broadcasts
+  can't be redistributed.
 
-## Labelling
+adbreak depends on no recorder. Recordings come in as files; [barm/dvr](https://github.com/barm/dvr) writes them
+with `dvr export`, and depends on the `adbreak` library, not the other way round.
 
-The `adbreak` command works against a [barm/dvr](https://github.com/barm/dvr) server, using its agent token
-(default `~/Movies/hdhr-dvr/.api_token`; `--dvr` and `--token-file` to change).
+## Building the dataset
 
 ```sh
-cargo install --path crates/adbreak-cli
+cargo install --path rust/crates/adbreak-cli
 
-# What the automatic sources think. Downloads the media (to ~/Library/Caches/adbreak, deleted after) for
-# Comskip and the detector; --quick runs only the captions and the DVR's own scan.
+# Add a recording from an import directory (below): keeps a 360p copy and the captions in the media store
+# (ADBREAK_MEDIA, default ~/Movies/adbreak) and its metadata in dataset/.
+adbreak import /path/to/export
+
+# What the automatic sources think: Comskip (if installed), the captions, this detector.
 adbreak suggest 32 --comskip ~/src/comskip/comskip
 
 # Review in a browser: the recording, every source on a timeline, your labels.
@@ -38,13 +45,20 @@ adbreak label            # http://127.0.0.1:8585
 adbreak eval --each
 ```
 
-Run them from the repository root so `dataset/` is this repository's (or pass `--dataset`). On the page, `[` and
-`]` mark a break's start and end, `A` accepts a selected suggestion, `N`/`P` jump between the sources' edges and
-`R` marks everything up to the playhead as reviewed: only reviewed time is scored, so a recording can be labelled
-a part at a time. Kinds: `ad`, `promo` (the station's own), and `paid_programming` (infomercials; never scored).
+Recordings are named by their dataset id (`2026-11-24_2.1_32`) or any unique part of it, such as the job number.
+Run the commands from the repository root so `dataset/` is this repository's (or pass `--dataset`).
 
-Decoding for the detector uses ffmpeg (`ffmpeg` on PATH or Homebrew's). Comskip needs building from source
-against current ffmpeg; see the notes in `AGENTS.md`.
+An import directory holds `recording.json` (`adbreak_labels::Recording`), the media as `media.*` (anything
+ffmpeg reads), and optionally `captions.vtt`, `suggestions.json` (sources the recorder already has, such as its
+own break scan) and `labels.json` (labels it collected, such as corrections made while watching).
+
+On the page, `[` and `]` mark a break's start and end, `A` accepts a selected suggestion, `N`/`P` jump between
+the sources' edges and `R` marks everything up to the playhead as reviewed: only reviewed time is scored, so a
+recording can be labelled a part at a time. Kinds: `ad`, `promo` (the station's own), and `paid_programming`
+(infomercials; never scored).
+
+Transcoding and decoding use ffmpeg for now (`ffmpeg` on PATH or Homebrew's), to be replaced by the native media
+crates shared with the DVR. Comskip needs building from source against current ffmpeg; see `AGENTS.md`.
 
 ## Where it stands
 
@@ -63,14 +77,13 @@ short. Captions catch what it misses: programmes are 81–93% captioned and brea
 
 ## Plan
 
-1. **Labels and evaluation.** A labelling tool merges what Comskip, the captions and this detector say about a
-   recording and shows frames wherever they disagree, to settle by eye. Labels are small JSON files kept in this
-   repository; `eval` scores any detector against them.
-2. **Features.** The DVR writes per-second features (black, silence, logo, captions, later image embeddings) next to
-   each recording as it records, so labelling, evaluation and training don't need to decode multi-gigabyte video.
-3. **Corrections from use.** Breaks adjusted in the DVR's player become labels; skips undone or ads scrubbed past
-   become hints for review.
-4. **A model.** A small sequence model over the features, trained in Python and run through Core ML.
+1. **Labels and evaluation** (built). Label recordings against the sources' suggestions; `eval` scores any
+   detector against the labels.
+2. **Corrections from use.** Breaks fixed in the DVR's player come in as labels around the fixed break; skips
+   undone or ads scrubbed past as weak hints.
+3. **A frame model.** A pretrained image backbone with a small classifier on frames sampled once or twice a second.
+4. **Fusion.** A small sequence model over the frame model's probabilities, captions and black-and-silent edges,
+   with break edges snapped to the detector's frame-accurate edges. Trained in Python, run through Core ML.
 
 ## License
 

@@ -139,6 +139,48 @@ pub fn parse_edl(text: &str) -> Vec<Span> {
         .collect()
 }
 
+/// Makes the dataset's copy of a recording: `height` lines, the original frame rate (break edges are a few frames
+/// long), mono 16 kHz sound, as one MP4 that plays straight from a file. About 0.5 GB for three hours at 360p.
+pub fn transcode(ffmpeg: &Path, input: &Path, output: &Path, height: u32) -> Result<()> {
+    let tmp = output.with_extension("partial.mp4");
+    let scale = format!("scale=-2:{height}");
+    // Hardware HEVC at constant quality on macOS; software H.264 elsewhere.
+    let video: &[&str] = if cfg!(target_os = "macos") {
+        &["-c:v", "hevc_videotoolbox", "-q:v", "50", "-tag:v", "hvc1"]
+    } else {
+        &["-c:v", "libx264", "-crf", "28", "-preset", "faster"]
+    };
+    let hwaccel: &[&str] = if cfg!(target_os = "macos") { &["-hwaccel", "videotoolbox"] } else { &[] };
+    let status = Command::new(ffmpeg)
+        .args(["-nostdin", "-v", "error", "-stats", "-y"])
+        .args(hwaccel)
+        .arg("-i")
+        .arg(input)
+        .args(["-map", "0:v:0", "-map", "0:a:0?", "-sn", "-dn", "-vf", &scale])
+        .args(video)
+        .args(["-c:a", "aac", "-ac", "1", "-ar", "16000", "-b:a", "32k", "-movflags", "+faststart", "-f", "mp4"])
+        .arg(&tmp)
+        .status()
+        .with_context(|| format!("running {}", ffmpeg.display()))?;
+    if !status.success() {
+        let _ = std::fs::remove_file(&tmp);
+        bail!("ffmpeg couldn't transcode {}", input.display());
+    }
+    std::fs::rename(&tmp, output)?;
+    Ok(())
+}
+
+/// The media's length in seconds, from ffprobe next to ffmpeg.
+pub fn duration(ffmpeg: &Path, media: &Path) -> Result<f64> {
+    let ffprobe = ffmpeg.with_file_name("ffprobe");
+    let out = Command::new(&ffprobe)
+        .args(["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0"])
+        .arg(media)
+        .output()
+        .with_context(|| format!("running {}", ffprobe.display()))?;
+    String::from_utf8_lossy(&out.stdout).trim().parse().with_context(|| format!("no duration for {}", media.display()))
+}
+
 #[cfg(test)]
 mod tests {
     #[test]
