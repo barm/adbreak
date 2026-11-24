@@ -1,0 +1,9 @@
+{
+  "source": "dvr",
+  "job": 35,
+  "channel": "4.1",
+  "network": "KRON-TV",
+  "title": "dataset KRON daytime",
+  "start": "2026-11-24T17:38:17+00:00",
+  "duration": 8998.572911111176
+}
