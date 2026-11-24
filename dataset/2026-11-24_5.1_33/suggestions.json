@@ -6,10 +6,15 @@
     "channel": "5.1",
     "network": "KPIX-TV",
     "title": "step3 5.1",
-    "start": "2026-11-24T07:06:41Z",
-    "duration": 10797.38649200127
+    "start": "2026-11-24T07:06:41+00:00",
+    "duration": 10797.386588889363
   },
   "sources": [
+    {
+      "name": "adbreak",
+      "detail": "adbreak 0.1.0 defaults",
+      "breaks": []
+    },
     {
       "name": "captions",
       "detail": "uncaptioned: window 30 s, coverage < 0.5, at least 30 s",
@@ -109,6 +114,76 @@
         {
           "start": 10584.0,
           "end": 10637.0
+        }
+      ]
+    },
+    {
+      "name": "comskip",
+      "detail": "Comskip 0.83.001, made using ffmpeg",
+      "breaks": [
+        {
+          "start": 371.2,
+          "end": 456.79
+        },
+        {
+          "start": 1181.43,
+          "end": 1207.19
+        },
+        {
+          "start": 1578.23,
+          "end": 1603.77
+        },
+        {
+          "start": 2073.24,
+          "end": 2219.6
+        },
+        {
+          "start": 2540.5,
+          "end": 2768.01
+        },
+        {
+          "start": 3213.96,
+          "end": 3295.73
+        },
+        {
+          "start": 3823.32,
+          "end": 3969.65
+        },
+        {
+          "start": 4313.61,
+          "end": 4541.94
+        },
+        {
+          "start": 4902.68,
+          "end": 4967.74
+        },
+        {
+          "start": 5657.95,
+          "end": 5804.59
+        },
+        {
+          "start": 6137.35,
+          "end": 6364.99
+        },
+        {
+          "start": 6784.99,
+          "end": 6866.68
+        },
+        {
+          "start": 7451.99,
+          "end": 7659.67
+        },
+        {
+          "start": 7932.29,
+          "end": 8160.35
+        },
+        {
+          "start": 8559.85,
+          "end": 8641.62
+        },
+        {
+          "start": 8873.81,
+          "end": 8994.64
         }
       ]
     },

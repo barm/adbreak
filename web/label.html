@@ -138,11 +138,24 @@ async function showReview(id) {
     const r = d.labels.recording;
     $("crumb").textContent = `${r.title} · ${r.channel} ${r.network} · ${new Date(r.start).toLocaleString()}`;
     $("notes").value = d.labels.notes || "";
-    v.src = `/files/${id}/media.mp4`;
+    await attach(`/files/${id}/index.m3u8`);
     loadCaptions(id);
     status(sources.length ? "" : `no suggestions yet: run  adbreak suggest ${id}`);
     renderList(); draw();
   } catch (e) { status(e.message, true); }
+}
+
+// The copy is one MP4 with a byte-range playlist over it, which is what lets the player seek: Safari plays it
+// natively, other browsers through hls.js.
+async function attach(url) {
+  if (v.canPlayType("application/vnd.apple.mpegurl")) { v.src = url; return; }
+  if (!window.Hls) await new Promise((ok, fail) => {
+    const s = document.createElement("script");
+    s.src = "https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js"; s.onload = ok; s.onerror = () => fail(new Error("this browser needs hls.js to play, and it didn't load"));
+    document.head.append(s);
+  });
+  if (window._hls) window._hls.destroy();
+  window._hls = new Hls({ maxBufferLength: 30 }); window._hls.loadSource(url); window._hls.attachMedia(v);
 }
 
 async function loadCaptions(id) {

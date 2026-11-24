@@ -27,17 +27,15 @@ struct Cli {
     /// The media store: each recording's low-resolution copy and captions (never in git).
     #[arg(long, env = "ADBREAK_MEDIA", default_value_os_t = home().join("Movies/adbreak"), global = true)]
     media: PathBuf,
-    /// ffmpeg binary (default: `ffmpeg` on PATH or Homebrew's).
-    #[arg(long, env = "ADBREAK_FFMPEG", global = true)]
-    ffmpeg: Option<PathBuf>,
     #[command(subcommand)]
     cmd: Cmd,
 }
 
 #[derive(Subcommand)]
 enum Cmd {
-    /// Add a recording from an import directory: `recording.json` (adbreak_labels::Recording), the media
-    /// (`media.*`, anything ffmpeg reads), and optionally `captions.vtt`, `suggestions.json` and `labels.json`.
+    /// Add a recording from an import directory: `recording.json` (adbreak_labels::Recording), `media.mp4` (a
+    /// fragmented MP4, HEVC and AAC, as barm/dvr records), and optionally `captions.vtt`, `suggestions.json` and
+    /// `labels.json`.
     Import {
         dirs: Vec<PathBuf>,
         /// Height of the copy kept, in lines.
@@ -79,22 +77,19 @@ fn home() -> PathBuf {
 async fn main() -> Result<()> {
     let cli = Cli::parse();
     let data = Dataset::new(cli.dataset.clone(), cli.media.clone());
-    let ffmpeg = || tools::find(cli.ffmpeg.as_deref(), "ffmpeg").context("no ffmpeg found (--ffmpeg or ADBREAK_FFMPEG)");
     match cli.cmd {
         Cmd::Import { dirs, height } => {
-            let ff = ffmpeg()?;
             for d in dirs {
-                import(&data, &ff, &d, height)?;
+                import(&data, &d, height)?;
             }
         }
         Cmd::Suggest { ids, comskip, quick } => {
             let comskip = if quick { None } else { tools::find(comskip.as_deref(), "comskip") };
-            let ff = if quick { None } else { Some(ffmpeg()?) };
             if !quick && comskip.is_none() {
                 eprintln!("no Comskip found (--comskip or ADBREAK_COMSKIP); skipping it");
             }
             for name in ids {
-                suggest(&data, &data.resolve(&name)?, comskip.clone(), ff.clone())?;
+                suggest(&data, &data.resolve(&name)?, comskip.clone(), !quick)?;
             }
         }
         Cmd::Label { bind } => label::serve(data, &bind).await?,
@@ -103,22 +98,17 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-fn import(data: &Dataset, ffmpeg: &Path, dir: &Path, height: u32) -> Result<()> {
+fn import(data: &Dataset, dir: &Path, height: u32) -> Result<()> {
     let mut rec: Recording = dataset::read(&dir.join("recording.json"))?.with_context(|| format!("no recording.json in {}", dir.display()))?;
-    let media = std::fs::read_dir(dir)?
-        .flatten()
-        .map(|e| e.path())
-        .find(|p| p.file_stem().is_some_and(|s| s == "media"))
-        .with_context(|| format!("no media.* in {}", dir.display()))?;
+    let media = dir.join("media.mp4");
+    if !media.is_file() {
+        bail!("no media.mp4 in {}", dir.display());
+    }
     let id = rec.id();
     let out = data.media_dir(&id);
     std::fs::create_dir_all(&out)?;
     eprintln!("{id}: {} on {} {}, {:.0} min: making the {height}p copy", rec.title, rec.channel, rec.network, rec.duration / 60.0);
-    let started = std::time::Instant::now();
-    tools::transcode(ffmpeg, &media, &out.join("media.mp4"), height)?;
-    rec.duration = tools::duration(ffmpeg, &out.join("media.mp4")).unwrap_or(rec.duration);
-    let size = std::fs::metadata(out.join("media.mp4"))?.len();
-    eprintln!("  {} MB in {:.0} s", size / 1_000_000, started.elapsed().as_secs_f64());
+    rec.duration = tools::shrink(&media, &out, height)?;
     if dir.join("captions.vtt").is_file() {
         std::fs::copy(dir.join("captions.vtt"), out.join("captions.vtt"))?;
     }
@@ -140,7 +130,7 @@ fn import(data: &Dataset, ffmpeg: &Path, dir: &Path, height: u32) -> Result<()> 
     Ok(())
 }
 
-fn suggest(data: &Dataset, id: &str, comskip: Option<PathBuf>, ffmpeg: Option<PathBuf>) -> Result<()> {
+fn suggest(data: &Dataset, id: &str, comskip: Option<PathBuf>, detector: bool) -> Result<()> {
     let e = data.entry(id)?;
     let rec = &e.recording;
     let dir = data.media_dir(id);
@@ -153,7 +143,7 @@ fn suggest(data: &Dataset, id: &str, comskip: Option<PathBuf>, ffmpeg: Option<Pa
         let detail = format!("uncaptioned: window {} s, coverage < {}, at least {} s", q.window, q.max_coverage, q.min_secs);
         sources.push(Source { name: "captions".into(), detail, breaks });
     }
-    if comskip.is_some() || ffmpeg.is_some() {
+    if comskip.is_some() || detector {
         let media = dir.join("media.mp4");
         if !media.is_file() {
             bail!("no media for {id} in {} (import it again)", dir.display());
@@ -163,7 +153,7 @@ fn suggest(data: &Dataset, id: &str, comskip: Option<PathBuf>, ffmpeg: Option<Pa
         let started = std::time::Instant::now();
         let (m1, w1) = (media.clone(), work.clone());
         let cs = comskip.map(|c| std::thread::spawn(move || tools::comskip(&c, &m1, &w1)));
-        let det = ffmpeg.map(|f| std::thread::spawn(move || tools::detect(&f, &media)));
+        let det = detector.then(|| std::thread::spawn(move || tools::detect(&media)));
         if let Some(t) = cs {
             let (breaks, version) = t.join().expect("comskip thread")?;
             sources.push(Source { name: "comskip".into(), detail: version, breaks });

@@ -24,16 +24,18 @@ It started inside [barm/dvr](https://github.com/barm/dvr), which still uses it t
   can't be redistributed.
 
 adbreak depends on no recorder. Recordings come in as files; [barm/dvr](https://github.com/barm/dvr) writes them
-with `dvr export`, and depends on the `adbreak` library, not the other way round.
+with `dvr export`, and depends on the `adbreak` library, not the other way round. Media work (the small copy, the
+detector's decoding) is done in hardware by [barm/avkit](https://github.com/barm/avkit), on macOS; no ffmpeg.
 
 ## Building the dataset
 
 ```sh
 cargo install --path rust/crates/adbreak-cli
 
-# Add a recording from an import directory (below): keeps a 360p copy and the captions in the media store
-# (ADBREAK_MEDIA, default ~/Movies/adbreak) and its metadata in dataset/.
-adbreak import /path/to/export
+# Add a recording: the DVR writes an import directory (below), adbreak keeps a 360p copy and the captions in the
+# media store (ADBREAK_MEDIA, default ~/Movies/adbreak) and its metadata in dataset/.
+dvr export 32 --to /tmp/export-32
+adbreak import /tmp/export-32
 
 # What the automatic sources think: Comskip (if installed), the captions, this detector.
 adbreak suggest 32 --comskip ~/src/comskip/comskip
@@ -48,8 +50,8 @@ adbreak eval --each
 Recordings are named by their dataset id (`2026-11-24_2.1_32`) or any unique part of it, such as the job number.
 Run the commands from the repository root so `dataset/` is this repository's (or pass `--dataset`).
 
-An import directory holds `recording.json` (`adbreak_labels::Recording`), the media as `media.*` (anything
-ffmpeg reads), and optionally `captions.vtt`, `suggestions.json` (sources the recorder already has, such as its
+An import directory holds `recording.json` (`adbreak_labels::Recording`), `media.mp4` (a fragmented MP4 with HEVC
+video and AAC sound, as barm/dvr records), and optionally `captions.vtt`, `suggestions.json` (sources the recorder already has, such as its
 own break scan) and `labels.json` (labels it collected, such as corrections made while watching).
 
 On the page, `[` and `]` mark a break's start and end, `A` accepts a selected suggestion, `N`/`P` jump between
@@ -57,8 +59,9 @@ the sources' edges and `R` marks everything up to the playhead as reviewed: only
 recording can be labelled a part at a time. Kinds: `ad`, `promo` (the station's own), and `paid_programming`
 (infomercials; never scored).
 
-Transcoding and decoding use ffmpeg for now (`ffmpeg` on PATH or Homebrew's), to be replaced by the native media
-crates shared with the DVR. Comskip needs building from source against current ffmpeg; see `AGENTS.md`.
+The copy is 640×360 HEVC with every picture (break edges are a few pictures long), mono AAC, and a byte-range
+playlist to seek by: about 0.6 GB for a 3.5-hour recording, made at about 14× real time. Comskip finds the same
+breaks in it as in the original, to 0.02 s. Comskip is optional and needs building from source; see `AGENTS.md`.
 
 ## Where it stands
 
