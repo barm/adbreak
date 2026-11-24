@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>adbreak labelling</title>
+<link rel="icon" href="data:,">
+<style>
+  :root { color-scheme: dark; --bg: #111113; --panel: #1b1b1f; --line: #2e2e35; --text: #ededef; --dim: #9b9ba4;
+          --ad: #e5484d; --promo: #f5a524; --paid: #8e4ec6; --accent: #3e63dd; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.4 -apple-system, system-ui, sans-serif; }
+  header { display: flex; gap: 12px; align-items: baseline; padding: 10px 16px; border-bottom: 1px solid var(--line); }
+  header a { color: var(--text); font-weight: 600; text-decoration: none; }
+  #status { margin-left: auto; color: var(--dim); }
+  #status.err { color: var(--ad); }
+  main { padding: 12px 16px; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { color: var(--dim); font-weight: 500; }
+  tr.click { cursor: pointer; }
+  tr.click:hover, tr.sel { background: var(--panel); }
+  .stage { position: relative; background: #000; display: flex; justify-content: center; }
+  video { max-width: 100%; max-height: 58vh; display: block; }
+  #cap { position: absolute; left: 0; right: 0; bottom: 8px; text-align: center; pointer-events: none; }
+  #cap span { background: rgba(0,0,0,.75); padding: 2px 6px; font: 15px/1.5 ui-monospace, monospace; white-space: pre; }
+  .bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 8px 0; }
+  .bar .time { font: 600 16px ui-monospace, monospace; min-width: 120px; }
+  button, select { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 4px 9px; font: inherit; cursor: pointer; }
+  button:hover { border-color: var(--dim); }
+  kbd { font: 12px ui-monospace, monospace; color: var(--dim); }
+  canvas { width: 100%; display: block; background: var(--panel); border-radius: 6px; cursor: crosshair; }
+  .cols { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; margin-top: 12px; }
+  .help { color: var(--dim); }
+  .help td { padding: 2px 6px; border: 0; white-space: normal; vertical-align: top; }
+  .pill { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; }
+  .dim { color: var(--dim); }
+  @media (max-width: 800px) { .cols { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header><a href="#">adbreak labelling</a><span id="crumb" class="dim"></span><span id="status"></span></header>
+<main id="list"></main>
+<main id="review" hidden>
+  <div class="stage"><video id="v" playsinline controls preload="auto"></video><div id="cap"></div></div>
+  <div class="bar">
+    <span class="time" id="time">0:00:00.0</span>
+    <button data-k="[">Start <kbd>[</kbd></button>
+    <button data-k="]">End <kbd>]</kbd></button>
+    <button data-k="a">Accept <kbd>A</kbd></button>
+    <button data-k="k">Kind <kbd>K</kbd></button>
+    <button data-k="Backspace">Delete <kbd>⌫</kbd></button>
+    <button data-k="p">◀ Edge <kbd>P</kbd></button>
+    <button data-k="n">Edge ▶ <kbd>N</kbd></button>
+    <button data-k="r">Reviewed to here <kbd>R</kbd></button>
+    <button data-k="-">Zoom out <kbd>-</kbd></button>
+    <button data-k="=">Zoom in <kbd>+</kbd></button>
+    <span id="zoom" class="dim"></span>
+  </div>
+  <canvas id="tl"></canvas>
+  <div class="cols">
+    <section>
+      <table id="breaks"></table>
+      <p><label class="dim">Notes <input id="notes" style="width: 60%; background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 4px"></label></p>
+    </section>
+    <section class="help">
+      <table>
+        <tr><td><kbd>Space</kbd></td><td>play / pause</td></tr>
+        <tr><td><kbd>← →</kbd></td><td>1 s (<kbd>⇧</kbd> 10 s, <kbd>⌥</kbd> 60 s)</td></tr>
+        <tr><td><kbd>, .</kbd></td><td>one frame</td></tr>
+        <tr><td><kbd>[ ]</kbd></td><td>start / end a break here; with a break selected, move its edge here</td></tr>
+        <tr><td><kbd>A</kbd></td><td>accept the selected suggestion as a break</td></tr>
+        <tr><td><kbd>K</kbd></td><td>ad → promo → paid programming</td></tr>
+        <tr><td><kbd>N P</kbd></td><td>next / previous edge from any source</td></tr>
+        <tr><td><kbd>R</kbd></td><td>mark reviewed up to here (only reviewed parts are scored)</td></tr>
+        <tr><td><kbd>Esc</kbd></td><td>clear the selection</td></tr>
+      </table>
+      <p>Click a span on the timeline to select it; drag a selected break's edge to move it. Changes save as you go.</p>
+    </section>
+  </div>
+</main>
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const v = $("v"), tl = $("tl");
+const KINDS = ["ad", "promo", "paid_programming"];
+const KIND_COLOR = { ad: "var(--ad)", promo: "var(--promo)", paid_programming: "var(--paid)" };
+const SOURCE_COLOR = { comskip: "#3e63dd", captions: "#12a594", adbreak: "#ad7f58", dvr: "#8b8d98" };
+const ZOOMS = [null, 3600, 1200, 300, 60, 15];
+let S = null; // { job, labels, sources, cues, covered, dur }
+let sel = null, pending = null, zoom = 0, saveTimer = null, drag = null;
+
+function fmt(t) {
+  if (!isFinite(t)) return "–";
+  const h = Math.floor(t / 3600), m = Math.floor(t / 60) % 60, s = t % 60;
+  return `${h}:${String(m).padStart(2, "0")}:${s.toFixed(1).padStart(4, "0")}`;
+}
+function status(msg, err) { const s = $("status"); s.textContent = msg; s.className = err ? "err" : ""; }
+function cssVar(c) { return c.startsWith("var(") ? getComputedStyle(document.documentElement).getPropertyValue(c.slice(4, -1)).trim() : c; }
+
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  if (!r.ok) throw new Error(await r.text() || r.statusText);
+  return r.json();
+}
+
+// ---- list ----
+async function showList() {
+  $("review").hidden = true; $("list").hidden = false; $("crumb").textContent = "";
+  v.pause(); v.removeAttribute("src"); v.load();
+  status("loading…");
+  try {
+    const rows = await api("/api/recordings");
+    const t = document.createElement("table");
+    t.innerHTML = "<tr><th>Job</th><th>Title</th><th>Channel</th><th>Recorded</th><th>Length</th><th>Reviewed</th><th>Breaks</th><th>Suggestions</th></tr>";
+    for (const r of rows) {
+      const tr = t.insertRow(); tr.className = "click";
+      tr.onclick = () => location.hash = `#/${r.job}`;
+      const pct = r.duration ? Math.round(100 * r.reviewed / r.duration) : 0;
+      for (const c of [r.job, r.title, r.channel, new Date(r.start).toLocaleString(), fmt(r.duration).replace(/\.\d$/, ""), pct ? pct + "%" : "", r.breaks || "", r.sources.join(", ") || "none: run adbreak suggest " + r.job])
+        tr.insertCell().textContent = c;
+    }
+    $("list").replaceChildren(t);
+    status(`${rows.length} recordings`);
+  } catch (e) { status(e.message, true); }
+}
+
+// ---- review ----
+async function showReview(job) {
+  $("list").hidden = true; $("review").hidden = false;
+  status("loading…");
+  sel = null; pending = null;
+  try {
+    const d = await api(`/api/recordings/${job}`);
+    const sources = (d.suggestions ? d.suggestions.sources : []);
+    S = { job, labels: d.labels, sources, cues: [], covered: new Uint8Array(0), dur: d.labels.recording.duration };
+    const r = d.labels.recording;
+    $("crumb").textContent = `${r.title} · ${r.channel} ${r.network} · ${new Date(r.start).toLocaleString()}`;
+    $("notes").value = d.labels.notes || "";
+    await attach(`/dvr/hls/${job}/index.m3u8`);
+    loadCaptions(job);
+    status(sources.length ? "" : `no suggestions yet: run  adbreak suggest ${job}`);
+    renderList(); draw();
+  } catch (e) { status(e.message, true); }
+}
+
+async function attach(url) {
+  if (v.canPlayType("application/vnd.apple.mpegurl")) { v.src = url; return; }
+  if (!window.Hls) await new Promise((ok, fail) => {
+    const s = document.createElement("script");
+    s.src = "https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js"; s.onload = ok; s.onerror = () => fail(new Error("no HLS playback: this browser needs hls.js, which didn't load"));
+    document.head.append(s);
+  });
+  if (window._hls) window._hls.destroy();
+  window._hls = new Hls({ maxBufferLength: 30 }); window._hls.loadSource(url); window._hls.attachMedia(v);
+}
+
+async function loadCaptions(job) {
+  try {
+    const r = await fetch(`/dvr/hls/${job}/captions.vtt`);
+    if (!r.ok) return;
+    const text = await r.text();
+    const ts = (s) => s.split(":").reduce((a, x) => a * 60 + parseFloat(x), 0);
+    const cues = [];
+    const re = /([\d:.]+) --> ([\d:.]+)[^\n]*\n((?:.+\n?)*)/g;
+    let m;
+    while ((m = re.exec(text))) cues.push({ start: ts(m[1]), end: ts(m[2]), text: m[3].trim() });
+    const covered = new Uint8Array(Math.ceil(S.dur) + 1);
+    for (const c of cues) for (let s = Math.floor(c.start); s < Math.min(Math.ceil(c.end), covered.length); s++) covered[s] = 1;
+    S.cues = cues; S.covered = covered; draw();
+  } catch { /* captions are optional */ }
+}
+
+function cueAt(t) {
+  const c = S.cues; let lo = 0, hi = c.length - 1, found = null;
+  while (lo <= hi) { const mid = (lo + hi) >> 1; if (c[mid].start <= t) { found = c[mid]; lo = mid + 1; } else hi = mid - 1; }
+  return found && t < found.end ? found : null;
+}
+
+// ---- timeline ----
+const ROW = 22, NAME = 84, TOP = 18;
+function rows() {
+  const r = [{ name: "labels", spans: S.labels.breaks, label: true }];
+  for (const s of S.sources) r.push({ name: s.name, spans: s.breaks, source: s.name });
+  return r;
+}
+function view() {
+  const t = v.currentTime || 0, z = ZOOMS[zoom];
+  if (!z) return [0, Math.max(S.dur, 1)];
+  let a = Math.max(0, t - z / 2), b = a + z;
+  if (b > S.dur) { b = S.dur; a = Math.max(0, b - z); }
+  return [a, b];
+}
+function geometry() {
+  const w = tl.clientWidth, n = rows().length;
+  const h = TOP + n * ROW + 2 * 10 + 6;
+  return { w, h, x: (t, [a, b]) => NAME + (t - a) / (b - a) * (w - NAME - 6), t: (x, [a, b]) => a + (x - NAME) / (w - NAME - 6) * (b - a) };
+}
+
+function draw() {
+  if (!S) return;
+  const g = geometry(), dpr = devicePixelRatio || 1, vw = view();
+  if (tl.width !== g.w * dpr || tl.height !== g.h * dpr) { tl.width = g.w * dpr; tl.height = g.h * dpr; tl.style.height = g.h + "px"; }
+  const c = tl.getContext("2d"); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, g.w, g.h);
+  c.font = "12px -apple-system, system-ui, sans-serif"; c.textBaseline = "middle";
+  // ticks
+  const span = vw[1] - vw[0], steps = [1, 5, 10, 30, 60, 300, 600, 1800, 3600];
+  const step = steps.find((s) => span / s <= 12) || 3600;
+  c.fillStyle = cssVar("var(--dim)"); c.strokeStyle = cssVar("var(--line)");
+  for (let t = Math.ceil(vw[0] / step) * step; t <= vw[1]; t += step) {
+    const x = g.x(t, vw); c.beginPath(); c.moveTo(x, TOP - 4); c.lineTo(x, g.h); c.stroke();
+    c.fillText(fmt(t).replace(/\.\d$/, ""), x + 3, 8);
+  }
+  rows().forEach((r, i) => {
+    const y = TOP + i * ROW;
+    c.fillStyle = cssVar("var(--dim)"); c.fillText(r.name, 6, y + ROW / 2);
+    r.spans.forEach((s, j) => {
+      if (s.end < vw[0] || s.start > vw[1]) return;
+      const x0 = Math.max(NAME, g.x(s.start, vw)), x1 = Math.min(g.w - 6, g.x(s.end, vw));
+      c.fillStyle = r.label ? cssVar(KIND_COLOR[s.kind || "ad"]) : (SOURCE_COLOR[r.name] || "#888");
+      c.globalAlpha = r.label ? 0.9 : 0.6; c.fillRect(x0, y + 3, Math.max(2, x1 - x0), ROW - 6); c.globalAlpha = 1;
+      const isSel = sel && ((sel.label && r.label && sel.i === j) || (sel.source === r.source && sel.i === j && !r.label));
+      if (isSel) { c.strokeStyle = "#fff"; c.lineWidth = 2; c.strokeRect(x0, y + 2, Math.max(2, x1 - x0), ROW - 4); c.lineWidth = 1; }
+    });
+  });
+  // captions on screen, and what has been reviewed
+  const yc = TOP + rows().length * ROW + 2;
+  c.fillStyle = cssVar("var(--dim)"); c.fillText("captioned", 6, yc + 4); c.fillText("reviewed", 6, yc + 16);
+  c.fillStyle = SOURCE_COLOR.captions;
+  const px = (g.w - NAME - 6) / span;
+  for (let s = Math.max(0, Math.floor(vw[0])); s < Math.min(S.covered.length, vw[1]); s++)
+    if (S.covered[s]) c.fillRect(g.x(s, vw), yc, Math.max(1, px), 8);
+  c.fillStyle = "#30a46c";
+  for (const r of S.labels.reviewed) {
+    const x0 = Math.max(NAME, g.x(r.start, vw)), x1 = Math.min(g.w - 6, g.x(r.end, vw));
+    if (x1 > x0) c.fillRect(x0, yc + 12, x1 - x0, 8);
+  }
+  // pending start, playhead
+  if (pending !== null) { c.strokeStyle = cssVar("var(--ad)"); c.setLineDash([4, 3]); const x = g.x(pending, vw); c.beginPath(); c.moveTo(x, TOP); c.lineTo(x, g.h); c.stroke(); c.setLineDash([]); }
+  const x = g.x(v.currentTime || 0, vw); c.strokeStyle = "#fff"; c.beginPath(); c.moveTo(x, 0); c.lineTo(x, g.h); c.stroke();
+  $("zoom").textContent = ZOOMS[zoom] ? `showing ${fmt(ZOOMS[zoom]).replace(/\.\d$/, "")}` : "whole recording";
+}
+
+function hit(ev) {
+  const g = geometry(), vw = view(), r = tl.getBoundingClientRect();
+  const x = ev.clientX - r.left, y = ev.clientY - r.top;
+  const t = Math.min(S.dur, Math.max(0, g.t(x, vw))), row = Math.floor((y - TOP) / ROW), all = rows();
+  const tol = 5 * (vw[1] - vw[0]) / (g.w - NAME);
+  return { t, x, row: all[row], tol };
+}
+
+tl.addEventListener("mousedown", (ev) => {
+  if (!S) return;
+  const h = hit(ev);
+  if (h.x < NAME) return;
+  if (sel && sel.label) {
+    const b = S.labels.breaks[sel.i];
+    if (Math.abs(h.t - b.start) < h.tol) { drag = "start"; return; }
+    if (Math.abs(h.t - b.end) < h.tol) { drag = "end"; return; }
+  }
+  if (h.row) {
+    const j = h.row.spans.findIndex((s) => s.start <= h.t && h.t < s.end);
+    if (j >= 0) sel = h.row.label ? { label: true, i: j } : { source: h.row.source, i: j };
+    else if (h.row.label) sel = null;
+  }
+  seek(h.t); renderList();
+});
+addEventListener("mousemove", (ev) => {
+  if (!drag || !sel) return;
+  const b = S.labels.breaks[sel.i], h = hit(ev);
+  if (drag === "start") b.start = Math.min(h.t, b.end - 0.1); else b.end = Math.max(h.t, b.start + 0.1);
+  seek(h.t);
+});
+addEventListener("mouseup", () => { if (drag) { drag = null; changed(); } });
+
+// ---- editing ----
+function seek(t) { v.currentTime = Math.max(0, Math.min(S.dur, t)); draw(); }
+function overlaps(a, b, skip) { return S.labels.breaks.some((x, i) => i !== skip && a < x.end && x.start < b); }
+function addBreak(start, end, kind) {
+  if (end - start < 0.5) return status("a break needs at least half a second", true);
+  if (overlaps(start, end, -1)) return status("that would overlap a labelled break", true);
+  S.labels.breaks.push({ start, end, kind: kind || "ad" });
+  S.labels.breaks.sort((a, b) => a.start - b.start);
+  sel = { label: true, i: S.labels.breaks.findIndex((b) => b.start === start) };
+  changed();
+}
+function edges() {
+  const e = [];
+  for (const r of rows()) for (const s of r.spans) e.push(s.start, s.end);
+  return e.sort((a, b) => a - b);
+}
+function changed() {
+  renderList(); draw();
+  clearTimeout(saveTimer); status("unsaved…");
+  saveTimer = setTimeout(save, 500);
+}
+async function save() {
+  S.labels.notes = $("notes").value;
+  try {
+    const saved = await api(`/api/recordings/${S.job}/labels`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(S.labels) });
+    S.labels.reviewed = saved.reviewed; status("saved"); draw();
+  } catch (e) { status("not saved: " + e.message, true); }
+}
+
+function key(k, shift, alt) {
+  const t = v.currentTime || 0;
+  const b = sel && sel.label ? S.labels.breaks[sel.i] : null;
+  switch (k) {
+    case " ": v.paused ? v.play() : v.pause(); break;
+    case "ArrowLeft": seek(t - (alt ? 60 : shift ? 10 : 1)); break;
+    case "ArrowRight": seek(t + (alt ? 60 : shift ? 10 : 1)); break;
+    case ",": v.pause(); seek(t - 1 / 29.97); break;
+    case ".": v.pause(); seek(t + 1 / 29.97); break;
+    case "[":
+      if (b) { if (t >= b.end || overlaps(t, b.end, sel.i)) return status("can't move the start there", true); b.start = t; changed(); }
+      else { pending = t; status(`break starts at ${fmt(t)}: press ] at its end`); draw(); }
+      break;
+    case "]":
+      if (b) { if (t <= b.start || overlaps(b.start, t, sel.i)) return status("can't move the end there", true); b.end = t; changed(); }
+      else if (pending !== null) { const p = pending; pending = null; addBreak(Math.min(p, t), Math.max(p, t)); }
+      else status("press [ at the break's start first", true);
+      break;
+    case "a": case "A":
+      if (sel && sel.source) { const s = S.sources.find((x) => x.name === sel.source).breaks[sel.i]; addBreak(s.start, s.end); }
+      else status("select a suggestion on the timeline first", true);
+      break;
+    case "k": case "K":
+      if (b) { b.kind = KINDS[(KINDS.indexOf(b.kind || "ad") + 1) % KINDS.length]; changed(); }
+      break;
+    case "Backspace": case "Delete":
+      if (b) { S.labels.breaks.splice(sel.i, 1); sel = null; changed(); }
+      break;
+    case "n": case "N": { const e = edges().find((x) => x > t + 0.05); if (e !== undefined) seek(e); break; }
+    case "p": case "P": { const e = edges().reverse().find((x) => x < t - 0.05); if (e !== undefined) seek(e); break; }
+    case "r": case "R": {
+      const before = S.labels.reviewed.filter((r) => r.start <= t).map((r) => r.end).filter((e) => e <= t);
+      const from = before.length ? Math.max(...before) : 0;
+      if (t > from) { S.labels.reviewed.push({ start: from, end: t >= S.dur - 1 ? S.dur : t }); changed(); }
+      break;
+    }
+    case "=": case "+": zoom = Math.min(ZOOMS.length - 1, zoom + 1); draw(); break;
+    case "-": case "_": zoom = Math.max(0, zoom - 1); draw(); break;
+    case "Escape": sel = null; pending = null; renderList(); draw(); break;
+    default: return false;
+  }
+  return true;
+}
+addEventListener("keydown", (ev) => {
+  if ($("review").hidden || ev.metaKey || ev.ctrlKey || /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) return;
+  if (key(ev.key, ev.shiftKey, ev.altKey)) ev.preventDefault();
+});
+document.querySelectorAll("[data-k]").forEach((b) => b.addEventListener("click", () => { key(b.dataset.k, false, false); b.blur(); }));
+$("notes").addEventListener("input", () => changed());
+
+function renderList() {
+  const t = $("breaks");
+  t.innerHTML = "<tr><th>Start</th><th>End</th><th>Length</th><th>Kind</th><th></th></tr>";
+  S.labels.breaks.forEach((b, i) => {
+    const tr = t.insertRow(); tr.className = "click" + (sel && sel.label && sel.i === i ? " sel" : "");
+    tr.onclick = (ev) => { if (ev.target.tagName === "SELECT" || ev.target.tagName === "BUTTON") return; sel = { label: true, i }; seek(b.start); renderList(); };
+    tr.insertCell().textContent = fmt(b.start); tr.insertCell().textContent = fmt(b.end); tr.insertCell().textContent = `${Math.round(b.end - b.start)} s`;
+    const s = document.createElement("select");
+    for (const k of KINDS) s.add(new Option(k.replace("_", " "), k, false, (b.kind || "ad") === k));
+    s.onchange = () => { b.kind = s.value; changed(); };
+    tr.insertCell().append(s);
+    const del = document.createElement("button"); del.textContent = "Delete"; del.onclick = () => { S.labels.breaks.splice(i, 1); sel = null; changed(); };
+    tr.insertCell().append(del);
+  });
+  const reviewed = S.labels.reviewed.reduce((a, r) => a + r.end - r.start, 0);
+  const cap = t.createCaption(); cap.style.textAlign = "left"; cap.className = "dim";
+  cap.textContent = `${S.labels.breaks.length} breaks · reviewed ${fmt(reviewed).replace(/\.\d$/, "")} of ${fmt(S.dur).replace(/\.\d$/, "")}`;
+}
+
+function tick() {
+  if (S && !$("review").hidden) {
+    $("time").textContent = fmt(v.currentTime || 0);
+    const c = cueAt(v.currentTime || 0);
+    $("cap").innerHTML = c ? `<span>${c.text.replace(/[&<>]/g, (x) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[x])}</span>` : "";
+    draw();
+  }
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+addEventListener("resize", draw);
+
+function route() { const m = location.hash.match(/^#\/(\d+)/); m ? showReview(+m[1]) : showList(); }
+addEventListener("hashchange", route);
+route();
+</script>
+</body>
+</html>

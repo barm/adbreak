@@ -1,3 +1,3 @@
 [workspace]
-members = ["crates/adbreak"]
+members = ["crates/adbreak", "crates/adbreak-cli", "crates/adbreak-captions", "crates/adbreak-labels"]
 resolver = "3"
