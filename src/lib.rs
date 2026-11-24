@@ -24,6 +24,8 @@
 //! assert!(d.breaks().is_empty());
 //! ```
 
+#![forbid(unsafe_code)]
+
 mod black;
 mod breaks;
 mod logo;
