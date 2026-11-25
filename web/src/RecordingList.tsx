@@ -8,6 +8,7 @@ import { Stack } from "@astryxdesign/core/Stack";
 import { fmt } from "./editor/engine";
 import { AppHeader } from "./AppHeader";
 import { TrainingRole } from "./TrainingRole";
+import { RowLinks } from "./RowLinks";
 
 type Row = {
   id: string;
@@ -78,6 +79,7 @@ export function RecordingList() {
           <Stack gap={2}>
             {error && <Text color="accent">{error}</Text>}
             {rows && (
+              <RowLinks ids={rows.map((r) => (r.media ? r.id : ""))}>
               <Table
                 data={rows}
                 columns={columns}
@@ -87,6 +89,7 @@ export function RecordingList() {
                 textOverflow="truncate"
                 emptyState={<EmptyState title="Nothing imported yet" description="adbreak import <dir>" isCompact />}
               />
+              </RowLinks>
             )}
           </Stack>
         </LayoutContent>
