@@ -43,8 +43,18 @@
   #review.side #resizer { display: block; }
   #resizer:hover, #resizer.on { background: var(--line); }
   #tlwrap { position: relative; }
-  #kindmenu { position: absolute; z-index: 4; font-size: 12px; padding: 0 2px; height: 18px; border-radius: 4px;
-              background: #2a2a31; border-color: #fff; }
+  /* The selected label's kind, written on it, with a caret that opens its menu. */
+  #kindtag { position: absolute; z-index: 4; font-size: 12px; line-height: 16px; color: #fff; cursor: pointer;
+             white-space: nowrap; text-shadow: 0 1px 2px rgba(0,0,0,.6); user-select: none; }
+  #kindtag:hover { text-decoration: underline; }
+  /* A label's menu (right-click, or its kind's caret): kind, split, delete. */
+  #ctxmenu { position: absolute; z-index: 6; min-width: 200px; background: #1f1f25; border: 1px solid var(--line);
+             border-radius: 8px; padding: 4px; box-shadow: 0 8px 24px rgba(0,0,0,.5); font-size: 13px; }
+  #ctxmenu button { display: block; width: 100%; text-align: left; background: none; border: 0; border-radius: 5px;
+                    color: inherit; padding: 4px 10px; font: inherit; cursor: pointer; }
+  #ctxmenu button:hover, #ctxmenu button:focus { background: var(--accent); color: #fff; outline: none; }
+  #ctxmenu button .k { float: right; color: var(--dim); margin-left: 16px; }
+  #ctxmenu hr { border: 0; border-top: 1px solid var(--line); margin: 4px 2px; }
   #info { position: absolute; z-index: 5; width: 340px; background: #1f1f25; border: 1px solid var(--line); border-radius: 8px;
           padding: 10px 12px; box-shadow: 0 8px 24px rgba(0,0,0,.5); font-size: 13px; line-height: 1.45; }
   #info h4 { margin: 0 0 4px; font-size: 13px; }
@@ -82,7 +92,7 @@
     <button data-k="=">Zoom in <kbd>+</kbd></button>
     <span id="zoom" class="dim"></span>
   </div>
-  <span id="tlwrap" style="display: block"><canvas id="tl"></canvas><select id="kindmenu" hidden title="Kind"></select><span id="info" hidden></span></span>
+  <span id="tlwrap" style="display: block"><canvas id="tl"></canvas><span id="kindtag" hidden title="Kind, split or delete"></span><div id="ctxmenu" hidden></div><span id="info" hidden></span></span>
   </section>
   <span id="resizer" title="Drag to resize the panel"></span>
   <aside id="panel">
@@ -98,7 +108,8 @@
         <tr><td><kbd>, .</kbd></td><td>one frame</td></tr>
         <tr><td><kbd>[ ]</kbd></td><td>mark a new break's start and end here, in either order; with a break selected, move its edge here</td></tr>
         <tr><td><kbd>A</kbd></td><td>accept the selected suggestion as a break</td></tr>
-        <tr><td>right-click</td><td>a label on the timeline: change its kind (or select it and use the dropdown on it)</td></tr>
+        <tr><td>right-click</td><td>a label on the timeline: change its kind, split it where you clicked or at the playhead, or delete it (or select it and click ▾ by its kind)</td></tr>
+        <tr><td><kbd>S</kbd></td><td>split the selected label at the playhead: say, an ad read at the end of a break</td></tr>
         <tr><td><kbd>K</kbd></td><td>commercial break → double box (programme shrunk beside an ad) → ad read (advertising over the full-screen programme) → paid programming</td></tr>
         <tr><td><kbd>N P</kbd></td><td>next / previous edge from any source</td></tr>
         <tr><td><kbd>R</kbd></td><td>mark reviewed up to here (only reviewed parts are scored)</td></tr>
@@ -432,23 +443,61 @@ tl.addEventListener("pointercancel", endPointer);
 tl.addEventListener("pointerleave", () => { hoverT = null; draw(); });
 
 // The selected label's kind, changeable on the timeline: a dropdown on the label itself.
-const kindMenu = $("kindmenu");
-for (const k of KINDS) kindMenu.add(new Option(KIND_NAME[k], k));
-kindMenu.onchange = () => {
-  if (sel && sel.label) { S.labels.breaks[sel.i].kind = kindMenu.value; changed(); }
-  kindMenu.blur();
-};
-kindMenu.addEventListener("keydown", (ev) => ev.stopPropagation());
+const kindTag = $("kindtag"), ctx = $("ctxmenu");
+// The selected label's kind, written on it with a caret: click for its menu.
 function placeKindMenu(g, vw) {
   const b = sel && sel.label ? S.labels.breaks[sel.i] : null;
-  if (!b || b.end < vw[0] || b.start > vw[1]) { kindMenu.hidden = true; return; }
-  const x0 = Math.max(NAME, g.x(b.start, vw)) + 2;
-  kindMenu.hidden = false;
-  if (document.activeElement !== kindMenu) kindMenu.value = b.kind || "ad";
-  kindMenu.style.left = `${Math.min(x0, g.w - 130)}px`;
-  kindMenu.style.top = `${TOP + 2}px`;
+  if (!b || b.end < vw[0] || b.start > vw[1]) { kindTag.hidden = true; return; }
+  const x0 = Math.max(NAME, g.x(b.start, vw));
+  kindTag.hidden = false;
+  kindTag.textContent = `${KIND_NAME[b.kind || "ad"]} ▾`;
+  kindTag.style.left = `${Math.min(x0 + 6, g.w - 140)}px`;
+  kindTag.style.top = `${TOP + 3}px`;
 }
-// Right-click a label: select it and open its kind dropdown.
+kindTag.addEventListener("pointerdown", (ev) => ev.stopPropagation());
+kindTag.addEventListener("click", (ev) => {
+  ev.stopPropagation();
+  if (!ctx.hidden) return closeMenu();
+  const r = kindTag.getBoundingClientRect(), w = $("tlwrap").getBoundingClientRect();
+  openMenu(sel.i, null, r.left - w.left, r.bottom - w.top + 2);
+});
+// Splits label `i` at `t` into two of the same kind and selects the second half (to change its kind, say).
+function splitBreak(i, t) {
+  const b = S.labels.breaks[i];
+  if (!(t - b.start >= 0.5 && b.end - t >= 0.5)) return status("split inside the label, at least half a second from its ends", true);
+  S.labels.breaks.splice(i, 1, { ...b, end: t }, { ...b, start: t });
+  sel = { label: true, i: i + 1 };
+  changed();
+  status(`split at ${fmt(t)}`);
+}
+function deleteBreak(i) { S.labels.breaks.splice(i, 1); sel = null; changed(); }
+function closeMenu() { ctx.hidden = true; }
+// Label `i`'s menu at (x, y) in the timeline; `at`: where it was right-clicked, offered as a split point.
+function openMenu(i, at, x, y) {
+  const b = S.labels.breaks[i], t = v.currentTime || 0, items = [];
+  for (const k of KINDS) items.push([`${(b.kind || "ad") === k ? "✓ " : "\u2003 "}${KIND_NAME[k]}`, "", () => { b.kind = k; changed(); }]);
+  items.push(null);
+  const inside = (u) => u !== null && u - b.start >= 0.5 && b.end - u >= 0.5;
+  if (inside(at)) items.push([`Split here`, fmt(at), () => splitBreak(i, at)]);
+  if (inside(t)) items.push([`Split at the playhead`, `${fmt(t)} · S`, () => splitBreak(i, t)]);
+  items.push([`Delete`, "⌫", () => deleteBreak(i)]);
+  ctx.replaceChildren(...items.map((it) => {
+    if (!it) return document.createElement("hr");
+    const btn = document.createElement("button");
+    btn.textContent = it[0];
+    if (it[1]) { const k = document.createElement("span"); k.className = "k"; k.textContent = it[1]; btn.append(k); }
+    btn.onclick = (ev) => { ev.stopPropagation(); closeMenu(); it[2](); };
+    return btn;
+  }));
+  ctx.hidden = false;
+  const w = $("tlwrap").clientWidth;
+  ctx.style.left = `${Math.max(0, Math.min(x, w - ctx.offsetWidth - 4))}px`;
+  ctx.style.top = `${y}px`;
+}
+ctx.addEventListener("pointerdown", (ev) => ev.stopPropagation());
+ctx.addEventListener("keydown", (ev) => { ev.stopPropagation(); if (ev.key === "Escape") closeMenu(); });
+document.addEventListener("pointerdown", () => { if (!ctx.hidden) closeMenu(); });
+// Right-click a label: select it and open its menu.
 tl.addEventListener("contextmenu", (ev) => {
   if (!S) return;
   const h = hit(ev);
@@ -457,8 +506,8 @@ tl.addEventListener("contextmenu", (ev) => {
   if (j < 0) return;
   ev.preventDefault();
   sel = { label: true, i: j }; renderList(); draw();
-  kindMenu.focus();
-  if (kindMenu.showPicker) try { kindMenu.showPicker(); } catch { /* not allowed here: focused instead */ }
+  const w = $("tlwrap").getBoundingClientRect();
+  openMenu(j, h.t, ev.clientX - w.left, ev.clientY - w.top);
 });
 
 // A learned source trained against other labels than the dataset's current ones (labels edited or recordings added
@@ -594,6 +643,9 @@ function key(k, shift, alt) {
     case "a": case "A":
       if (sel && sel.source) { const s = S.sources.find((x) => x.name === sel.source).breaks[sel.i]; addBreak(s.start, s.end); }
       else status("select a suggestion on the timeline first", true);
+      break;
+    case "s": case "S":
+      if (b) splitBreak(sel.i, t); else status("select a label to split", true);
       break;
     case "k": case "K":
       if (b) { b.kind = KINDS[(KINDS.indexOf(b.kind || "ad") + 1) % KINDS.length]; changed(); }
