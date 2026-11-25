@@ -128,7 +128,12 @@ mod tests {
         assert_eq!(d.resolve(&id).unwrap(), id);
         assert!(d.resolve("3").is_err() || d.resolve("3").unwrap() == id);
         assert!(d.resolve("99").is_err());
-        let src = |name: &str, n: usize| Source { name: name.into(), detail: String::new(), breaks: vec![adbreak_labels::Span::new(0.0, 1.0); n] };
+        let src = |name: &str, n: usize| Source {
+            name: name.into(),
+            detail: String::new(),
+            breaks: vec![adbreak_labels::Span::new(0.0, 1.0); n],
+            trained_on: String::new(),
+        };
         d.save_sources(&id, &rec, vec![src("recorder", 1), src("captions", 2)]).unwrap();
         d.save_sources(&id, &rec, vec![src("captions", 3)]).unwrap();
         let e = d.entry(&id).unwrap();

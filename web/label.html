@@ -168,7 +168,7 @@ async function showReview(id) {
   try {
     const d = await api(`/api/recordings/${id}`);
     const sources = (d.suggestions ? d.suggestions.sources : []);
-    S = { id, labels: d.labels, sources, scores: d.scores || {}, version: d.version || "", cues: [], covered: new Uint8Array(0), dur: d.labels.recording.duration };
+    S = { id, labels: d.labels, sources, scores: d.scores || {}, version: d.version || "", fingerprint: d.fingerprint || "", cues: [], covered: new Uint8Array(0), dur: d.labels.recording.duration };
     vs = 0; vspan = Math.max(S.dur, 1);
     const r = d.labels.recording;
     $("crumb").textContent = `${r.title} · ${r.channel} ${r.network} · ${new Date(r.start).toLocaleString()}`;
@@ -281,7 +281,8 @@ function draw() {
   }
   rows().forEach((r, i) => {
     const y = TOP + i * ROW;
-    c.fillStyle = cssVar("var(--dim)"); c.fillText(r.name, 6, y + ROW / 2); c.fillText("ⓘ", NAME - 18, y + ROW / 2);
+    const stale = r.source && isStale(r.source);
+    c.fillStyle = cssVar("var(--dim)"); c.fillText(r.name + (stale ? " ⚠︎" : ""), 6, y + ROW / 2); c.fillText("ⓘ", NAME - 18, y + ROW / 2);
     r.spans.forEach((s, j) => {
       if (s.end < vw[0] || s.start > vw[1]) return;
       const x0 = Math.max(NAME, g.x(s.start, vw)), x1 = Math.min(g.w - 6, g.x(s.end, vw));
@@ -414,6 +415,12 @@ tl.addEventListener("contextmenu", (ev) => {
   if (kindMenu.showPicker) try { kindMenu.showPicker(); } catch { /* not allowed here: focused instead */ }
 });
 
+// A learned source trained against other labels than the dataset's current ones (labels edited or recordings added
+// since): its results are out of date until `uv run adbreak-ml refresh`.
+function isStale(name) {
+  const src = S.sources.find((s) => s.name === name);
+  return !!(src && src.trained_on && S.fingerprint && src.trained_on !== S.fingerprint);
+}
 // Row ⓘ popovers: hover over a row's name to see what it is; click to keep it open.
 let infoPinned = null;
 function rowAt(y) {
@@ -431,6 +438,8 @@ function showInfo(name, y) {
   const pct = (x) => `${Math.round(100 * x)}%`;
   let html = `<h4>${esc(name)}</h4><span>${esc(ROW_INFO[name] || "A source of suggested breaks.")}</span>`;
   if (name === "labels") html += `<span class="detail">${S.labels.breaks.length} breaks${S.labels.notes ? " · " + esc(S.labels.notes) : ""}</span>`;
+  if (src && isStale(name)) html += `<span class="detail" style="display:block;color:var(--promo)">⚠︎ Stale: trained before the labels last changed. Run <code>uv run adbreak-ml refresh</code> in ml/ to retrain.</span>`;
+  else if (src && !src.trained_on && ["frames-lr", "frames-zeroshot", "fusion", "model"].includes(name)) html += `<span class="detail" style="display:block;color:var(--promo)">⚠︎ Trained before training was tracked: treat as stale.</span>`;
   if (src) {
     html += `<span class="detail" style="display:block">${src.breaks.length} breaks${src.detail ? " · " + esc(src.detail) : ""}</span>`;
     if (sc) html += `<table class="detail"><tr><td>on this recording</td><td>precision ${pct(sc.precision)}</td><td>recall ${pct(sc.recall)}</td><td>F1 ${pct(sc.f1)}</td></tr>`

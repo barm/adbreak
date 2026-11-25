@@ -175,11 +175,281 @@
       ]
     },
     {
+      "name": "frames-lr",
+      "detail": "mobileclip2-s0 1 fps, logistic regression trained on the other recordings (2026-11-23_11.1_11, 2026-11-24_11.1_36, 2026-11-24_2.1_32, 2026-11-24_2.1_37, 2026-11-24_4.1_35, 2026-11-24_5.1_33, 2026-11-24_7.1_34), smoothed 15 s",
+      "breaks": [
+        {
+          "start": 41.0,
+          "end": 102.0
+        },
+        {
+          "start": 115.0,
+          "end": 294.0
+        },
+        {
+          "start": 318.0,
+          "end": 558.0
+        },
+        {
+          "start": 569.0,
+          "end": 675.0
+        },
+        {
+          "start": 691.0,
+          "end": 773.0
+        },
+        {
+          "start": 877.0,
+          "end": 972.0
+        },
+        {
+          "start": 984.0,
+          "end": 1031.0
+        },
+        {
+          "start": 1078.0,
+          "end": 1115.0
+        },
+        {
+          "start": 1135.0,
+          "end": 1327.0
+        },
+        {
+          "start": 1349.0,
+          "end": 1396.0
+        },
+        {
+          "start": 1466.0,
+          "end": 1682.0
+        },
+        {
+          "start": 1831.0,
+          "end": 1875.0
+        },
+        {
+          "start": 2026.0,
+          "end": 2250.0
+        },
+        {
+          "start": 2321.0,
+          "end": 2451.0
+        },
+        {
+          "start": 2845.0,
+          "end": 3033.0
+        },
+        {
+          "start": 3224.0,
+          "end": 3374.0
+        },
+        {
+          "start": 3768.0,
+          "end": 4002.0
+        },
+        {
+          "start": 4180.0,
+          "end": 4249.0
+        },
+        {
+          "start": 4851.0,
+          "end": 4981.0
+        },
+        {
+          "start": 5266.0,
+          "end": 5450.0
+        },
+        {
+          "start": 5584.0,
+          "end": 5842.0
+        },
+        {
+          "start": 6002.0,
+          "end": 6051.0
+        },
+        {
+          "start": 6492.0,
+          "end": 6588.0
+        },
+        {
+          "start": 6787.0,
+          "end": 7059.0
+        },
+        {
+          "start": 7468.0,
+          "end": 7654.0
+        },
+        {
+          "start": 7732.0,
+          "end": 7785.0
+        },
+        {
+          "start": 8508.0,
+          "end": 8635.0
+        }
+      ],
+      "trained_on": "9958897eb13afd2c"
+    },
+    {
+      "name": "frames-zeroshot",
+      "detail": "mobileclip2-s0 1 fps, zero-shot ad vs programme prompts, smoothed 15 s",
+      "breaks": [
+        {
+          "start": 42.0,
+          "end": 139.0
+        },
+        {
+          "start": 160.0,
+          "end": 292.0
+        },
+        {
+          "start": 319.0,
+          "end": 524.0
+        },
+        {
+          "start": 632.0,
+          "end": 696.0
+        },
+        {
+          "start": 1103.0,
+          "end": 1155.0
+        },
+        {
+          "start": 1173.0,
+          "end": 1209.0
+        },
+        {
+          "start": 1226.0,
+          "end": 1283.0
+        },
+        {
+          "start": 1466.0,
+          "end": 1546.0
+        },
+        {
+          "start": 1562.0,
+          "end": 1604.0
+        },
+        {
+          "start": 2043.0,
+          "end": 2088.0
+        },
+        {
+          "start": 2179.0,
+          "end": 2255.0
+        },
+        {
+          "start": 2298.0,
+          "end": 2343.0
+        },
+        {
+          "start": 2355.0,
+          "end": 2473.0
+        },
+        {
+          "start": 2835.0,
+          "end": 3036.0
+        },
+        {
+          "start": 3211.0,
+          "end": 3381.0
+        },
+        {
+          "start": 3766.0,
+          "end": 4024.0
+        },
+        {
+          "start": 4146.0,
+          "end": 4295.0
+        },
+        {
+          "start": 4833.0,
+          "end": 4988.0
+        },
+        {
+          "start": 5057.0,
+          "end": 5092.0
+        },
+        {
+          "start": 5259.0,
+          "end": 5454.0
+        },
+        {
+          "start": 5582.0,
+          "end": 5713.0
+        },
+        {
+          "start": 5725.0,
+          "end": 5809.0
+        },
+        {
+          "start": 5943.0,
+          "end": 6105.0
+        },
+        {
+          "start": 6249.0,
+          "end": 6299.0
+        },
+        {
+          "start": 6502.0,
+          "end": 6636.0
+        },
+        {
+          "start": 6722.0,
+          "end": 6771.0
+        },
+        {
+          "start": 6786.0,
+          "end": 7062.0
+        },
+        {
+          "start": 7222.0,
+          "end": 7277.0
+        },
+        {
+          "start": 7299.0,
+          "end": 7352.0
+        },
+        {
+          "start": 7463.0,
+          "end": 7657.0
+        },
+        {
+          "start": 7716.0,
+          "end": 7814.0
+        },
+        {
+          "start": 7825.0,
+          "end": 7879.0
+        },
+        {
+          "start": 7998.0,
+          "end": 8313.0
+        },
+        {
+          "start": 8344.0,
+          "end": 8446.0
+        },
+        {
+          "start": 8457.0,
+          "end": 8559.0
+        },
+        {
+          "start": 8576.0,
+          "end": 8666.0
+        },
+        {
+          "start": 8677.0,
+          "end": 8837.0
+        }
+      ],
+      "trained_on": "9958897eb13afd2c"
+    },
+    {
       "name": "fusion",
       "detail": "frames (mobileclip2-s0, logistic regression) + captions (text and timing) + black/silence, gradient-boosted over windows to 150 s; edges snapped to black-and-silent moments; leave-one-recording-out",
       "breaks": [
         {
-          "start": 40.0,
+          "start": 44.0,
           "end": 87.0
         },
         {
@@ -187,23 +457,23 @@
           "end": 669.17
         },
         {
-          "start": 1107.0,
-          "end": 1265.0
+          "start": 1129.0,
+          "end": 1257.0
         },
         {
           "start": 1470.0,
-          "end": 1662.0
+          "end": 1661.0
         },
         {
-          "start": 2062.0,
+          "start": 2067.0,
           "end": 2245.76
         },
         {
-          "start": 2327.0,
+          "start": 2328.0,
           "end": 2449.66
         },
         {
-          "start": 2847.0,
+          "start": 2846.0,
           "end": 3030.89
         },
         {
@@ -215,23 +485,23 @@
           "end": 3985.88
         },
         {
-          "start": 4183.0,
+          "start": 4186.0,
           "end": 4245.0
         },
         {
-          "start": 4853.0,
+          "start": 4854.0,
           "end": 4977.41
         },
         {
           "start": 5267.13,
-          "end": 5449.0
+          "end": 5447.0
         },
         {
           "start": 5587.13,
           "end": 5834.0
         },
         {
-          "start": 6497.0,
+          "start": 6498.0,
           "end": 6585.87
         },
         {
@@ -240,18 +510,102 @@
         },
         {
           "start": 7468.19,
-          "end": 7654.0
+          "end": 7653.0
+        },
+        {
+          "start": 7737.0,
+          "end": 7782.62
         },
         {
           "start": 8508.0,
           "end": 8632.57
         }
-      ]
+      ],
+      "trained_on": "9958897eb13afd2c"
     },
     {
       "name": "logo-detector",
       "detail": "logo detector (crates/adbreak) 0.1.0, defaults",
       "breaks": []
+    },
+    {
+      "name": "model",
+      "detail": "adbreak-model inputs (rust-v1), leave-one-recording-out over 8",
+      "breaks": [
+        {
+          "start": 2.0,
+          "end": 85.0
+        },
+        {
+          "start": 194.0,
+          "end": 239.0
+        },
+        {
+          "start": 422.0,
+          "end": 676.0
+        },
+        {
+          "start": 1107.0,
+          "end": 1197.28
+        },
+        {
+          "start": 1471.0,
+          "end": 1663.0
+        },
+        {
+          "start": 2051.0,
+          "end": 2243.0
+        },
+        {
+          "start": 2328.0,
+          "end": 2452.0
+        },
+        {
+          "start": 2847.0,
+          "end": 3031.0
+        },
+        {
+          "start": 3225.0,
+          "end": 3375.0
+        },
+        {
+          "start": 3773.0,
+          "end": 3995.0
+        },
+        {
+          "start": 4184.0,
+          "end": 4245.0
+        },
+        {
+          "start": 4853.0,
+          "end": 4979.0
+        },
+        {
+          "start": 5268.0,
+          "end": 5451.0
+        },
+        {
+          "start": 5587.16,
+          "end": 5835.0
+        },
+        {
+          "start": 6500.0,
+          "end": 6586.0
+        },
+        {
+          "start": 6788.11,
+          "end": 7058.0
+        },
+        {
+          "start": 7471.0,
+          "end": 7656.0
+        },
+        {
+          "start": 8508.0,
+          "end": 8632.61
+        }
+      ],
+      "trained_on": "9958897eb13afd2c"
     }
   ]
 }

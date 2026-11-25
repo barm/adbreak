@@ -159,7 +159,7 @@ fn suggest(data: &Dataset, id: &str, comskip: Option<PathBuf>, detector: bool) -
         let q = adbreak_captions::Quiet::default();
         let breaks = adbreak_captions::uncaptioned(&secs, &q).into_iter().map(|(a, b)| Span::new(a, b)).collect();
         let detail = format!("uncaptioned: window {} s, coverage < {}, at least {} s", q.window, q.max_coverage, q.min_secs);
-        sources.push(Source { name: "captions".into(), detail, breaks });
+        sources.push(Source { name: "captions".into(), detail, breaks, trained_on: String::new() });
     }
     if comskip.is_some() || detector {
         let media = dir.join("media.mp4");
@@ -174,7 +174,7 @@ fn suggest(data: &Dataset, id: &str, comskip: Option<PathBuf>, detector: bool) -
         let det = detector.then(|| std::thread::spawn(move || tools::detect(&media)));
         if let Some(t) = cs {
             let (breaks, version) = t.join().expect("comskip thread")?;
-            sources.push(Source { name: "comskip".into(), detail: version, breaks });
+            sources.push(Source { name: "comskip".into(), detail: version, breaks, trained_on: String::new() });
         }
         if let Some(t) = det {
             let breaks = t.join().expect("detector thread")?;
@@ -182,6 +182,7 @@ fn suggest(data: &Dataset, id: &str, comskip: Option<PathBuf>, detector: bool) -
                 name: "logo-detector".into(),
                 detail: format!("logo detector (crates/adbreak) {}, defaults", env!("CARGO_PKG_VERSION")),
                 breaks,
+                trained_on: String::new(),
             });
         }
         eprintln!("  sources ran in {:.0} s", started.elapsed().as_secs_f64());

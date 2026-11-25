@@ -58,6 +58,18 @@ def recordings() -> list[Recording]:
     return out
 
 
+def labels_fingerprint() -> str:
+    """Which labels a model was trained against: FNV-1a 64 over every recording's labels.json, in id order. The
+    labelling page computes the same, and marks sources trained on other labels as stale."""
+    h = 0xCBF29CE484222325
+    for d in sorted(DATASET.iterdir()):
+        f = d / "labels.json"
+        if f.is_file():
+            for b in f.read_bytes():
+                h = ((h ^ b) * 0x100000001B3) & 0xFFFFFFFFFFFFFFFF
+    return f"{h:016x}"
+
+
 def second_labels(rec: Recording, times: np.ndarray) -> np.ndarray:
     """A class for each time: BREAK inside an ad or promo, PROGRAMME elsewhere in reviewed time, IGNORE for
     unreviewed time, paid programming, sponsor segments, and within EDGE_MARGIN of an edge."""
