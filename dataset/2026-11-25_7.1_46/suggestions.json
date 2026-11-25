@@ -1,0 +1,80 @@
+{
+  "format": 1,
+  "recording": {
+    "source": "recorder",
+    "job": 46,
+    "channel": "7.1",
+    "network": "KGO-HD",
+    "title": "Good Morning America First Look",
+    "start": "2026-11-25T12:52:02+00:00",
+    "duration": 658.4411222222197
+  },
+  "sources": [
+    {
+      "name": "captions",
+      "detail": "uncaptioned: window 30 s, coverage < 0.5, at least 30 s",
+      "breaks": [
+        {
+          "start": 238.0,
+          "end": 301.0,
+          "kind": "ad"
+        }
+      ]
+    },
+    {
+      "name": "comskip",
+      "detail": "Comskip 0.83.001, made using ffmpeg",
+      "breaks": [
+        {
+          "start": 26.81,
+          "end": 473.67,
+          "kind": "ad"
+        }
+      ]
+    },
+    {
+      "name": "fusion",
+      "detail": "frames (mobileclip2-s0, logistic regression) + captions (text and timing) + black/silence, gradient-boosted over windows to 150 s; edges snapped to black-and-silent moments; trained on 8 labelled recordings",
+      "breaks": [
+        {
+          "start": 116.75,
+          "end": 403.86
+        }
+      ],
+      "trained_on": "49024da6cb19028b"
+    },
+    {
+      "name": "logo-detector",
+      "detail": "logo detector (crates/adbreak) 0.1.0, defaults",
+      "breaks": []
+    },
+    {
+      "name": "model",
+      "detail": "adbreak-model inputs (rust-v1), trained on all 8 labelled recordings",
+      "breaks": [
+        {
+          "start": 95.0,
+          "end": 403.9,
+          "kind": "ad"
+        }
+      ],
+      "trained_on": "015a90fd748ab575"
+    },
+    {
+      "name": "recorder",
+      "detail": "the recorder's own break scan",
+      "breaks": [
+        {
+          "start": 0.3,
+          "end": 34.0,
+          "kind": "ad"
+        },
+        {
+          "start": 116.81,
+          "end": 403.9,
+          "kind": "ad"
+        }
+      ]
+    }
+  ]
+}
