@@ -156,12 +156,12 @@ export function ModelPage() {
               <Stack gap={2}>
                 <Stack direction="horizontal" gap={2} align="center" justify="between">
                   <Heading level={3}>Learning curve</Heading>
-                  <Button label={m.learning_curve ? "Recompute" : "Compute"} size="sm" variant="secondary" isDisabled={busy} tooltip="Train on 1, 2, … recordings and score on one held out (a few minutes)" onClick={() => run("learning-curve")} />
+                  <Button label={m.learning_curve ? "Recompute" : "Compute"} size="sm" variant="secondary" isDisabled={busy} tooltip="Train on 1, 2, … recordings and score on the rest (a few minutes)" onClick={() => run("learning-curve")} />
                 </Stack>
                 {m.learning_curve ? (
                   <>
                     <Text type="supporting" color="secondary">
-                      {`The commercial-break model trained on k labelled recordings, scored on one it never saw: every recording held out in turn, up to ${m.learning_curve.repeats} random training sets per k. Line: median; band: the middle half of runs. Computed ${new Date(m.learning_curve.computed_at).toLocaleString()} over ${m.learning_curve.recordings} recordings.`}
+                      {`The commercial-break model trained on k labelled recordings, scored on each one it never saw: ${m.learning_curve.sets} random training sets per k (${m.learning_curve.fits} models in all). Line: median; band: the middle half of scores. Computed ${new Date(m.learning_curve.computed_at).toLocaleString()} over ${m.learning_curve.recordings} recordings.`}
                     </Text>
                     <LearningCurve curve={m.learning_curve} />
                   </>
