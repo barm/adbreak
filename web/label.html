@@ -29,7 +29,7 @@
   button, select { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 4px 9px; font: inherit; cursor: pointer; }
   button:hover { border-color: var(--dim); }
   kbd { font: 12px ui-monospace, monospace; color: var(--dim); }
-  canvas { width: 100%; display: block; background: var(--panel); border-radius: 6px; cursor: crosshair; }
+  canvas { width: 100%; display: block; background: var(--panel); border-radius: 6px; cursor: crosshair; touch-action: none; user-select: none; }
   .cols { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; margin-top: 12px; }
   .help { color: var(--dim); }
   .help td { padding: 2px 6px; border: 0; white-space: normal; vertical-align: top; }
@@ -75,7 +75,7 @@
         <tr><td><kbd>R</kbd></td><td>mark reviewed up to here (only reviewed parts are scored)</td></tr>
         <tr><td><kbd>Esc</kbd></td><td>clear the selection</td></tr>
       </table>
-      <p>Click a span on the timeline to select it; drag a selected break's edge to move it. Changes save as you go.</p>
+      <p>Drag anywhere on the timeline to scrub; click a span to select it; drag a selected break's edge to move it. Pinch (or <kbd>⌥</kbd>-scroll) to zoom around the pointer, swipe sideways to pan. Changes save as you go.</p>
     </section>
   </div>
 </main>
@@ -86,9 +86,13 @@ const v = $("v"), tl = $("tl");
 const KINDS = ["ad", "promo", "paid_programming"];
 const KIND_COLOR = { ad: "var(--ad)", promo: "var(--promo)", paid_programming: "var(--paid)" };
 const SOURCE_COLOR = { comskip: "#3e63dd", captions: "#12a594", "logo-detector": "#ad7f58", recorder: "#8b8d98" };
-const ZOOMS = [null, 3600, 1200, 300, 60, 15];
+// The visible stretch of the timeline: from vs, vspan seconds long (continuous zoom; see zoomAt).
+const MIN_SPAN = 5;
+let vs = 0, vspan = 1;
+// Pointer state: scrubbing (dragging the playhead), the time under the pointer (skim line), and play state to restore.
+let scrubbing = false, hoverT = null, resume = false;
 let S = null; // { id, labels, sources, cues, covered, dur }
-let sel = null, pending = null, zoom = 0, saveTimer = null, drag = null;
+let sel = null, pending = null, saveTimer = null, drag = null;
 
 function fmt(t) {
   if (!isFinite(t)) return "–";
@@ -135,6 +139,7 @@ async function showReview(id) {
     const d = await api(`/api/recordings/${id}`);
     const sources = (d.suggestions ? d.suggestions.sources : []);
     S = { id, labels: d.labels, sources, cues: [], covered: new Uint8Array(0), dur: d.labels.recording.duration };
+    vs = 0; vspan = Math.max(S.dur, 1);
     const r = d.labels.recording;
     $("crumb").textContent = `${r.title} · ${r.channel} ${r.network} · ${new Date(r.start).toLocaleString()}`;
     $("notes").value = d.labels.notes || "";
@@ -187,12 +192,23 @@ function rows() {
   for (const s of S.sources) r.push({ name: s.name, spans: s.breaks, source: s.name });
   return r;
 }
+function clampView() {
+  vspan = Math.min(Math.max(vspan, MIN_SPAN), Math.max(S.dur, MIN_SPAN));
+  vs = Math.min(Math.max(vs, 0), Math.max(S.dur - vspan, 0));
+}
 function view() {
-  const t = v.currentTime || 0, z = ZOOMS[zoom];
-  if (!z) return [0, Math.max(S.dur, 1)];
-  let a = Math.max(0, t - z / 2), b = a + z;
-  if (b > S.dur) { b = S.dur; a = Math.max(0, b - z); }
-  return [a, b];
+  clampView();
+  // While playing (not scrubbing), page along so the playhead stays in view.
+  const t = v.currentTime || 0;
+  if (!v.paused && !scrubbing && (t > vs + vspan * 0.95 || t < vs)) { vs = t - vspan * 0.1; clampView(); }
+  return [vs, vs + vspan];
+}
+// Zoom by `factor` (<1 in, >1 out) keeping time `anchor` where it is on screen.
+function zoomAt(factor, anchor) {
+  const old = vspan;
+  vspan = old * factor; clampView();
+  vs = anchor - (anchor - vs) * (vspan / old); clampView();
+  draw();
 }
 function geometry() {
   const w = tl.clientWidth, n = rows().length;
@@ -241,7 +257,14 @@ function draw() {
   // pending start, playhead
   if (pending !== null) { c.strokeStyle = cssVar("var(--ad)"); c.setLineDash([4, 3]); const x = g.x(pending, vw); c.beginPath(); c.moveTo(x, TOP); c.lineTo(x, g.h); c.stroke(); c.setLineDash([]); }
   const x = g.x(v.currentTime || 0, vw); c.strokeStyle = "#fff"; c.beginPath(); c.moveTo(x, 0); c.lineTo(x, g.h); c.stroke();
-  $("zoom").textContent = ZOOMS[zoom] ? `showing ${fmt(ZOOMS[zoom]).replace(/\.\d$/, "")}` : "whole recording";
+  // Skim line: where the pointer is, with its time.
+  if (hoverT !== null && !scrubbing && hoverT >= vw[0] && hoverT <= vw[1]) {
+    const hx = g.x(hoverT, vw);
+    c.strokeStyle = "rgba(255,255,255,0.35)"; c.beginPath(); c.moveTo(hx, TOP - 4); c.lineTo(hx, g.h); c.stroke();
+    const label = fmt(hoverT), w = c.measureText(label).width + 8, lx = Math.min(hx + 4, g.w - w);
+    c.fillStyle = "rgba(0,0,0,0.75)"; c.fillRect(lx, 0, w, 16); c.fillStyle = "#fff"; c.fillText(label, lx + 4, 8);
+  }
+  $("zoom").textContent = vspan >= S.dur - 0.5 ? "whole recording" : `showing ${fmt(vspan).replace(/\.\d$/, "")} · pinch or ⌥-scroll to zoom`;
 }
 
 function hit(ev) {
@@ -252,10 +275,13 @@ function hit(ev) {
   return { t, x, row: all[row], tol };
 }
 
-tl.addEventListener("mousedown", (ev) => {
-  if (!S) return;
+// Pointer: drag a selected break's edge to move it; otherwise press and drag anywhere to scrub. Clicking a span
+// selects it. Hovering shows a skim line with the time under the pointer.
+tl.addEventListener("pointerdown", (ev) => {
+  if (!S || ev.button !== 0) return;
   const h = hit(ev);
   if (h.x < NAME) return;
+  tl.setPointerCapture(ev.pointerId);
   if (sel && sel.label) {
     const b = S.labels.breaks[sel.i];
     if (Math.abs(h.t - b.start) < h.tol) { drag = "start"; return; }
@@ -266,18 +292,56 @@ tl.addEventListener("mousedown", (ev) => {
     if (j >= 0) sel = h.row.label ? { label: true, i: j } : { source: h.row.source, i: j };
     else if (h.row.label) sel = null;
   }
+  scrubbing = true; resume = !v.paused; v.pause();
   seek(h.t); renderList();
 });
-addEventListener("mousemove", (ev) => {
-  if (!drag || !sel) return;
-  const b = S.labels.breaks[sel.i], h = hit(ev);
-  if (drag === "start") b.start = Math.min(h.t, b.end - 0.1); else b.end = Math.max(h.t, b.start + 0.1);
-  seek(h.t);
+tl.addEventListener("pointermove", (ev) => {
+  if (!S) return;
+  const h = hit(ev);
+  hoverT = h.x >= NAME ? h.t : null;
+  if (drag && sel) {
+    const b = S.labels.breaks[sel.i];
+    if (drag === "start") b.start = Math.min(h.t, b.end - 0.1); else b.end = Math.max(h.t, b.start + 0.1);
+    seek(h.t, true);
+  } else if (scrubbing) {
+    seek(h.t, true);
+  }
+  draw();
 });
-addEventListener("mouseup", () => { if (drag) { drag = null; changed(); } });
+function endPointer() {
+  if (drag) { drag = null; seek(v.currentTime); changed(); }
+  if (scrubbing) { scrubbing = false; seek(v.currentTime); if (resume) v.play(); }
+}
+tl.addEventListener("pointerup", endPointer);
+tl.addEventListener("pointercancel", endPointer);
+tl.addEventListener("pointerleave", () => { hoverT = null; draw(); });
+
+// Trackpad: pinch (sent as ctrl+wheel) or ⌥+scroll zooms around the pointer; a sideways two-finger swipe pans.
+tl.addEventListener("wheel", (ev) => {
+  if (!S) return;
+  const h = hit(ev), g = geometry();
+  if (ev.ctrlKey || ev.altKey) {
+    ev.preventDefault();
+    const anchor = h.x >= NAME ? h.t : (vs + vspan / 2);
+    zoomAt(Math.exp(ev.deltaY * (ev.ctrlKey ? 0.01 : 0.002)), anchor);
+  } else if (Math.abs(ev.deltaX) > Math.abs(ev.deltaY)) {
+    ev.preventDefault();
+    vs += ev.deltaX * vspan / (g.w - NAME); clampView(); draw();
+  }
+}, { passive: false });
+// Safari sends pinches as gesture events.
+let gestureSpan = null, gestureAnchor = 0;
+tl.addEventListener("gesturestart", (ev) => { ev.preventDefault(); gestureSpan = vspan; const h = hit(ev); gestureAnchor = h.x >= NAME ? h.t : vs + vspan / 2; });
+tl.addEventListener("gesturechange", (ev) => { ev.preventDefault(); if (gestureSpan) zoomAt((gestureSpan / ev.scale) / vspan, gestureAnchor); });
+tl.addEventListener("gestureend", (ev) => { ev.preventDefault(); gestureSpan = null; });
 
 // ---- editing ----
-function seek(t) { v.currentTime = Math.max(0, Math.min(S.dur, t)); draw(); }
+// `quick`: while scrubbing, seek to the nearest keyframe if the browser can (much faster); the exact frame on release.
+function seek(t, quick) {
+  t = Math.max(0, Math.min(S.dur, t));
+  if (quick && v.fastSeek) v.fastSeek(t); else v.currentTime = t;
+  draw();
+}
 function overlaps(a, b, skip) { return S.labels.breaks.some((x, i) => i !== skip && a < x.end && x.start < b); }
 function addBreak(start, end, kind) {
   if (end - start < 0.5) return status("a break needs at least half a second", true);
@@ -341,8 +405,8 @@ function key(k, shift, alt) {
       if (t > from) { S.labels.reviewed.push({ start: from, end: t >= S.dur - 1 ? S.dur : t }); changed(); }
       break;
     }
-    case "=": case "+": zoom = Math.min(ZOOMS.length - 1, zoom + 1); draw(); break;
-    case "-": case "_": zoom = Math.max(0, zoom - 1); draw(); break;
+    case "=": case "+": zoomAt(0.5, t); break;
+    case "-": case "_": zoomAt(2, t); break;
     case "Escape": sel = null; pending = null; renderList(); draw(); break;
     default: return false;
   }
