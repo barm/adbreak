@@ -95,7 +95,7 @@
         <tr><td><kbd>R</kbd></td><td>mark reviewed up to here (only reviewed parts are scored)</td></tr>
         <tr><td><kbd>Esc</kbd></td><td>clear the selection</td></tr>
       </table>
-      <p>Click a break's start or end time in the table to jump there. Drag anywhere on the timeline to scrub; click a span to select it; drag a selected break's edge to move it. Pinch (or <kbd>⌥</kbd>-scroll) to zoom around the pointer, swipe sideways to pan. Changes save as you go.</p>
+      <p>Click a break in the table to frame it on the timeline, or its start or end time to close in on that edge. Drag anywhere on the timeline to scrub; click a span to select it; drag a selected break's edge to move it. Pinch (or <kbd>⌥</kbd>-scroll) to zoom around the pointer, swipe sideways to pan. Changes save as you go.</p>
     </section>
   </div>
   </aside>
@@ -223,6 +223,11 @@ function view() {
   const t = v.currentTime || 0;
   if (!v.paused && !scrubbing && (t > vs + vspan * 0.95 || t < vs)) { vs = t - vspan * 0.1; clampView(); }
   return [vs, vs + vspan];
+}
+// Show the stretch a..b on the timeline (zoom and pan), with a margin either side.
+function focusSpan(a, b) {
+  const len = Math.max(b - a, 1), pad = Math.max(len * 0.15, 10);
+  vspan = len + 2 * pad; vs = a - pad; clampView(); draw();
 }
 // Zoom by `factor` (<1 in, >1 out) keeping time `anchor` where it is on screen.
 function zoomAt(factor, anchor) {
@@ -445,12 +450,13 @@ function renderList() {
   t.innerHTML = "<tr><th>Start</th><th>End</th><th>Length</th><th>Kind</th><th></th></tr>";
   S.labels.breaks.forEach((b, i) => {
     const tr = t.insertRow(); tr.className = "click" + (sel && sel.label && sel.i === i ? " sel" : "");
-    tr.onclick = (ev) => { if (ev.target.tagName === "SELECT" || ev.target.tagName === "BUTTON") return; sel = { label: true, i }; seek(b.start); renderList(); };
+    tr.onclick = (ev) => { if (ev.target.tagName === "SELECT" || ev.target.tagName === "BUTTON") return; sel = { label: true, i }; focusSpan(b.start, b.end); seek(b.start); renderList(); };
     // Start and end jump to that edge (and select the break).
     for (const edge of ["start", "end"]) {
       const a = document.createElement("button"); a.className = "jump"; a.textContent = fmt(b[edge]);
       a.title = `Jump to the ${edge}`;
-      a.onclick = () => { sel = { label: true, i }; seek(b[edge]); renderList(); };
+      // Close in on the edge (about 90 s across) to fine-tune it.
+      a.onclick = () => { sel = { label: true, i }; focusSpan(b[edge] - 35, b[edge] + 35); seek(b[edge]); renderList(); };
       tr.insertCell().append(a);
     }
     tr.insertCell().textContent = `${Math.round(b.end - b.start)} s`;
