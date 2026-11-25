@@ -506,42 +506,42 @@
     },
     {
       "name": "model",
-      "detail": "adbreak-model inputs (rust-v1), leave-one-recording-out over 9",
+      "detail": "adbreak-model inputs (rust-v1), leave-one-recording-out over 10",
       "breaks": [
         {
           "start": 0.0,
           "end": 69.75
         },
         {
-          "start": 451.0,
+          "start": 453.0,
           "end": 603.9
         },
         {
           "start": 796.0,
-          "end": 858.0
+          "end": 856.0
         },
         {
-          "start": 909.0,
+          "start": 932.0,
           "end": 1053.3
         },
         {
-          "start": 1821.0,
+          "start": 1850.0,
           "end": 1999.76
         },
         {
-          "start": 2270.0,
+          "start": 2290.0,
           "end": 2461.96
         },
         {
-          "start": 2708.0,
-          "end": 2891.0
+          "start": 2703.0,
+          "end": 2883.0
         },
         {
-          "start": 3408.0,
-          "end": 3587.6
+          "start": 3413.0,
+          "end": 3613.0
         },
         {
-          "start": 3912.0,
+          "start": 3915.0,
           "end": 4100.21
         },
         {
@@ -549,15 +549,15 @@
           "end": 4615.61
         },
         {
-          "start": 5184.0,
-          "end": 5401.0
+          "start": 5183.0,
+          "end": 5389.0
         },
         {
-          "start": 5840.0,
+          "start": 5872.0,
           "end": 6019.91
         },
         {
-          "start": 6391.0,
+          "start": 6368.96,
           "end": 6454.96
         },
         {
@@ -569,7 +569,7 @@
           "end": 8759.8
         }
       ],
-      "trained_on": "2501cb718b19443c"
+      "trained_on": "49024da6cb19028b"
     },
     {
       "name": "recorder",

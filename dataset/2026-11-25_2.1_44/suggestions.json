@@ -1,0 +1,472 @@
+{
+  "format": 1,
+  "recording": {
+    "source": "recorder",
+    "job": 44,
+    "channel": "2.1",
+    "network": "KTVU-HD",
+    "title": "dataset FOX primetime",
+    "start": "2026-11-25T03:56:09+00:00",
+    "duration": 8997.321677777829
+  },
+  "sources": [
+    {
+      "name": "captions",
+      "detail": "uncaptioned: window 30 s, coverage < 0.5, at least 30 s",
+      "breaks": [
+        {
+          "start": 85.0,
+          "end": 175.0
+        },
+        {
+          "start": 204.0,
+          "end": 248.0
+        },
+        {
+          "start": 1254.0,
+          "end": 1285.0
+        },
+        {
+          "start": 2398.0,
+          "end": 2428.0
+        },
+        {
+          "start": 2458.0,
+          "end": 2489.0
+        },
+        {
+          "start": 2907.0,
+          "end": 2944.0
+        },
+        {
+          "start": 3379.0,
+          "end": 3409.0
+        },
+        {
+          "start": 3485.0,
+          "end": 3542.0
+        },
+        {
+          "start": 3772.0,
+          "end": 3846.0
+        },
+        {
+          "start": 4506.0,
+          "end": 4537.0
+        },
+        {
+          "start": 4566.0,
+          "end": 4597.0
+        },
+        {
+          "start": 5020.0,
+          "end": 5071.0
+        },
+        {
+          "start": 5463.0,
+          "end": 5495.0
+        },
+        {
+          "start": 5644.0,
+          "end": 5691.0
+        },
+        {
+          "start": 6677.0,
+          "end": 6711.0
+        },
+        {
+          "start": 7377.0,
+          "end": 7463.0
+        },
+        {
+          "start": 8414.0,
+          "end": 8473.0
+        },
+        {
+          "start": 8812.0,
+          "end": 8852.0
+        },
+        {
+          "start": 8881.0,
+          "end": 8937.0
+        }
+      ]
+    },
+    {
+      "name": "comskip",
+      "detail": "Comskip 0.83.001, made using ffmpeg",
+      "breaks": [
+        {
+          "start": 0.02,
+          "end": 35.94
+        },
+        {
+          "start": 77.04,
+          "end": 250.53
+        },
+        {
+          "start": 1133.83,
+          "end": 1284.02
+        },
+        {
+          "start": 1647.85,
+          "end": 1896.64
+        },
+        {
+          "start": 2277.09,
+          "end": 2487.5
+        },
+        {
+          "start": 2816.01,
+          "end": 3025.36
+        },
+        {
+          "start": 3378.51,
+          "end": 3540.9
+        },
+        {
+          "start": 3830.94,
+          "end": 3875.47
+        },
+        {
+          "start": 4444.46,
+          "end": 4595.67
+        },
+        {
+          "start": 4928.92,
+          "end": 5177.31
+        },
+        {
+          "start": 5463.83,
+          "end": 5690.02
+        },
+        {
+          "start": 6037.13,
+          "end": 6239.73
+        },
+        {
+          "start": 6557.33,
+          "end": 6710.47
+        },
+        {
+          "start": 7417.91,
+          "end": 7651.61
+        },
+        {
+          "start": 8696.85,
+          "end": 8997.0
+        }
+      ]
+    },
+    {
+      "name": "fusion",
+      "detail": "frames (mobileclip2-s0, logistic regression) + captions (text and timing) + black/silence, gradient-boosted over windows to 150 s; edges snapped to black-and-silent moments; trained on 9 labelled recordings",
+      "breaks": [
+        {
+          "start": 83.79,
+          "end": 289.0
+        },
+        {
+          "start": 768.0,
+          "end": 802.0
+        },
+        {
+          "start": 1134.01,
+          "end": 1318.0
+        },
+        {
+          "start": 1596.0,
+          "end": 1930.0
+        },
+        {
+          "start": 2116.0,
+          "end": 2187.0
+        },
+        {
+          "start": 2277.26,
+          "end": 2525.0
+        },
+        {
+          "start": 2606.0,
+          "end": 2650.0
+        },
+        {
+          "start": 2793.0,
+          "end": 3118.0
+        },
+        {
+          "start": 3378.66,
+          "end": 3551.0
+        },
+        {
+          "start": 3734.0,
+          "end": 3925.0
+        },
+        {
+          "start": 4077.0,
+          "end": 4134.0
+        },
+        {
+          "start": 4169.0,
+          "end": 4258.0
+        },
+        {
+          "start": 4352.0,
+          "end": 4595.77
+        },
+        {
+          "start": 4672.0,
+          "end": 4841.0
+        },
+        {
+          "start": 4869.0,
+          "end": 7071.0
+        },
+        {
+          "start": 7344.0,
+          "end": 7454.98
+        },
+        {
+          "start": 8357.69,
+          "end": 8459.48
+        },
+        {
+          "start": 8810.32,
+          "end": 8932.05
+        }
+      ],
+      "trained_on": "4b70dc9a8d9301ec"
+    },
+    {
+      "name": "logo-detector",
+      "detail": "logo detector (crates/adbreak) 0.1.0, defaults",
+      "breaks": [
+        {
+          "start": 235.35178333333334,
+          "end": 263.0
+        },
+        {
+          "start": 1134.0162222222223,
+          "end": 1303.0
+        },
+        {
+          "start": 1647.9629833333333,
+          "end": 1908.0
+        },
+        {
+          "start": 2277.3083666666666,
+          "end": 2506.0
+        },
+        {
+          "start": 2816.2133999999996,
+          "end": 3055.0
+        },
+        {
+          "start": 3378.7086666666664,
+          "end": 3510.3068000000003
+        },
+        {
+          "start": 3837.7005333333336,
+          "end": 3872.0
+        },
+        {
+          "start": 4444.656883333333,
+          "end": 4615.0
+        },
+        {
+          "start": 4929.157572222222,
+          "end": 5196.0
+        },
+        {
+          "start": 5464.008555555556,
+          "end": 5709.0
+        },
+        {
+          "start": 6037.364672222222,
+          "end": 6258.0
+        },
+        {
+          "start": 6557.551005555555,
+          "end": 6734.0
+        }
+      ]
+    },
+    {
+      "name": "model",
+      "detail": "adbreak-model inputs (rust-v1), leave-one-recording-out over 10",
+      "breaks": [
+        {
+          "start": 0.0,
+          "end": 31.0
+        },
+        {
+          "start": 87.0,
+          "end": 259.0
+        },
+        {
+          "start": 771.0,
+          "end": 817.0
+        },
+        {
+          "start": 1134.02,
+          "end": 1284.0
+        },
+        {
+          "start": 1597.0,
+          "end": 1928.0
+        },
+        {
+          "start": 2115.0,
+          "end": 2191.0
+        },
+        {
+          "start": 2277.31,
+          "end": 2503.0
+        },
+        {
+          "start": 2816.21,
+          "end": 3125.0
+        },
+        {
+          "start": 3378.71,
+          "end": 3547.0
+        },
+        {
+          "start": 3693.0,
+          "end": 3923.0
+        },
+        {
+          "start": 4189.0,
+          "end": 4253.0
+        },
+        {
+          "start": 4359.0,
+          "end": 4595.81
+        },
+        {
+          "start": 4673.0,
+          "end": 4838.0
+        },
+        {
+          "start": 4929.16,
+          "end": 5189.0
+        },
+        {
+          "start": 5209.0,
+          "end": 5303.0
+        },
+        {
+          "start": 5324.0,
+          "end": 5843.0
+        },
+        {
+          "start": 5859.0,
+          "end": 6256.0
+        },
+        {
+          "start": 6296.0,
+          "end": 6710.7
+        },
+        {
+          "start": 6760.0,
+          "end": 6936.0
+        },
+        {
+          "start": 7012.0,
+          "end": 7051.0
+        },
+        {
+          "start": 7374.0,
+          "end": 7455.01
+        },
+        {
+          "start": 8357.71,
+          "end": 8459.55
+        },
+        {
+          "start": 8810.35,
+          "end": 8932.06
+        }
+      ],
+      "trained_on": "49024da6cb19028b"
+    },
+    {
+      "name": "recorder",
+      "detail": "the recorder's own break scan",
+      "breaks": [
+        {
+          "start": 0.0,
+          "end": 31.0
+        },
+        {
+          "start": 86.0,
+          "end": 307.0
+        },
+        {
+          "start": 496.0,
+          "end": 551.0
+        },
+        {
+          "start": 615.0,
+          "end": 725.0
+        },
+        {
+          "start": 764.0,
+          "end": 1010.0
+        },
+        {
+          "start": 1111.0,
+          "end": 1363.0
+        },
+        {
+          "start": 1593.0,
+          "end": 1962.0
+        },
+        {
+          "start": 2110.0,
+          "end": 2544.0
+        },
+        {
+          "start": 2595.0,
+          "end": 2773.0
+        },
+        {
+          "start": 2790.0,
+          "end": 3133.0
+        },
+        {
+          "start": 3378.71,
+          "end": 3557.0
+        },
+        {
+          "start": 3673.0,
+          "end": 3994.0
+        },
+        {
+          "start": 4048.0,
+          "end": 4280.0
+        },
+        {
+          "start": 4297.0,
+          "end": 4595.81
+        },
+        {
+          "start": 4674.0,
+          "end": 7179.0
+        },
+        {
+          "start": 7333.0,
+          "end": 7455.01
+        },
+        {
+          "start": 8357.71,
+          "end": 8459.55
+        },
+        {
+          "start": 8810.35,
+          "end": 8932.06
+        }
+      ]
+    }
+  ]
+}

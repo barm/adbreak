@@ -618,7 +618,7 @@
     },
     {
       "name": "model",
-      "detail": "adbreak-model inputs (rust-v1), leave-one-recording-out over 9",
+      "detail": "adbreak-model inputs (rust-v1), leave-one-recording-out over 10",
       "breaks": [
         {
           "start": 455.2,
@@ -629,8 +629,8 @@
           "end": 1125.31
         },
         {
-          "start": 1305.0,
-          "end": 1400.0
+          "start": 1306.0,
+          "end": 1392.0
         },
         {
           "start": 2025.46,
@@ -641,71 +641,71 @@
           "end": 2858.0
         },
         {
-          "start": 2993.0,
-          "end": 3116.0
+          "start": 2994.0,
+          "end": 3115.0
         },
         {
           "start": 3929.0,
-          "end": 3982.0
+          "end": 3980.0
         },
         {
-          "start": 4118.0,
-          "end": 4307.0
+          "start": 4119.0,
+          "end": 4303.0
         },
         {
           "start": 4563.0,
-          "end": 4840.0
+          "end": 4838.0
         },
         {
-          "start": 5667.0,
-          "end": 5917.0
+          "start": 5666.0,
+          "end": 5915.0
         },
         {
-          "start": 6105.0,
-          "end": 6377.0
+          "start": 6111.0,
+          "end": 6376.0
         },
         {
-          "start": 6513.0,
-          "end": 6632.0
+          "start": 6515.0,
+          "end": 6641.0
         },
         {
           "start": 7216.0,
-          "end": 7367.0
+          "end": 7369.0
         },
         {
-          "start": 7648.0,
-          "end": 7817.0
+          "start": 7646.0,
+          "end": 7815.0
         },
         {
-          "start": 8089.0,
+          "start": 8091.0,
           "end": 8222.0
         },
         {
-          "start": 8474.0,
-          "end": 8603.0
+          "start": 8472.0,
+          "end": 8600.0
         },
         {
-          "start": 9009.0,
-          "end": 9202.0
+          "start": 9010.0,
+          "end": 9206.0
         },
         {
           "start": 9478.0,
-          "end": 9716.0
+          "end": 9718.0
         },
         {
           "start": 10017.0,
           "end": 10254.0
         },
         {
-          "start": 12097.0,
-          "end": 12325.0
+          "start": 10392.0,
+          "end": 10431.0
         },
         {
-          "start": 12548.0,
-          "end": 12588.0
+          "start": 12099.0,
+          "end": 12318.0
         }
       ],
-      "trained_on": "2501cb718b19443c"
+      "trained_on": "49024da6cb19028b"
     },
     {
       "name": "recorder",
