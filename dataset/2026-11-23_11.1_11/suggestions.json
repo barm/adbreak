@@ -665,7 +665,7 @@
     },
     {
       "name": "model",
-      "detail": "adbreak-model inputs (rust-v1), leave-one-recording-out over 9",
+      "detail": "adbreak-model inputs (rust-v1), leave-one-recording-out over 8",
       "breaks": [
         {
           "start": 349.0,
@@ -673,23 +673,23 @@
           "kind": "ad_read"
         },
         {
-          "start": 750.91,
+          "start": 724.0,
           "end": 872.3,
           "kind": "ad"
         },
         {
           "start": 1330.76,
-          "end": 1421.0,
+          "end": 1427.0,
           "kind": "ad"
         },
         {
-          "start": 1643.31,
-          "end": 1746.0,
+          "start": 1617.0,
+          "end": 1747.0,
           "kind": "ad"
         },
         {
-          "start": 1788.0,
-          "end": 1792.0,
+          "start": 1787.0,
+          "end": 1793.0,
           "kind": "ad_read"
         },
         {
@@ -698,7 +698,12 @@
           "kind": "ad"
         },
         {
-          "start": 2695.0,
+          "start": 2496.0,
+          "end": 2534.0,
+          "kind": "ad"
+        },
+        {
+          "start": 2681.0,
           "end": 2794.56,
           "kind": "ad"
         },
@@ -718,7 +723,7 @@
           "kind": "ad_read"
         },
         {
-          "start": 4656.0,
+          "start": 4652.0,
           "end": 4819.16,
           "kind": "ad"
         },
@@ -744,21 +749,21 @@
         },
         {
           "start": 5951.66,
-          "end": 6176.0,
+          "end": 6179.0,
           "kind": "ad"
         },
         {
           "start": 6488.47,
-          "end": 6555.0,
+          "end": 6534.46,
           "kind": "ad"
         },
         {
-          "start": 6799.0,
-          "end": 7024.0,
+          "start": 6846.76,
+          "end": 7029.0,
           "kind": "ad"
         },
         {
-          "start": 7024.0,
+          "start": 7029.0,
           "end": 7059.0,
           "kind": "ad_read"
         },
@@ -779,17 +784,17 @@
         },
         {
           "start": 8927.85,
-          "end": 9063.35,
+          "end": 9086.0,
           "kind": "ad"
         },
         {
-          "start": 9316.21,
-          "end": 9448.0,
+          "start": 9286.0,
+          "end": 9449.0,
           "kind": "ad"
         },
         {
           "start": 10086.06,
-          "end": 10207.41,
+          "end": 10233.0,
           "kind": "ad"
         },
         {
@@ -803,12 +808,12 @@
           "kind": "ad"
         },
         {
-          "start": 11014.0,
-          "end": 11019.0,
+          "start": 11012.0,
+          "end": 11020.0,
           "kind": "ad_read"
         }
       ],
-      "trained_on": "cc734e389ea84eba"
+      "trained_on": "b6afd016919d8f7b"
     },
     {
       "name": "recorder",
