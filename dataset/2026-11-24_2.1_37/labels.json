@@ -12,68 +12,73 @@
   "reviewed": [
     {
       "start": 0.0,
-      "end": 8981.822833333343
+      "end": 7500.0
     }
   ],
   "breaks": [
     {
       "start": 407.0,
-      "end": 622.0,
+      "end": 586.8591882641928,
       "kind": "ad"
     },
     {
-      "start": 991.0,
-      "end": 1205.0,
+      "start": 989.1449681649236,
+      "end": 1169.4030871758341,
       "kind": "ad"
     },
     {
-      "start": 1653.0,
-      "end": 1899.0,
+      "start": 1649.3766583597896,
+      "end": 1898.5629692168955,
       "kind": "ad"
     },
     {
-      "start": 2056.0,
+      "start": 2055.4793359603354,
       "end": 2239.0,
       "kind": "ad"
     },
     {
-      "start": 2622.0,
-      "end": 2833.0,
+      "start": 2597.2856678450107,
+      "end": 2836.722646807666,
       "kind": "ad"
     },
     {
-      "start": 3438.0,
-      "end": 3685.0,
+      "start": 3432.899717892307,
+      "end": 3688.5658271907555,
       "kind": "ad"
     },
     {
-      "start": 3900.0,
-      "end": 4082.0,
+      "start": 3900.8569526507026,
+      "end": 4074.0206802918196,
       "kind": "ad"
     },
     {
-      "start": 4418.0,
-      "end": 4630.0,
+      "start": 4392.545225278024,
+      "end": 4636.194107503136,
       "kind": "ad"
     },
     {
-      "start": 5440.2,
-      "end": 5693.3,
+      "start": 5433.435375762885,
+      "end": 5698.379314267977,
       "kind": "ad"
     },
     {
-      "start": 6039.0,
-      "end": 6274.0,
+      "start": 6038.14859973899,
+      "end": 6308.366436699826,
       "kind": "ad"
     },
     {
       "start": 6397.0,
-      "end": 6548.3,
+      "end": 6553.073297717929,
       "kind": "ad"
     },
     {
-      "start": 7203.4,
-      "end": 7456.1,
+      "start": 7198.388527223557,
+      "end": 7203.493884533585,
+      "kind": "ad_read"
+    },
+    {
+      "start": 7203.493884533585,
+      "end": 7456.190294929818,
       "kind": "ad"
     },
     {
@@ -87,5 +92,5 @@
       "kind": "ad"
     }
   ],
-  "notes": "Labelled by Claude from frames, 2026-11-24: candidates from Comskip and the fusion draft, edges checked in frames at 2 s and snapped to black-and-silent moments within 3 s; some ends are good to a few seconds only. 25 Words or Less's sponsored scan-and-win (Mama Mancini's) and show bumpers count as programme; other shows' promos count as ad. Some reception glitches near the end. Not yet checked by a person."
+  "notes": "Labelled by Claude from frames, 2026-11-24: candidates from Comskip and the fusion draft, edges checked in frames at 2 s and snapped to black-and-silent moments within 3 s; some ends are good to a few seconds only. 25 Words or Less's sponsored scan-and-win (Mama Mancini's) and show bumpers count as programme; other shows' promos count as ad. Some reception glitches near the end. Not yet checked by a person.\nReviewed to 2:05:00 only: the tuner's reception goes bad after that."
 }
