@@ -7,6 +7,7 @@ import { Text, Heading } from "@astryxdesign/core/Text";
 import { Link } from "@astryxdesign/core/Link";
 import { Button } from "@astryxdesign/core/Button";
 import { Kbd } from "@astryxdesign/core/Kbd";
+import { Toolbar } from "@astryxdesign/core/Toolbar";
 import { ContextMenu } from "@astryxdesign/core/ContextMenu";
 import { DropdownMenu } from "@astryxdesign/core/DropdownMenu";
 import { Popover } from "@astryxdesign/core/Popover";
@@ -131,24 +132,10 @@ export function Review({ id }: { id: string }) {
     <Layout
       header={
         <LayoutHeader padding={2}>
-          <Stack direction="horizontal" gap={3} align="center" justify="between">
-            <Stack direction="horizontal" gap={3} align="center">
-              <Link href="#">adbreak labelling</Link>
-              <Text color="secondary" type="supporting">{crumb}</Text>
-              <Text type="supporting" color={status.err ? "accent" : "secondary"}>{status.msg}</Text>
-            </Stack>
-            <Stack direction="horizontal" gap={2} align="center">
-            <Shortcuts isOpen={keysOpen} onOpenChange={setKeysOpen}>
-              <Button label="Keyboard shortcuts" size="sm" variant="ghost" tooltip="Keyboard shortcuts (?)">
-                <Stack direction="horizontal" gap={1} align="center">Shortcuts<Kbd keys="?" /></Stack>
-              </Button>
-            </Shortcuts>
-            <SegmentedControl label="Panel" value={placement} onChange={(v) => place(v as Placement)} size="sm">
-              <SegmentedControlItem label="Panel below" value="below" />
-              <SegmentedControlItem label="At the side" value="side" />
-              <SegmentedControlItem label="Hidden" value="hidden" />
-            </SegmentedControl>
-            </Stack>
+          <Stack direction="horizontal" gap={3} align="center">
+            <Link href="#">adbreak labelling</Link>
+            <Text color="secondary" type="supporting">{crumb}</Text>
+            <Text type="supporting" color={status.err ? "accent" : "secondary"}>{status.msg}</Text>
           </Stack>
         </LayoutHeader>
       }
@@ -161,10 +148,36 @@ export function Review({ id }: { id: string }) {
                   <video ref={video} style={styles.video} playsInline controls preload="auto" />
                   <Text ref={cap as never} style={styles.caption} size="lg">{""}</Text>
                 </Stack>
-                <Stack direction="horizontal" gap={3} align="center">
-                  <Text ref={time as never} type="code" style={styles.time}>0:00:00.0</Text>
-                  <Text ref={zoom as never} type="supporting" color="secondary">{""}</Text>
-                </Stack>
+                <Toolbar
+                  label="Timeline"
+                  size="sm"
+                  gap={2}
+                  dividers={["top", "bottom"]}
+                  startContent={
+                    <>
+                      <Text ref={time as never} type="code" style={styles.time}>0:00:00.0</Text>
+                      <Text ref={zoom as never} type="supporting" color="secondary">{""}</Text>
+                    </>
+                  }
+                  endContent={
+                    <>
+                      <Button label="Zoom out" size="sm" variant="ghost" tooltip="Zoom out (-)" onClick={() => engine?.key("-")}>−</Button>
+                      <Button label="Zoom in" size="sm" variant="ghost" tooltip="Zoom in (=)" onClick={() => engine?.key("=")}>+</Button>
+                      <Button label="Undo" size="sm" variant="ghost" tooltip="Undo (⌘Z)" onClick={() => engine?.undo()}>↶</Button>
+                      <Button label="Redo" size="sm" variant="ghost" tooltip="Redo (⌘⇧Z)" onClick={() => engine?.undo(true)}>↷</Button>
+                      <Shortcuts isOpen={keysOpen} onOpenChange={setKeysOpen}>
+                        <Button label="Keyboard shortcuts" size="sm" variant="ghost" tooltip="Keyboard shortcuts (?)">
+                          <Stack direction="horizontal" gap={1} align="center">Shortcuts<Kbd keys="?" /></Stack>
+                        </Button>
+                      </Shortcuts>
+                      <SegmentedControl label="Panel" value={placement} onChange={(v) => place(v as Placement)} size="sm">
+                        <SegmentedControlItem label="Panel below" value="below" />
+                        <SegmentedControlItem label="At the side" value="side" />
+                        <SegmentedControlItem label="Hidden" value="hidden" />
+                      </SegmentedControl>
+                    </>
+                  }
+                />
                 {timeline}
               </Stack>
             </StackItem>
