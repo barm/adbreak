@@ -10,7 +10,7 @@ runs, and exports for `rust/crates/adbreak-model`:
 ```sh
 adbreak features <ids...>            # from the repository root: per-second inputs, Rust (avkit, Core ML)
 cd ml && uv sync
-uv run adbreak-ml evaluate           # leave-one-recording-out; written as the "model" suggestion
+uv run adbreak-ml evaluate           # leave-one-recording-out ("model"), and leave-one-network-out ("model-new-network")
 uv run adbreak-ml export DIR         # model.json and test_vector.json (the image encoder's .mlpackage goes beside it)
 cd .. && adbreak eval --each         # scores every source
 ```

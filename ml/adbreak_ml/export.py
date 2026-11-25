@@ -301,14 +301,17 @@ def evaluate(recs: list[Recording], only: set[str] | None = None) -> None:
     labelled = [d for d in data if (d.y != IGNORE).any()]
     fp = labels_fingerprint()
 
-    def write(d: Data, train: list[Data], how: str) -> None:
+    def write(d: Data, train: list[Data], how: str, source: str = "model") -> None:
         p_frame, prob = predict_head(train_head(train, "ad"), d)
         edges = [float(e) for e in d.edges if e > -1e8]
         probs = {k: predict_head(train_head(train, k), d)[1] for k in MINOR_KINDS if has_kind(train, k)}
         minor = {k: to_breaks(p, edges, KIND_POST[k]) for k, p in probs.items()}
         found = combine(to_breaks(prob, edges), minor, probs)
         breaks = [{"start": a, "end": b, "kind": k} for a, b, k in found]
-        save_source(d.rec, "model", f"adbreak-model inputs (rust-v1), {how}", breaks)
+        save_source(d.rec, source, f"adbreak-model inputs (rust-v1), {how}", breaks)
+        if source != "model":
+            print(f"  {d.rec.id} ({source}): {sum(1 for *_, k in found if k == 'ad')} ad")
+            return
         out = d.rec.features(RUST).parent / "model-out.json"
         metrics = {}
         m = d.y != IGNORE
@@ -329,3 +332,7 @@ def evaluate(recs: list[Recording], only: set[str] | None = None) -> None:
     for d in data:
         if d not in labelled and (only is None or d.rec.id in only):
             write(d, labelled, f"trained on all {len(labelled)} labelled recordings")
+    for d in labelled:
+        others = [o for o in labelled if o.rec.network != d.rec.network]
+        if (only is None or d.rec.id in only) and others:
+            write(d, others, f"trained on the {len(others)} recordings from other networks", "model-new-network")

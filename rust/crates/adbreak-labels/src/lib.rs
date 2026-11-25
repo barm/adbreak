@@ -285,6 +285,15 @@ impl Score {
     pub fn mean_end_error(&self) -> f64 {
         ratio(self.end_error, self.matched as f64)
     }
+    /// Seconds of programme a viewer would lose to skipping, per hour of scored time (programme, ad reads included,
+    /// marked as break).
+    pub fn wrongly_skipped_per_hour(&self) -> f64 {
+        3600.0 * ratio(self.false_pos, self.seconds)
+    }
+    /// Seconds of commercial break a viewer would still sit through, per hour of scored time.
+    pub fn missed_per_hour(&self) -> f64 {
+        3600.0 * ratio(self.false_neg, self.seconds)
+    }
     /// Totals over several recordings.
     pub fn add(&mut self, o: &Score) {
         self.seconds += o.seconds;

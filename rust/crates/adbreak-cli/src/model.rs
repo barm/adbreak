@@ -65,6 +65,9 @@ struct Scored {
     matched: usize,
     start_error: f64,
     end_error: f64,
+    /// Programme skipped, and break not skipped, seconds per hour.
+    wrongly_skipped_per_hour: f64,
+    missed_per_hour: f64,
 }
 
 impl From<&Score> for Scored {
@@ -78,6 +81,8 @@ impl From<&Score> for Scored {
             matched: s.matched,
             start_error: s.mean_start_error(),
             end_error: s.mean_end_error(),
+            wrongly_skipped_per_hour: s.wrongly_skipped_per_hour(),
+            missed_per_hour: s.missed_per_hour(),
         }
     }
 }
@@ -89,6 +94,8 @@ struct RecordingScore {
     /// The model's commercial breaks against the labels, and Comskip's for comparison.
     model: Option<Scored>,
     comskip: Option<Scored>,
+    /// The model trained only on other networks (`model-new-network`): how it does on a channel it hasn't seen.
+    new_network: Option<Scored>,
     /// Per-second log loss and AUC of its commercial-break probability (`features/model-out.json`).
     log_loss: Option<f64>,
     auc: Option<f64>,
@@ -153,6 +160,7 @@ fn overview(m: &Model) -> anyhow::Result<Overview> {
             id: e.id.clone(),
             title: e.recording.title.clone(),
             model: None,
+            new_network: None,
             comskip: None,
             log_loss: None,
             auc: None,
@@ -169,6 +177,11 @@ fn overview(m: &Model) -> anyhow::Result<Overview> {
             }
             row.how = s.detail.clone();
             row.stale = !s.trained_on.is_empty() && s.trained_on != fingerprint;
+        }
+        if let Some(s) = src("model-new-network") {
+            let sc = score_kind(labels, Kind::Ad, &s.spans(Kind::Ad));
+            row.new_network = Some((&sc).into());
+            add("model-new-network", Kind::Ad, "commercial break", &sc);
         }
         if let Some(s) = src("comskip") {
             let sc = score_kind(labels, Kind::Ad, &s.spans(Kind::Ad));

@@ -356,8 +356,8 @@ fn eval(data: &Dataset, each: bool) -> Result<()> {
     }
     println!("{labelled} labelled recording(s)");
     println!(
-        "  {:15} {:>9} {:>9} {:>9} {:>20} {:>9} {:>9} {:>12} {:>12}",
-        "source", "precision", "recall", "F1", "breaks matched", "start err", "end err", "double box", "ad read"
+        "  {:15} {:>9} {:>9} {:>9} {:>20} {:>9} {:>9} {:>11} {:>11} {:>12} {:>12}",
+        "source", "precision", "recall", "F1", "breaks matched", "start err", "end err", "show cut/h", "ads left/h", "double box", "ad read"
     );
     for (name, sc) in &totals {
         line(&format!("  {name}"), sc);
@@ -382,7 +382,7 @@ fn marked(marked: f64, seconds: f64) -> String {
 fn line(name: &str, s: &Score) {
     let pct = |x: f64| format!("{:.0}%", 100.0 * x);
     println!(
-        "{:17} {:>9} {:>9} {:>9} {:>20} {:>8.1}s {:>8.1}s {:>12} {:>12}",
+        "{:17} {:>9} {:>9} {:>9} {:>20} {:>8.1}s {:>8.1}s {:>10.0}s {:>10.0}s {:>12} {:>12}",
         name,
         pct(s.precision()),
         pct(s.recall()),
@@ -390,6 +390,8 @@ fn line(name: &str, s: &Score) {
         format!("{}/{} ({} found)", s.matched, s.breaks, s.found),
         s.mean_start_error(),
         s.mean_end_error(),
+        s.wrongly_skipped_per_hour(),
+        s.missed_per_hour(),
         // How much labelled double box and ad read time it marked as break.
         marked(s.double_box_marked, s.double_box_seconds),
         marked(s.ad_read_marked, s.ad_read_seconds),
