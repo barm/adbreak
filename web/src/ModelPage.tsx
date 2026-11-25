@@ -40,6 +40,7 @@ type Overview = {
   totals: Total[];
   recordings: Rec[];
   can_run: boolean;
+  history: Info[];
 };
 type Job = { running: boolean; action: string; only: string | null; ok: boolean | null; log: string[] };
 
@@ -70,8 +71,8 @@ export function ModelPage() {
     }, 2000);
     return () => clearInterval(t);
   }, [job?.running, load]);
-  const run = async (action: "evaluate" | "retrain" | "learning-curve", only?: string) => {
-    const r = await fetch("/api/model/run", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action, only }) });
+  const run = async (action: "evaluate" | "retrain" | "learning-curve" | "install", only?: string, version?: string) => {
+    const r = await fetch("/api/model/run", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action, only, version }) });
     if (!r.ok) setError(await r.text());
     else { setError(""); setJob(await r.json()); }
   };
@@ -104,7 +105,7 @@ export function ModelPage() {
                 <Stack gap={2}>
                   <Stack direction="horizontal" gap={2} align="center">
                     <Badge label={job.running ? "running" : job.ok ? "done" : "failed"} variant={job.running ? "info" : job.ok ? "success" : "error"} />
-                    <Text type="label">{job.action === "retrain" ? "Retrain and install" : job.action === "learning-curve" ? "Learning curve" : job.action === "ingest" ? `Importing ${job.only}` : job.only ? `Rerun on ${job.only}` : "Rerun on all recordings"}</Text>
+                    <Text type="label">{job.action === "retrain" ? "Retrain and install" : job.action === "learning-curve" ? "Learning curve" : job.action === "ingest" ? `Importing ${job.only}` : job.action === "install" ? "Reinstall an earlier model" : job.only ? `Rerun on ${job.only}` : "Rerun on all recordings"}</Text>
                   </Stack>
                   <CodeBlock code={job.log.slice(-12).join("\n") || "…"} size="sm" hasCopyButton={false} />
                 </Stack>
@@ -144,6 +145,26 @@ export function ModelPage() {
                     )}
                   </Stack>
                 </Section>
+              </Stack>
+            )}
+            {m && m.history.length > 0 && (
+              <Stack gap={2}>
+                <Heading level={3}>Earlier models</Heading>
+                <Text type="supporting" color="secondary">
+                  The models this one replaced, newest first. Reinstalling one puts it back for recorders (they pick it up on their own); the scores above stay those of the current training.
+                </Text>
+                <Table
+                  data={m.history}
+                  idKey="version"
+                  density="compact"
+                  columns={[
+                    { key: "version", header: "Version", renderCell: (h: Info) => <Text type="code">{h.version}</Text> },
+                    { key: "exported_at", header: "Trained", renderCell: (h: Info) => new Date(h.exported_at).toLocaleString() },
+                    { key: "trained_on", header: "Recordings", align: "end" as const, renderCell: (h: Info) => `${h.trained_on.length}` },
+                    { key: "seconds", header: "Labelled", align: "end" as const, renderCell: (h: Info) => hours(h.seconds) },
+                    { key: "reinstall", header: "", align: "end" as const, renderCell: (h: Info) => <Button label="Reinstall" size="sm" variant="secondary" isDisabled={busy} onClick={() => run("install", undefined, h.version)} /> },
+                  ]}
+                />
               </Stack>
             )}
             {m && (

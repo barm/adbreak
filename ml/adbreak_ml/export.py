@@ -281,6 +281,9 @@ def export(recs: list[Recording], out: Path, vector_secs: int = 600) -> None:
     # Installed atomically, the test vector first: a recorder watching model.json reloads when it changes, and
     # checks the model against the test vector made for it (its "model" is model.json's version).
     out.mkdir(parents=True, exist_ok=True)
+    from . import history
+
+    history.keep(out)  # the model this replaces, so it can be put back
     for name, body in (("test_vector.json", json.dumps(vec)), ("model-info.json", json.dumps(info)), ("model.json", text)):
         tmp = out / f".{name}.tmp"
         tmp.write_text(body)

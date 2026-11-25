@@ -119,9 +119,27 @@ struct Overview {
     totals: Vec<KindScore>,
     recordings: Vec<RecordingScore>,
     can_run: bool,
+    /// Earlier installed models kept in `history/` (their model-info.json), newest first; any can be put back.
+    history: Vec<serde_json::Value>,
 }
 
 const KINDS: [(Kind, &str); 3] = [(Kind::Ad, "commercial break"), (Kind::DoubleBox, "double box"), (Kind::AdRead, "ad read")];
+
+/// The kept models' info, newest first (see `adbreak-ml history`).
+fn history(dir: &Path) -> Vec<serde_json::Value> {
+    let mut h: Vec<serde_json::Value> = std::fs::read_dir(dir.join("history"))
+        .map(|d| {
+            d.flatten().filter_map(|e| std::fs::read_to_string(e.path().join("model-info.json")).ok()).filter_map(|t| serde_json::from_str(&t).ok()).collect()
+        })
+        .unwrap_or_default();
+    h.sort_by(|a: &serde_json::Value, b| b["exported_at"].as_str().cmp(&a["exported_at"].as_str()));
+    for i in &mut h {
+        if let Some(o) = i.as_object_mut() {
+            o.remove("loss");
+        }
+    }
+    h
+}
 
 fn du(p: &Path) -> u64 {
     match std::fs::metadata(p) {
@@ -215,6 +233,7 @@ fn overview(m: &Model) -> anyhow::Result<Overview> {
         totals: totals.into_iter().map(|(source, _, kind, s)| KindScore { source, kind, score: (&s).into() }).collect(),
         recordings,
         can_run: m.ml.join("pyproject.toml").is_file(),
+        history: history(&m.dir),
     })
 }
 
@@ -229,11 +248,16 @@ struct Run {
     action: String,
     /// Just this recording (evaluate only).
     only: Option<String>,
+    /// "install": which kept model to put back (`history`).
+    version: Option<String>,
 }
 
 async fn run(State(m): State<Arc<Model>>, Json(r): Json<Run>) -> Response {
-    if !matches!(r.action.as_str(), "evaluate" | "retrain" | "learning-curve") {
-        return (StatusCode::BAD_REQUEST, "action is evaluate, retrain or learning-curve").into_response();
+    if !matches!(r.action.as_str(), "evaluate" | "retrain" | "learning-curve" | "install") {
+        return (StatusCode::BAD_REQUEST, "action is evaluate, retrain, learning-curve or install").into_response();
+    }
+    if r.action == "install" && !r.version.as_deref().is_some_and(|v| !v.is_empty() && v.chars().all(|c| c.is_ascii_hexdigit())) {
+        return (StatusCode::BAD_REQUEST, "install needs the version of a kept model").into_response();
     }
     if !m.ml.join("pyproject.toml").is_file() {
         return (StatusCode::CONFLICT, format!("no ML project at {} (adbreak label --ml)", m.ml.display())).into_response();
@@ -246,6 +270,9 @@ async fn run(State(m): State<Arc<Model>>, Json(r): Json<Run>) -> Response {
         *j = Job { running: true, action: r.action.clone(), only: r.only.clone(), started: now(), ..Default::default() };
     }
     let mut steps: Vec<Vec<String>> = vec![];
+    if let (Some(v), "install") = (&r.version, r.action.as_str()) {
+        steps.push(vec!["run".into(), "-q".into(), "adbreak-ml".into(), "install".into(), m.dir.display().to_string(), "--version".into(), v.clone()]);
+    }
     if r.action == "learning-curve" {
         steps.push(vec!["run".into(), "-q".into(), "adbreak-ml".into(), "learning-curve".into(), m.dir.display().to_string()]);
     }
@@ -253,7 +280,7 @@ async fn run(State(m): State<Arc<Model>>, Json(r): Json<Run>) -> Response {
     if let Some(id) = &r.only {
         evaluate.extend(["--only".into(), id.clone()]);
     }
-    if r.action != "learning-curve" {
+    if !matches!(r.action.as_str(), "learning-curve" | "install") {
         steps.push(evaluate);
     }
     if r.action == "retrain" {
