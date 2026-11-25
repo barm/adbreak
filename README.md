@@ -95,7 +95,10 @@ again on what has arrived so far, so breaks can show up during a live recording.
 ```sh
 cargo install --path rust/crates/adbreak-cli
 
-# Add a recording from an import directory (below): keeps a 360p copy and the captions in the media store.
+# All at once: import, the automatic sources, the model's inputs and its draft (the steps below).
+adbreak ingest /path/to/export
+
+# Or step by step. Add a recording from an import directory (below): keeps a 360p copy and the captions in the media store.
 adbreak import /path/to/export
 
 # What the automatic sources think (Comskip if installed, the captions, the logo detector), and the model's inputs.
@@ -108,6 +111,11 @@ adbreak label            # http://127.0.0.1:8585
 # Score every source against the labels.
 adbreak eval --each
 ```
+
+A recorder can hand recordings over without anyone running a command: `adbreak label` watches an inbox (`--inbox`,
+`ADBREAK_INBOX`, default `inbox/` beside the database) and ingests each import directory that appears there, one at a
+time, deleting it once in (a failed one is renamed `<name>.failed`; the Model page shows the progress). Write each
+directory under a name starting with `.` and rename it when complete.
 
 An import directory holds `recording.json` (`adbreak_labels::Recording`), `media.mp4` (a fragmented MP4 with HEVC
 video and AAC sound), and optionally `captions.vtt`, `suggestions.json` (sources the recorder already has, such as

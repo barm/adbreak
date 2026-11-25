@@ -29,7 +29,14 @@ fn unbuilt(web: &std::path::Path) -> String {
 }
 
 /// Serves the labelling page (the web app's build in `web`, from `web/`: `npm run build`) and its API.
-pub async fn serve(data: Dataset, bind: &str, web: &std::path::Path, model_dir: &std::path::Path, ml: &std::path::Path) -> Result<()> {
+pub async fn serve(
+    data: Dataset,
+    bind: &str,
+    web: &std::path::Path,
+    model_dir: &std::path::Path,
+    ml: &std::path::Path,
+    inbox: std::path::PathBuf,
+) -> Result<()> {
     let root = data.db.path.clone();
     let web = std::fs::canonicalize(web).unwrap_or_else(|_| web.to_path_buf());
     let page = if web.join("index.html").is_file() {
@@ -40,6 +47,8 @@ pub async fn serve(data: Dataset, bind: &str, web: &std::path::Path, model_dir: 
     };
     let missing = unbuilt(&web);
     let data = Arc::new(data);
+    let model = Arc::new(crate::model::Model::new(data.clone(), model_dir.to_path_buf(), ml.to_path_buf()));
+    tokio::spawn(crate::model::watch_inbox(model.clone(), inbox));
     let router = Router::new()
         .route(
             "/",
@@ -60,7 +69,7 @@ pub async fn serve(data: Dataset, bind: &str, web: &std::path::Path, model_dir: 
         .route("/api/recordings/{id}/inputs", get(inputs))
         .route("/files/{id}/{file}", get(file))
         .with_state(data.clone())
-        .merge(crate::model::router(Arc::new(crate::model::Model::new(data, model_dir.to_path_buf(), ml.to_path_buf()))))
+        .merge(crate::model::router(model.clone()))
         .fallback_service(page);
     let listener = tokio::net::TcpListener::bind(bind).await?;
     eprintln!("labelling on http://{}  (dataset {})", listener.local_addr()?, root.display());

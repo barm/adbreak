@@ -104,7 +104,7 @@ export function ModelPage() {
                 <Stack gap={2}>
                   <Stack direction="horizontal" gap={2} align="center">
                     <Badge label={job.running ? "running" : job.ok ? "done" : "failed"} variant={job.running ? "info" : job.ok ? "success" : "error"} />
-                    <Text type="label">{job.action === "retrain" ? "Retrain and install" : job.action === "learning-curve" ? "Learning curve" : job.only ? `Rerun on ${job.only}` : "Rerun on all recordings"}</Text>
+                    <Text type="label">{job.action === "retrain" ? "Retrain and install" : job.action === "learning-curve" ? "Learning curve" : job.action === "ingest" ? `Importing ${job.only}` : job.only ? `Rerun on ${job.only}` : "Rerun on all recordings"}</Text>
                   </Stack>
                   <CodeBlock code={job.log.slice(-12).join("\n") || "…"} size="sm" hasCopyButton={false} />
                 </Stack>
