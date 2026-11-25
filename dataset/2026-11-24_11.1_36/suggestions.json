@@ -506,26 +506,26 @@
     },
     {
       "name": "model",
-      "detail": "adbreak-model inputs (rust-v1), leave-one-recording-out over 8",
+      "detail": "adbreak-model inputs (rust-v1), leave-one-recording-out over 9",
       "breaks": [
         {
           "start": 0.0,
           "end": 69.75
         },
         {
-          "start": 453.0,
+          "start": 451.0,
           "end": 603.9
         },
         {
-          "start": 795.0,
-          "end": 856.0
+          "start": 796.0,
+          "end": 858.0
         },
         {
-          "start": 904.0,
+          "start": 909.0,
           "end": 1053.3
         },
         {
-          "start": 1844.0,
+          "start": 1821.0,
           "end": 1999.76
         },
         {
@@ -533,35 +533,31 @@
           "end": 2461.96
         },
         {
-          "start": 2732.21,
-          "end": 2908.0
+          "start": 2708.0,
+          "end": 2891.0
         },
         {
-          "start": 3072.0,
-          "end": 3115.0
+          "start": 3408.0,
+          "end": 3587.6
         },
         {
-          "start": 3402.0,
-          "end": 3611.0
-        },
-        {
-          "start": 3873.0,
+          "start": 3912.0,
           "end": 4100.21
         },
         {
-          "start": 4395.0,
-          "end": 4670.0
+          "start": 4406.0,
+          "end": 4615.61
         },
         {
-          "start": 5190.0,
-          "end": 5398.0
+          "start": 5184.0,
+          "end": 5401.0
         },
         {
-          "start": 5738.0,
-          "end": 6089.0
+          "start": 5840.0,
+          "end": 6019.91
         },
         {
-          "start": 6396.0,
+          "start": 6391.0,
           "end": 6454.96
         },
         {
@@ -573,7 +569,7 @@
           "end": 8759.8
         }
       ],
-      "trained_on": "b8e5ba59ca5750dc"
+      "trained_on": "2501cb718b19443c"
     },
     {
       "name": "recorder",
