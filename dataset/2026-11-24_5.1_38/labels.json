@@ -11,7 +11,7 @@
   },
   "reviewed": [
     {
-      "start": 2520.0,
+      "start": 0.0,
       "end": 8954.16187777786
     }
   ],
@@ -85,6 +85,12 @@
       "start": 8506.0,
       "end": 8632.6,
       "kind": "ad"
+    }
+  ],
+  "excluded": [
+    {
+      "start": 0.0,
+      "end": 2520.0
     }
   ],
   "notes": "Labelled by Claude from frames, 2026-11-24. Poor reception: the first 30 min are badly corrupted and excluded (reviewed from 30:00). Candidates from Comskip and the fusion draft, edges checked at 2 s and snapped to black-and-silent moments within 3 s; the 1:10 break's end is approximate. Show plugs, 'coming up' teases and credits count as programme; KPIX/CBS promos count as ad. Not yet checked by a person.\nReviewed from 0:42:00 only: the tuner's reception is bad before that."

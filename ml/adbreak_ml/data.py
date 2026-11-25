@@ -79,6 +79,8 @@ def second_labels(rec: Recording, times: np.ndarray) -> np.ndarray:
         return y
     for r in rec.labels["reviewed"]:
         y[(times >= r["start"]) & (times < r["end"])] = PROGRAMME
+    for x in rec.labels.get("excluded", []):  # bad reception, say: never trained on
+        y[(times >= x["start"]) & (times < x["end"])] = IGNORE
     for b in rec.labels["breaks"]:
         inside = (times >= b["start"]) & (times < b["end"])
         kind = b.get("kind", "ad")
@@ -105,6 +107,8 @@ def kind_labels(rec: Recording, times: np.ndarray, kind: str) -> np.ndarray:
         return y
     for r in rec.labels["reviewed"]:
         y[(times >= r["start"]) & (times < r["end"])] = PROGRAMME
+    for x in rec.labels.get("excluded", []):  # bad reception, say: never trained on
+        y[(times >= x["start"]) & (times < x["end"])] = IGNORE
     for b in rec.labels["breaks"]:
         inside = (times >= b["start"]) & (times < b["end"]) & (y != IGNORE)
         k = b.get("kind", "ad")

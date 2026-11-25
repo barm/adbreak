@@ -12,7 +12,7 @@
   "reviewed": [
     {
       "start": 0.0,
-      "end": 7500.0
+      "end": 8981.822833333343
     }
   ],
   "breaks": [
@@ -90,6 +90,12 @@
       "start": 8165.2,
       "end": 8286.3,
       "kind": "ad"
+    }
+  ],
+  "excluded": [
+    {
+      "start": 7500.0,
+      "end": 8981.822833333343
     }
   ],
   "notes": "Labelled by Claude from frames, 2026-11-24: candidates from Comskip and the fusion draft, edges checked in frames at 2 s and snapped to black-and-silent moments within 3 s; some ends are good to a few seconds only. 25 Words or Less's sponsored scan-and-win (Mama Mancini's) and show bumpers count as programme; other shows' promos count as ad. Some reception glitches near the end. Not yet checked by a person.\nReviewed to 2:05:00 only: the tuner's reception goes bad after that."
