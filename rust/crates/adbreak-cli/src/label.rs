@@ -25,6 +25,7 @@ pub async fn serve(data: Dataset, bind: &str) -> Result<()> {
         .route("/api/recordings", get(list))
         .route("/api/recordings/{id}", get(show))
         .route("/api/recordings/{id}/labels", axum::routing::put(save))
+        .route("/api/recordings/{id}/inputs", get(inputs))
         .route("/files/{id}/{file}", get(file))
         .with_state(Arc::new(data));
     let listener = tokio::net::TcpListener::bind(bind).await?;
@@ -175,6 +176,56 @@ async fn save(State(data): State<Shared>, Path(id): Path<String>, headers: Heade
     let mut r = Json(labels).into_response();
     r.headers_mut().insert("x-labels-version", version(&data, &id).parse()?);
     Ok(r)
+}
+
+/// The model's inputs and output for one recording, per second, for the timeline: what `adbreak features` computed
+/// (captions, black, silence, edges; `features/rust-v1`) and what the last `adbreak-ml evaluate` gave
+/// (`features/model-out.json`: the picture score and the final probability). Missing parts are absent.
+#[derive(Serialize, Default)]
+struct Tracks {
+    /// 0/1 per second.
+    caption_visible: Vec<u8>,
+    caption_roll_up: Vec<u8>,
+    caption_new: Vec<u8>,
+    /// Share of each second, 0–100.
+    black: Vec<u8>,
+    silent: Vec<u8>,
+    edges: Vec<f64>,
+    /// 0–100 per second, and which labels they were trained against.
+    picture: Vec<u8>,
+    probability: Vec<u8>,
+    trained_on: String,
+}
+
+async fn inputs(State(data): State<Shared>, Path(id): Path<String>) -> Result<Json<Tracks>, Error> {
+    let id = data.resolve(&id)?;
+    let dir = data.media_dir(&id).join("features");
+    let mut t = Tracks::default();
+    if let (Ok(meta), Ok(raw)) = (std::fs::read_to_string(dir.join("rust-v1.json")), std::fs::read(dir.join("rust-v1.f32"))) {
+        let meta: serde_json::Value = serde_json::from_str(&meta)?;
+        let dim = meta["dim"].as_u64().unwrap_or(0) as usize;
+        let cols = dim + 6;
+        let floats: Vec<f32> = raw.as_chunks::<4>().0.iter().map(|b| f32::from_le_bytes(*b)).collect();
+        for row in floats.chunks_exact(cols) {
+            let c = &row[dim..];
+            t.caption_visible.push(u8::from(c[1] > 0.5));
+            t.caption_roll_up.push(u8::from(c[2] > 0.5));
+            t.caption_new.push(u8::from(c[3] > 0.5));
+            t.black.push((c[4].clamp(0.0, 1.0) * 100.0).round() as u8);
+            t.silent.push((c[5].clamp(0.0, 1.0) * 100.0).round() as u8);
+        }
+        t.edges = meta["edges"].as_array().map(|a| a.iter().filter_map(|v| v.as_f64()).collect()).unwrap_or_default();
+    }
+    if let Ok(text) = std::fs::read_to_string(dir.join("model-out.json")) {
+        let m: serde_json::Value = serde_json::from_str(&text)?;
+        let pct = |k: &str| -> Vec<u8> {
+            m[k].as_array().map(|a| a.iter().map(|v| (v.as_f64().unwrap_or(0.0).clamp(0.0, 1.0) * 100.0).round() as u8).collect()).unwrap_or_default()
+        };
+        t.picture = pct("picture");
+        t.probability = pct("probability");
+        t.trained_on = m["trained_on"].as_str().unwrap_or_default().to_string();
+    }
+    Ok(Json(t))
 }
 
 /// The copy (its playlist and media, with range requests) and its captions.
