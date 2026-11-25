@@ -108,8 +108,11 @@ commands from the repository root so `dataset/` is this repository's (or pass `-
 
 On the labelling page, `[` and `]` mark a break's start and end, `A` accepts a selected suggestion, `N`/`P` jump
 between the sources' edges and `R` marks everything up to the playhead as reviewed: only reviewed time is scored,
-so a recording can be labelled a part at a time. Kinds: `ad`, `promo` (the station's own), and `paid_programming`
-(infomercials; never scored).
+so a recording can be labelled a part at a time. Kinds: `ad`, `promo` (the station's own), `sponsor` (advertising inside the programme:
+billboards, squeeze-backs beside the game, banners over live shots, presenters' ad reads) and `paid_programming`
+(infomercials). Sponsor and paid programming are never scored: skipping them or not are both fair, and a break's
+edge anywhere across an adjacent sponsor segment counts as right. `adbreak eval` shows how much sponsor time each
+source skipped.
 
 The copy is 640×360 HEVC with every picture (break edges are a few pictures long), mono AAC, and a byte-range
 playlist to seek by: about 0.6 GB for 3.5 hours. Comskip finds the same breaks in it as in the original, to 0.02 s.

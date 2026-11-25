@@ -52,7 +52,7 @@ impl Span {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Kind {
-    /// Commercials, and anything else between programme parts (sponsor tags, network bumpers).
+    /// Commercials, and anything else between programme parts (network bumpers).
     #[default]
     Ad,
     /// The station or network advertising its own shows.
@@ -60,12 +60,17 @@ pub enum Kind {
     /// A whole programme that is an advertisement (an infomercial). Not scored either way: whether to skip it is a
     /// matter of taste, so a detector is neither rewarded nor penalised there.
     PaidProgramming,
+    /// Advertising inside the programme: sponsor billboards ("brought to you by"), a squeeze-back with an ad beside
+    /// the game, ad banners over live shots, ad reads by the presenters. Not scored either way (skipping it or not
+    /// are both fair), and a break's edge anywhere across an adjacent sponsor segment counts as right. Sponsored
+    /// programme content ("presented by …" features) is programme, not this.
+    Sponsor,
 }
 
 impl Kind {
     /// Whether a detector should find it.
     pub fn scored(self) -> bool {
-        self != Kind::PaidProgramming
+        !matches!(self, Kind::PaidProgramming | Kind::Sponsor)
     }
 }
 
@@ -202,6 +207,9 @@ pub struct Score {
     /// Over matched breaks: total distance (seconds) between the labelled and found start, and end.
     pub start_error: f64,
     pub end_error: f64,
+    /// Reviewed seconds labelled sponsor, and how many of them were marked as break.
+    pub sponsor_seconds: f64,
+    pub sponsor_skipped: f64,
 }
 
 impl Score {
@@ -233,11 +241,38 @@ impl Score {
         self.matched += o.matched;
         self.start_error += o.start_error;
         self.end_error += o.end_error;
+        self.sponsor_seconds += o.sponsor_seconds;
+        self.sponsor_skipped += o.sponsor_skipped;
     }
 }
 
 fn ratio(a: f64, b: f64) -> f64 {
     if b > 0.0 { a / b } else { 0.0 }
+}
+
+/// From `edge`, the range covered by a chain of spans touching it (within a second), going earlier (`dir` < 0) or
+/// later.
+fn stretch(edge: f64, spans: &[Span], dir: f64) -> (f64, f64) {
+    let mut far = edge;
+    loop {
+        let next = spans.iter().find(|s| if dir < 0.0 { (s.end - far).abs() <= 1.0 && s.start < far } else { (s.start - far).abs() <= 1.0 && s.end > far });
+        match next {
+            Some(s) => far = if dir < 0.0 { s.start } else { s.end },
+            None => break,
+        }
+    }
+    if dir < 0.0 { (far, edge) } else { (edge, far) }
+}
+
+/// Distance from `x` to the range `lo..=hi`.
+fn outside(x: f64, lo: f64, hi: f64) -> f64 {
+    if x < lo {
+        lo - x
+    } else if x > hi {
+        x - hi
+    } else {
+        0.0
+    }
 }
 
 /// Scores `found` breaks against `labels`, counting only the reviewed parts and skipping paid programming.
@@ -246,11 +281,18 @@ pub fn score(labels: &Labels, found: &[Span]) -> Score {
     let reviewed = merge(&labels.reviewed);
     let truth: Vec<Span> = labels.breaks.iter().filter(|b| b.kind.scored()).map(Break::span).collect();
     let ignored: Vec<Span> = labels.breaks.iter().filter(|b| !b.kind.scored()).map(Break::span).collect();
+    let sponsor: Vec<Span> = labels.breaks.iter().filter(|b| b.kind == Kind::Sponsor).map(Break::span).collect();
     let mut s = Score::default();
     let within = |t: f64, v: &[Span]| v.iter().any(|x| x.contains(t));
     for r in &reviewed {
         let mut t = r.start + STEP / 2.0;
         while t < r.end {
+            if within(t, &sponsor) {
+                s.sponsor_seconds += STEP;
+                if within(t, found) {
+                    s.sponsor_skipped += STEP;
+                }
+            }
             if !within(t, &ignored) {
                 s.seconds += STEP;
                 match (within(t, &truth), within(t, found)) {
@@ -285,8 +327,11 @@ pub fn score(labels: &Labels, found: &[Span]) -> Score {
             ti[i] = true;
             fj[j] = true;
             s.matched += 1;
-            s.start_error += (truth[i].start - found[j].start).abs();
-            s.end_error += (truth[i].end - found[j].end).abs();
+            // An edge anywhere across sponsor segments next to it is right: skipping them or not are both fair.
+            let (lo, _) = stretch(truth[i].start, &sponsor, -1.0);
+            let (_, hi) = stretch(truth[i].end, &sponsor, 1.0);
+            s.start_error += outside(found[j].start, lo, truth[i].start);
+            s.end_error += outside(found[j].end, truth[i].end, hi);
         }
     }
     s
@@ -340,6 +385,22 @@ mod tests {
         assert_eq!((s.found, s.matched), (2, 1));
         assert_eq!(s.false_pos, 0.0);
         assert!((s.seconds - 500.0).abs() < 0.5);
+    }
+
+    #[test]
+    fn sponsor_tails_are_fair_either_way() {
+        // Ads 100–200, then a sponsor squeeze-back 200–230 before the game resumes.
+        let l = labels(&[(100.0, 200.0, Kind::Ad), (200.0, 230.0, Kind::Sponsor)]);
+        for end in [200.0, 215.0, 230.0] {
+            let s = score(&l, &[Span::new(100.0, end)]);
+            assert_eq!(s.matched, 1);
+            assert!(s.end_error < 1e-9, "ending at {end} is fine: {}", s.end_error);
+            assert!(s.false_pos < 0.05 && s.false_neg < 0.05);
+            assert!((s.sponsor_seconds - 30.0).abs() < 0.5 && (s.sponsor_skipped - (end - 200.0)).abs() < 0.5);
+        }
+        let s = score(&l, &[Span::new(100.0, 250.0)]);
+        assert!((s.end_error - 20.0).abs() < 1e-9 && (s.false_pos - 20.0).abs() < 0.5, "past the sponsor tail is wrong");
+        assert_eq!(serde_json::to_string(&Kind::Sponsor).unwrap(), r#""sponsor""#);
     }
 
     #[test]

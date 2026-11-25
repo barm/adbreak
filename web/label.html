@@ -7,7 +7,7 @@
 <link rel="icon" href="data:,">
 <style>
   :root { color-scheme: dark; --bg: #111113; --panel: #1b1b1f; --line: #2e2e35; --text: #ededef; --dim: #9b9ba4;
-          --ad: #e5484d; --promo: #f5a524; --paid: #8e4ec6; --accent: #3e63dd; }
+          --ad: #e5484d; --promo: #f5a524; --paid: #8e4ec6; --sponsor: #e93d82; --accent: #3e63dd; }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.4 -apple-system, system-ui, sans-serif; }
   header { display: flex; gap: 12px; align-items: baseline; padding: 10px 16px; border-bottom: 1px solid var(--line); }
@@ -70,7 +70,7 @@
         <tr><td><kbd>, .</kbd></td><td>one frame</td></tr>
         <tr><td><kbd>[ ]</kbd></td><td>start / end a break here; with a break selected, move its edge here</td></tr>
         <tr><td><kbd>A</kbd></td><td>accept the selected suggestion as a break</td></tr>
-        <tr><td><kbd>K</kbd></td><td>ad → promo → paid programming</td></tr>
+        <tr><td><kbd>K</kbd></td><td>ad → promo → sponsor (in-programme ads: billboards, squeeze-backs, banners) → paid programming</td></tr>
         <tr><td><kbd>N P</kbd></td><td>next / previous edge from any source</td></tr>
         <tr><td><kbd>R</kbd></td><td>mark reviewed up to here (only reviewed parts are scored)</td></tr>
         <tr><td><kbd>Esc</kbd></td><td>clear the selection</td></tr>
@@ -83,8 +83,8 @@
 "use strict";
 const $ = (id) => document.getElementById(id);
 const v = $("v"), tl = $("tl");
-const KINDS = ["ad", "promo", "paid_programming"];
-const KIND_COLOR = { ad: "var(--ad)", promo: "var(--promo)", paid_programming: "var(--paid)" };
+const KINDS = ["ad", "promo", "sponsor", "paid_programming"];
+const KIND_COLOR = { ad: "var(--ad)", promo: "var(--promo)", sponsor: "var(--sponsor)", paid_programming: "var(--paid)" };
 const SOURCE_COLOR = { comskip: "#3e63dd", captions: "#12a594", "logo-detector": "#ad7f58", recorder: "#8b8d98" };
 // The visible stretch of the timeline: from vs, vspan seconds long (continuous zoom; see zoomAt).
 const MIN_SPAN = 5;
