@@ -11,11 +11,6 @@
   },
   "sources": [
     {
-      "name": "adbreak",
-      "detail": "adbreak 0.1.0 defaults",
-      "breaks": []
-    },
-    {
       "name": "captions",
       "detail": "uncaptioned: window 30 s, coverage < 0.5, at least 30 s",
       "breaks": [
@@ -66,11 +61,6 @@
           "end": 4919.85
         }
       ]
-    },
-    {
-      "name": "recorder",
-      "detail": "the recorder's own break scan",
-      "breaks": []
     },
     {
       "name": "fusion",
@@ -125,6 +115,16 @@
           "end": 4920.07
         }
       ]
+    },
+    {
+      "name": "logo-detector",
+      "detail": "logo detector (crates/adbreak) 0.1.0, defaults",
+      "breaks": []
+    },
+    {
+      "name": "recorder",
+      "detail": "the recorder's own break scan",
+      "breaks": []
     }
   ]
 }

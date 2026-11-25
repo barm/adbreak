@@ -38,7 +38,7 @@ score is also on a network or show the model didn't see in training:
 |---|---|---|---|---|
 | this model | 94% | 96% | 95–96% | 1.2 s |
 | [Comskip](https://github.com/erikkaashoek/Comskip) | 97% | 68% | 80% | |
-| black-and-silent edges plus the corner logo (`crates/adbreak`, the first approach) | 77% | 29% | 43% | |
+| `logo-detector`: black-and-silent edges plus the corner logo, no learning (`crates/adbreak`, the first approach) | 77% | 29% | 43% | |
 
 Precision and recall are by the second; F1 combines them. Comskip rarely marks programme as a break but cuts breaks
 short and misses some; the logo approach fails on networks without a corner logo (CBS) and when the logo isn't
@@ -90,7 +90,7 @@ cargo install --path rust/crates/adbreak-cli
 # Add a recording from an import directory (below): keeps a 360p copy and the captions in the media store.
 adbreak import /path/to/export
 
-# What the automatic sources think (Comskip if installed, the captions, the detector), and the model's inputs.
+# What the automatic sources think (Comskip if installed, the captions, the logo detector), and the model's inputs.
 adbreak suggest 2026-11-24_2.1_32 --comskip ~/src/comskip/comskip
 adbreak features 2026-11-24_2.1_32
 

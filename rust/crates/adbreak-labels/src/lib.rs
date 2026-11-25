@@ -178,7 +178,7 @@ pub struct Suggestions {
 /// One source's opinion.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Source {
-    /// e.g. `"comskip"`, `"captions"`, `"adbreak"`.
+    /// e.g. `"comskip"`, `"captions"`, `"logo-detector"`, `"model"`.
     pub name: String,
     /// Version or settings, so results from different runs can be told apart.
     #[serde(default, skip_serializing_if = "String::is_empty")]
