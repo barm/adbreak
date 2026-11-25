@@ -1,10 +1,15 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { flushSync } from "react-dom";
-import { Layout, LayoutContent, LayoutHeader, LayoutPanel } from "@astryxdesign/core/Layout";
+import { Layout, LayoutContent, LayoutPanel } from "@astryxdesign/core/Layout";
+import { IconButton } from "@astryxdesign/core/IconButton";
+import { Icon } from "@astryxdesign/core/Icon";
+import {
+  ArrowUturnLeftIcon, ArrowUturnRightIcon, ChevronLeftIcon, MagnifyingGlassMinusIcon, MagnifyingGlassPlusIcon,
+  QuestionMarkCircleIcon, RectangleStackIcon, StopIcon, ViewColumnsIcon,
+} from "@heroicons/react/24/outline";
 import { ResizeHandle, useResizable } from "@astryxdesign/core/Resizable";
 import { Stack, StackItem } from "@astryxdesign/core/Stack";
 import { Text, Heading } from "@astryxdesign/core/Text";
-import { Link } from "@astryxdesign/core/Link";
 import { Button } from "@astryxdesign/core/Button";
 import { Kbd } from "@astryxdesign/core/Kbd";
 import { Toolbar } from "@astryxdesign/core/Toolbar";
@@ -49,6 +54,7 @@ export function Review({ id }: { id: string }) {
   const [, setTick] = useState(0);
   const [status, setStatus] = useState<{ msg: string; err: boolean }>({ msg: "", err: false });
   const [crumb, setCrumb] = useState("");
+  const [title, setTitle] = useState("");
   const [tag, setTag] = useState<Tag | null>(null);
   const [menu, setMenu] = useState<object[]>([]);
   const [keysOpen, setKeysOpen] = useState(false);
@@ -76,7 +82,7 @@ export function Review({ id }: { id: string }) {
       render: () => setTick((n) => n + 1),
       toggleLayout: () => place(placementRef.current === "hidden" ? ((localStorage.getItem("adbreak.shownLayout") as Placement) || "below") : "hidden"),
       kindTag: (t: Tag | null) => setTag((old) => (old && t && old.left === t.left && old.top === t.top && old.text === t.text && old.i === t.i) || old === t ? old : t),
-      crumb: setCrumb,
+      crumb: (text: string) => { const [t, ...rest] = text.split(" · "); setTitle(t); setCrumb(rest.join(" · ")); },
       shortcuts: () => setKeysOpen((o) => !o),
       active: () => true,
     });
@@ -131,13 +137,37 @@ export function Review({ id }: { id: string }) {
   return (
     <Layout
       header={
-        <LayoutHeader padding={2}>
-          <Stack direction="horizontal" gap={3} align="center">
-            <Link href="#">adbreak labelling</Link>
-            <Text color="secondary" type="supporting">{crumb}</Text>
-            <Text type="supporting" color={status.err ? "accent" : "secondary"}>{status.msg}</Text>
-          </Stack>
-        </LayoutHeader>
+        <Toolbar
+          label="Labelling"
+          size="sm"
+          dividers={["bottom"]}
+          startContent={
+            <>
+              <IconButton variant="ghost" size="sm" label="All recordings" icon={<Icon icon={ChevronLeftIcon} size="sm" />} onClick={() => { location.hash = ""; }} />
+              <Text type="label">{title || "adbreak labelling"}</Text>
+              <Text type="supporting" color="secondary">{crumb}</Text>
+              <Text type="supporting" color={status.err ? "accent" : "secondary"}>{status.msg}</Text>
+            </>
+          }
+          centerContent={
+            <SegmentedControl label="Panel" value={placement} onChange={(v) => place(v as Placement)}>
+              <SegmentedControlItem value="below" label="Panel below" icon={<Icon icon={RectangleStackIcon} size="sm" />} isLabelHidden />
+              <SegmentedControlItem value="side" label="Panel at the side" icon={<Icon icon={ViewColumnsIcon} size="sm" />} isLabelHidden />
+              <SegmentedControlItem value="hidden" label="No panel" icon={<Icon icon={StopIcon} size="sm" />} isLabelHidden />
+            </SegmentedControl>
+          }
+          endContent={
+            <>
+              <IconButton variant="ghost" size="sm" label="Zoom out (-)" icon={<Icon icon={MagnifyingGlassMinusIcon} size="sm" />} onClick={() => engine?.key("-")} />
+              <IconButton variant="ghost" size="sm" label="Zoom in (=)" icon={<Icon icon={MagnifyingGlassPlusIcon} size="sm" />} onClick={() => engine?.key("=")} />
+              <IconButton variant="ghost" size="sm" label="Undo (⌘Z)" icon={<Icon icon={ArrowUturnLeftIcon} size="sm" />} onClick={() => engine?.undo()} />
+              <IconButton variant="ghost" size="sm" label="Redo (⌘⇧Z)" icon={<Icon icon={ArrowUturnRightIcon} size="sm" />} onClick={() => engine?.undo(true)} />
+              <Shortcuts isOpen={keysOpen} onOpenChange={setKeysOpen}>
+                <IconButton variant="ghost" size="sm" label="Keyboard shortcuts (?)" icon={<Icon icon={QuestionMarkCircleIcon} size="sm" />} />
+              </Shortcuts>
+            </>
+          }
+        />
       }
       content={
         <LayoutContent>
@@ -148,36 +178,10 @@ export function Review({ id }: { id: string }) {
                   <video ref={video} style={styles.video} playsInline controls preload="auto" />
                   <Text ref={cap as never} style={styles.caption} size="lg">{""}</Text>
                 </Stack>
-                <Toolbar
-                  label="Timeline"
-                  size="sm"
-                  gap={2}
-                  dividers={["top", "bottom"]}
-                  startContent={
-                    <>
-                      <Text ref={time as never} type="code" style={styles.time}>0:00:00.0</Text>
-                      <Text ref={zoom as never} type="supporting" color="secondary">{""}</Text>
-                    </>
-                  }
-                  endContent={
-                    <>
-                      <Button label="Zoom out" size="sm" variant="ghost" tooltip="Zoom out (-)" onClick={() => engine?.key("-")}>−</Button>
-                      <Button label="Zoom in" size="sm" variant="ghost" tooltip="Zoom in (=)" onClick={() => engine?.key("=")}>+</Button>
-                      <Button label="Undo" size="sm" variant="ghost" tooltip="Undo (⌘Z)" onClick={() => engine?.undo()}>↶</Button>
-                      <Button label="Redo" size="sm" variant="ghost" tooltip="Redo (⌘⇧Z)" onClick={() => engine?.undo(true)}>↷</Button>
-                      <Shortcuts isOpen={keysOpen} onOpenChange={setKeysOpen}>
-                        <Button label="Keyboard shortcuts" size="sm" variant="ghost" tooltip="Keyboard shortcuts (?)">
-                          <Stack direction="horizontal" gap={1} align="center">Shortcuts<Kbd keys="?" /></Stack>
-                        </Button>
-                      </Shortcuts>
-                      <SegmentedControl label="Panel" value={placement} onChange={(v) => place(v as Placement)} size="sm">
-                        <SegmentedControlItem label="Panel below" value="below" />
-                        <SegmentedControlItem label="At the side" value="side" />
-                        <SegmentedControlItem label="Hidden" value="hidden" />
-                      </SegmentedControl>
-                    </>
-                  }
-                />
+                <Stack direction="horizontal" gap={3} align="center">
+                  <Text ref={time as never} type="code" style={styles.time}>0:00:00.0</Text>
+                  <Text ref={zoom as never} type="supporting" color="secondary">{""}</Text>
+                </Stack>
                 {timeline}
               </Stack>
             </StackItem>
