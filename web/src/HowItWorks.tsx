@@ -39,7 +39,7 @@ export function HowItWorks({ ids, titles }: { ids: string[]; titles: Record<stri
         />
         <ListItem
           label="The learning curve repeats the test with fewer recordings"
-          description="For each recording held out, 1, 2, … of the others (up to 3 random sets each, seeded): how much each extra recording helps."
+          description="Models trained on 1, 2, … recordings (6 random sets per size, seeded), each scored on every recording it left out: how much each extra recording helps."
         />
       </List>
       <Stack gap={1}>

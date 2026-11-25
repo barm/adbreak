@@ -3,7 +3,7 @@ import { Stack } from "@astryxdesign/core/Stack";
 import { Text } from "@astryxdesign/core/Text";
 
 export type CurvePoint = { k: number; runs: number; hours: number; log_loss: number[]; f1: number[]; auc: number[] };
-export type Curve = { computed_at: string; recordings: number; repeats: number; points: CurvePoint[] };
+export type Curve = { computed_at: string; recordings: number; sets: number; fits: number; points: CurvePoint[] };
 
 const W = 420, H = 230, M = { l: 44, r: 46, t: 8, b: 34 };
 const series = "var(--color-data-categorical-blue, var(--color-accent))";
@@ -72,7 +72,7 @@ function Panel({ curve, metric, title, note, fmt, log, domain }: {
   );
 }
 
-/** The commercial-break model trained on k recordings, scored on one it never saw. */
+/** The commercial-break model trained on k recordings, scored on the ones it never saw. */
 export function LearningCurve({ curve }: { curve: Curve }) {
   return (
     <Stack direction="horizontal" gap={6} wrap="wrap">
