@@ -18,15 +18,47 @@ use tower_http::services::ServeFile;
 
 type Shared = Arc<Dataset>;
 
-pub async fn serve(data: Dataset, bind: &str) -> Result<()> {
+/// The page shown when the web app hasn't been built: how to build it.
+fn unbuilt(web: &std::path::Path) -> String {
+    format!(
+        "<!doctype html><meta charset=utf-8><title>adbreak labelling</title><body style=\"font: 15px system-ui; margin: 2em\">\
+         <h1>The labelling page isn't built</h1><p>No <code>{}</code>. Build it (needs Node), then reload:</p>\
+         <pre>cd web &amp;&amp; npm ci &amp;&amp; npm run build</pre><p>Or point <code>adbreak label --web</code> at a build.</p>",
+        web.join("index.html").display()
+    )
+}
+
+/// Serves the labelling page (the web app's build in `web`, from `web/`: `npm run build`) and its API.
+pub async fn serve(data: Dataset, bind: &str, web: &std::path::Path) -> Result<()> {
     let root = std::fs::canonicalize(&data.root).unwrap_or_else(|_| data.root.clone());
+    let web = std::fs::canonicalize(web).unwrap_or_else(|_| web.to_path_buf());
+    let page = if web.join("index.html").is_file() {
+        tower_http::services::ServeDir::new(&web).append_index_html_on_directories(true)
+    } else {
+        eprintln!("no web app build in {}: run  cd web && npm ci && npm run build", web.display());
+        tower_http::services::ServeDir::new(&web)
+    };
+    let missing = unbuilt(&web);
     let router = Router::new()
-        .route("/", get(|| async { Html(include_str!("../../../../web/label.html")) }))
+        .route(
+            "/",
+            get(move || {
+                let missing = missing.clone();
+                let web = web.clone();
+                async move {
+                    match tokio::fs::read_to_string(web.join("index.html")).await {
+                        Ok(page) => Html(page),
+                        Err(_) => Html(missing),
+                    }
+                }
+            }),
+        )
         .route("/api/recordings", get(list))
         .route("/api/recordings/{id}", get(show))
         .route("/api/recordings/{id}/labels", axum::routing::put(save))
         .route("/api/recordings/{id}/inputs", get(inputs))
         .route("/files/{id}/{file}", get(file))
+        .fallback_service(page)
         .with_state(Arc::new(data));
     let listener = tokio::net::TcpListener::bind(bind).await?;
     eprintln!("labelling on http://{}  (dataset {})", listener.local_addr()?, root.display());
