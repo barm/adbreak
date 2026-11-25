@@ -43,6 +43,8 @@
   #review.side #resizer { display: block; }
   #resizer:hover, #resizer.on { background: var(--line); }
   #tlwrap { position: relative; }
+  #kindmenu { position: absolute; z-index: 4; font-size: 12px; padding: 0 2px; height: 18px; border-radius: 4px;
+              background: #2a2a31; border-color: #fff; }
   #info { position: absolute; z-index: 5; width: 340px; background: #1f1f25; border: 1px solid var(--line); border-radius: 8px;
           padding: 10px 12px; box-shadow: 0 8px 24px rgba(0,0,0,.5); font-size: 13px; line-height: 1.45; }
   #info h4 { margin: 0 0 4px; font-size: 13px; }
@@ -80,7 +82,7 @@
     <button data-k="=">Zoom in <kbd>+</kbd></button>
     <span id="zoom" class="dim"></span>
   </div>
-  <span id="tlwrap" style="display: block"><canvas id="tl"></canvas><span id="info" hidden></span></span>
+  <span id="tlwrap" style="display: block"><canvas id="tl"></canvas><select id="kindmenu" hidden title="Kind"></select><span id="info" hidden></span></span>
   </section>
   <span id="resizer" title="Drag to resize the panel"></span>
   <aside id="panel">
@@ -96,6 +98,7 @@
         <tr><td><kbd>, .</kbd></td><td>one frame</td></tr>
         <tr><td><kbd>[ ]</kbd></td><td>mark a new break's start and end here, in either order; with a break selected, move its edge here</td></tr>
         <tr><td><kbd>A</kbd></td><td>accept the selected suggestion as a break</td></tr>
+        <tr><td>right-click</td><td>a label on the timeline: change its kind (or select it and use the dropdown on it)</td></tr>
         <tr><td><kbd>K</kbd></td><td>ad → promo → sponsor (in-programme ads: billboards, squeeze-backs, banners) → paid programming</td></tr>
         <tr><td><kbd>N P</kbd></td><td>next / previous edge from any source</td></tr>
         <tr><td><kbd>R</kbd></td><td>mark reviewed up to here (only reviewed parts are scored)</td></tr>
@@ -304,6 +307,7 @@ function draw() {
   // pending start, playhead
   if (pending !== null) { c.strokeStyle = cssVar("var(--ad)"); c.setLineDash([4, 3]); const x = g.x(pending.t, vw); c.beginPath(); c.moveTo(x, TOP); c.lineTo(x, g.h); c.stroke(); c.setLineDash([]); }
   const x = g.x(v.currentTime || 0, vw); c.strokeStyle = "#fff"; c.beginPath(); c.moveTo(x, 0); c.lineTo(x, g.h); c.stroke();
+  placeKindMenu(g, vw);
   // Skim line: where the pointer is, with its time.
   if (hoverT !== null && !scrubbing && hoverT >= vw[0] && hoverT <= vw[1]) {
     const hx = g.x(hoverT, vw);
@@ -379,6 +383,36 @@ function endPointer() {
 tl.addEventListener("pointerup", endPointer);
 tl.addEventListener("pointercancel", endPointer);
 tl.addEventListener("pointerleave", () => { hoverT = null; draw(); });
+
+// The selected label's kind, changeable on the timeline: a dropdown on the label itself.
+const kindMenu = $("kindmenu");
+for (const k of KINDS) kindMenu.add(new Option(k.replace("_", " "), k));
+kindMenu.onchange = () => {
+  if (sel && sel.label) { S.labels.breaks[sel.i].kind = kindMenu.value; changed(); }
+  kindMenu.blur();
+};
+kindMenu.addEventListener("keydown", (ev) => ev.stopPropagation());
+function placeKindMenu(g, vw) {
+  const b = sel && sel.label ? S.labels.breaks[sel.i] : null;
+  if (!b || b.end < vw[0] || b.start > vw[1]) { kindMenu.hidden = true; return; }
+  const x0 = Math.max(NAME, g.x(b.start, vw)) + 2;
+  kindMenu.hidden = false;
+  if (document.activeElement !== kindMenu) kindMenu.value = b.kind || "ad";
+  kindMenu.style.left = `${Math.min(x0, g.w - 130)}px`;
+  kindMenu.style.top = `${TOP + 2}px`;
+}
+// Right-click a label: select it and open its kind dropdown.
+tl.addEventListener("contextmenu", (ev) => {
+  if (!S) return;
+  const h = hit(ev);
+  if (!h.row || !h.row.label) return;
+  const j = S.labels.breaks.findIndex((b) => b.start <= h.t && h.t < b.end);
+  if (j < 0) return;
+  ev.preventDefault();
+  sel = { label: true, i: j }; renderList(); draw();
+  kindMenu.focus();
+  if (kindMenu.showPicker) try { kindMenu.showPicker(); } catch { /* not allowed here: focused instead */ }
+});
 
 // Row ⓘ popovers: hover over a row's name to see what it is; click to keep it open.
 let infoPinned = null;
