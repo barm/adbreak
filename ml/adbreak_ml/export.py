@@ -140,6 +140,14 @@ def to_breaks(p: np.ndarray, edges: list[float]) -> list[tuple[float, float]]:
     return out
 
 
+def model_version(text: str) -> str:
+    """model.json's version: FNV-1a 64 of its bytes, as `adbreak_model::version`."""
+    h = 0xCBF29CE484222325
+    for b in text.encode():
+        h = ((h ^ b) * 0x100000001B3) & 0xFFFFFFFFFFFFFFFF
+    return f"{h:016x}"
+
+
 def export(recs: list[Recording], out: Path, vector_secs: int = 600) -> None:
     data = [Data(r) for r in recs if r.features(RUST).with_suffix(".json").exists()]
     labelled = [d for d in data if (d.y != IGNORE).any()]
@@ -151,8 +159,7 @@ def export(recs: list[Recording], out: Path, vector_secs: int = 600) -> None:
              "frame_coef": [float(c) for c in frame.coef_[0]], "frame_intercept": float(frame.intercept_[0]),
              "windows": WINDOWS, "edge_cap": EDGE_CAP, "features": feature_names(), "baseline": baseline, "trees": tj,
              "post": POST, "trained_on": [d.rec.id for d in labelled], "image_model_source": f"open_clip {IMAGE_MODEL}"}
-    out.mkdir(parents=True, exist_ok=True)
-    (out / "model.json").write_text(json.dumps(model))
+    text = json.dumps(model)
     # A test vector: the first `vector_secs` seconds of a captioned recording, the exported model's outputs on it.
     d = next(d for d in labelled if d.cap[:, 0].any())
     n = min(vector_secs, len(d.t))
@@ -164,10 +171,16 @@ def export(recs: list[Recording], out: Path, vector_secs: int = 600) -> None:
     sub = type("Sub", (), {})()
     sub.cap, sub.av, sub.edges = d.cap[:n], d.av[:n], np.array(edges) if edges else np.array([-1e9])
     prob = trees.predict_proba(table(sub, p))[:, 1]
-    vec = {"recording": d.rec.id, "rows": [[x[i].tolist(), bool(has[i]), bool(vis[i]), bool(roll[i]), bool(new[i]),
+    vec = {"model": model_version(text), "recording": d.rec.id, "rows": [[x[i].tolist(), bool(has[i]), bool(vis[i]), bool(roll[i]), bool(new[i]),
                                              float(black[i]), float(silent[i])] for i in range(n)],
            "edges": edges, "probabilities": prob.tolist(), "breaks": to_breaks(prob, edges)}
-    (out / "test_vector.json").write_text(json.dumps(vec))
+    # Installed atomically, the test vector first: a recorder watching model.json reloads when it changes, and
+    # checks the model against the test vector made for it (its "model" is model.json's version).
+    out.mkdir(parents=True, exist_ok=True)
+    for name, body in (("test_vector.json", json.dumps(vec)), ("model.json", text)):
+        tmp = out / f".{name}.tmp"
+        tmp.write_text(body)
+        tmp.replace(out / name)
     print(f"exported to {out}: {len(tj)} trees, trained on {len(labelled)} recordings; test vector {d.rec.id} "
           f"({n} s, {len(vec['breaks'])} breaks)")
 

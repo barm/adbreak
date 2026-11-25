@@ -234,6 +234,71 @@ impl Model {
 
 /// Per-second probabilities to breaks: runs at or above `threshold`, gaps up to `max_gap` closed, each end snapped
 /// to the nearest edge within `snap` seconds, runs shorter than `min_len` dropped.
+/// A model.json's version: FNV-1a 64 of its bytes, in hex. Recorders keep it with the breaks a model found.
+pub fn version(model_json: &str) -> String {
+    let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+    for b in model_json.bytes() {
+        h = (h ^ u64::from(b)).wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    format!("{h:016x}")
+}
+
+/// A test vector row: embedding, has_captions, caption_visible, caption_roll_up, caption_new, black, silent.
+type JsonRow = (Vec<f32>, bool, bool, bool, bool, f32, f32);
+
+/// `test_vector.json` from `adbreak-ml export`: inputs and the outputs the Python model gave for them.
+#[derive(Debug, Deserialize)]
+pub struct TestVector {
+    /// The version of the model.json it was made for (absent before versions were recorded).
+    #[serde(default)]
+    pub model: Option<String>,
+    rows: Vec<JsonRow>,
+    edges: Vec<f64>,
+    probabilities: Vec<f64>,
+    breaks: Vec<(f64, f64)>,
+}
+
+impl TestVector {
+    pub fn from_json(text: &str) -> Result<Self, String> {
+        serde_json::from_str(text).map_err(|e| e.to_string())
+    }
+}
+
+impl Model {
+    /// Checks that this model gives the test vector's outputs: a recorder can refuse a model that doesn't.
+    pub fn check(&self, tv: &TestVector) -> Result<(), String> {
+        let inputs = Inputs {
+            rows: tv
+                .rows
+                .iter()
+                .map(|(embedding, has_captions, caption_visible, caption_roll_up, caption_new, black, silent)| Row {
+                    embedding: embedding.clone(),
+                    has_captions: *has_captions,
+                    caption_visible: *caption_visible,
+                    caption_roll_up: *caption_roll_up,
+                    caption_new: *caption_new,
+                    black: *black,
+                    silent: *silent,
+                })
+                .collect(),
+            edges: tv.edges.clone(),
+        };
+        let p = self.probabilities(&inputs);
+        if p.len() != tv.probabilities.len() {
+            return Err(format!("{} probabilities, the test vector has {}", p.len(), tv.probabilities.len()));
+        }
+        let worst = p.iter().zip(&tv.probabilities).map(|(a, b)| (a - b).abs()).fold(0.0, f64::max);
+        if worst >= 1e-4 {
+            return Err(format!("probabilities differ from the test vector's by up to {worst}"));
+        }
+        let b: Vec<(f64, f64)> = self.breaks(&inputs).iter().map(|b| (b.start, b.end)).collect();
+        if b != tv.breaks {
+            return Err(format!("breaks {b:?}, the test vector has {:?}", tv.breaks));
+        }
+        Ok(())
+    }
+}
+
 pub fn to_breaks(p: &[f64], edges: &[f64], threshold: f64, min_len: f64, max_gap: f64, snap: f64) -> Vec<Break> {
     let mut spans: Vec<(f64, f64)> = vec![];
     let mut start: Option<f64> = None;
@@ -288,41 +353,21 @@ mod tests {
         assert_eq!(b, vec![Break { start: 18.5, end: 101.2 }]);
     }
 
-    /// The model and test vectors written by `adbreak-ml export` (set ADBREAK_MODEL_DIR to their directory).
+    /// The model and test vector written by `adbreak-ml export` (set ADBREAK_MODEL_DIR to their directory).
     #[test]
     fn matches_the_python_model() {
         let Some(dir) = std::env::var_os("ADBREAK_MODEL_DIR") else { return };
         let dir = std::path::Path::new(&dir);
-        let m = Model::from_json(&std::fs::read_to_string(dir.join("model.json")).unwrap()).unwrap();
-        type JsonRow = (Vec<f32>, bool, bool, bool, bool, f32, f32);
-        #[derive(Deserialize)]
-        struct Case {
-            rows: Vec<JsonRow>,
-            edges: Vec<f64>,
-            probabilities: Vec<f64>,
-            breaks: Vec<(f64, f64)>,
-        }
-        let c: Case = serde_json::from_str(&std::fs::read_to_string(dir.join("test_vector.json")).unwrap()).unwrap();
-        let inputs = Inputs {
-            rows: c
-                .rows
-                .into_iter()
-                .map(|(embedding, has_captions, caption_visible, caption_roll_up, caption_new, black, silent)| Row {
-                    embedding,
-                    has_captions,
-                    caption_visible,
-                    caption_roll_up,
-                    caption_new,
-                    black,
-                    silent,
-                })
-                .collect(),
-            edges: c.edges,
-        };
-        let p = m.probabilities(&inputs);
-        let worst = p.iter().zip(&c.probabilities).map(|(a, b)| (a - b).abs()).fold(0.0, f64::max);
-        assert!(worst < 1e-4, "probabilities differ by up to {worst}");
-        let b: Vec<(f64, f64)> = m.breaks(&inputs).iter().map(|b| (b.start, b.end)).collect();
-        assert_eq!(b, c.breaks);
+        let text = std::fs::read_to_string(dir.join("model.json")).unwrap();
+        let m = Model::from_json(&text).unwrap();
+        let tv = TestVector::from_json(&std::fs::read_to_string(dir.join("test_vector.json")).unwrap()).unwrap();
+        assert_eq!(tv.model.as_deref().unwrap_or(&version(&text)), version(&text), "the test vector is for another model");
+        m.check(&tv).unwrap();
+    }
+
+    #[test]
+    fn version_is_fnv1a() {
+        assert_eq!(version(""), "cbf29ce484222325");
+        assert_eq!(version("a"), "af63dc4c8601ec8c");
     }
 }
