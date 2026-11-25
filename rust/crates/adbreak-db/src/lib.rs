@@ -218,6 +218,31 @@ impl Db {
         }
         Ok(ids.len())
     }
+
+    /// Writes a consistent copy of the whole database, label history included, to
+    /// `dir/adbreak-<UTC time>.db` (`VACUUM INTO`: safe while the app and training are writing), then deletes all but
+    /// the newest `keep` copies there. Returns the new copy's path.
+    pub fn backup(&self, dir: &Path, keep: usize) -> Result<PathBuf> {
+        std::fs::create_dir_all(dir).with_context(|| format!("creating {}", dir.display()))?;
+        let c = self.conn();
+        let stamp: String = c.query_row("SELECT strftime('%Y-%m-%dT%H%M%SZ', 'now')", [], |r| r.get(0))?;
+        let path = dir.join(format!("adbreak-{stamp}.db"));
+        let tmp = dir.join(format!(".adbreak-{stamp}.db.tmp"));
+        remove(&tmp)?;
+        c.execute("VACUUM INTO ?1", [tmp.to_str().context("backup path is not UTF-8")?])?;
+        drop(c);
+        std::fs::rename(&tmp, &path)?;
+        let mut copies: Vec<PathBuf> = std::fs::read_dir(dir)?
+            .flatten()
+            .map(|e| e.path())
+            .filter(|p| p.file_name().and_then(|n| n.to_str()).is_some_and(|n| n.starts_with("adbreak-") && n.ends_with(".db")))
+            .collect();
+        copies.sort();
+        for old in copies.iter().rev().skip(keep.max(1)) {
+            std::fs::remove_file(old)?;
+        }
+        Ok(path)
+    }
 }
 
 fn read<T: serde::de::DeserializeOwned>(path: &Path) -> Result<Option<T>> {
@@ -251,6 +276,31 @@ mod tests {
         let d = std::env::temp_dir().join(format!("adbreak-db-{name}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&d);
         d
+    }
+
+    #[test]
+    fn backups_are_complete_and_pruned() {
+        let dir = temp("backup");
+        let db = Db::open(&dir.join("a.db")).unwrap();
+        let rec =
+            Recording { source: "recorder".into(), job: 1, channel: "2.1".into(), start: "2026-11-24T07:06:41Z".into(), duration: 60.0, ..Default::default() };
+        let id = db.save_recording(&rec).unwrap();
+        db.save_labels(&id, &Labels::new(rec)).unwrap();
+        let out = dir.join("backups");
+        std::fs::create_dir_all(&out).unwrap();
+        for i in 0..3 {
+            std::fs::write(out.join(format!("adbreak-2020-01-0{i}T000000Z.db")), "old").unwrap();
+        }
+        let path = db.backup(&out, 2).unwrap();
+        let copy = Db::open(&path).unwrap();
+        assert_eq!(copy.ids().unwrap(), vec![id.clone()]);
+        assert_eq!(copy.fingerprint().unwrap(), db.fingerprint().unwrap());
+        drop(copy);
+        let mut left: Vec<_> = std::fs::read_dir(&out).unwrap().flatten().map(|e| e.file_name().into_string().unwrap()).collect();
+        left.sort();
+        assert_eq!(left.len(), 2, "{left:?}");
+        assert_eq!(left[0], "adbreak-2020-01-02T000000Z.db");
+        assert_eq!(out.join(&left[1]), path);
     }
 
     #[test]

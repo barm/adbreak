@@ -70,6 +70,9 @@ decoding, which a recorder does anyway.
   `labels.json`, `suggestions.json`) to commit or publish; `adbreak dataset import` reads one into the database. No
   media: recordings live in the media store (`ADBREAK_MEDIA`, default `~/Movies/adbreak`), outside the repository,
   because broadcasts can't be redistributed.
+- Backups: `adbreak dataset backup` writes a consistent copy of the database, label history included, to `backups/`
+  beside it (the newest 30 kept). `scripts/backup.sh` does that and also commits a snapshot to the
+  `dataset-snapshots` branch and pushes it when the dataset changed; run it nightly (a launchd agent, cron).
 
 Decoding and the small copies use [barm/avkit](https://github.com/barm/avkit) (VideoToolbox, AudioToolbox, Core
 ML), so the tools run on macOS.
