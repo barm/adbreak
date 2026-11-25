@@ -113,6 +113,7 @@
         <tr><td><kbd>K</kbd></td><td>commercial break → double box (programme shrunk beside an ad) → ad read (advertising over the full-screen programme) → paid programming</td></tr>
         <tr><td><kbd>N P</kbd></td><td>next / previous edge from any source</td></tr>
         <tr><td><kbd>R</kbd></td><td>mark reviewed up to here (only reviewed parts are scored)</td></tr>
+        <tr><td><kbd>⌘Z</kbd> <kbd>⌘⇧Z</kbd></td><td>undo, redo</td></tr>
         <tr><td><kbd>Esc</kbd></td><td>clear the selection</td></tr>
       </table>
       <p>Click a break in the table to frame it on the timeline, or its start or end time to close in on that edge. Drag anywhere on the timeline to scrub; click a span to select it; drag any label's start or end (in the labels row) to move it; where two labels touch, the shared edge moves both (hold <kbd>⌥</kbd> to move just one). Pinch (or <kbd>⌥</kbd>-scroll) to zoom around the pointer, swipe sideways to pan. Changes save as you go.</p>
@@ -181,6 +182,7 @@ async function showReview(id) {
   try {
     const d = await api(`/api/recordings/${id}`);
     const sources = (d.suggestions ? d.suggestions.sources : []);
+    undoStack = []; redoStack = []; last = JSON.stringify({ breaks: d.labels.breaks, reviewed: d.labels.reviewed });
     S = { id, labels: d.labels, sources, scores: d.scores || {}, version: d.version || "", fingerprint: d.fingerprint || "", cues: [], covered: new Uint8Array(0), dur: d.labels.recording.duration };
     vs = 0; vspan = Math.max(S.dur, 1);
     const r = d.labels.recording;
@@ -623,7 +625,26 @@ function edges() {
   for (const x of (S.tracks && S.tracks.edges) || []) e.push(x);
   return e.sort((a, b) => a - b);
 }
+// Undo: the labels (breaks and reviewed parts) after each change, to step back and forth through.
+let undoStack = [], redoStack = [];
+function snapshot() { return JSON.stringify({ breaks: S.labels.breaks, reviewed: S.labels.reviewed }); }
+function undo(redo) {
+  const from = redo ? redoStack : undoStack, to = redo ? undoStack : redoStack;
+  if (!from.length) return status(redo ? "nothing to redo" : "nothing to undo");
+  to.push(snapshot());
+  const s = JSON.parse(from.pop());
+  S.labels.breaks = s.breaks; S.labels.reviewed = s.reviewed;
+  sel = null; pending = null; closeMenu();
+  last = snapshot();
+  renderList(); draw();
+  clearTimeout(saveTimer); status(redo ? "redone; unsaved…" : "undone; unsaved…");
+  saveTimer = setTimeout(save, 500);
+}
+let last = null;
 function changed() {
+  const now = snapshot();
+  if (last !== null && now !== last) { undoStack.push(last); redoStack = []; if (undoStack.length > 200) undoStack.shift(); }
+  last = now;
   renderList(); draw();
   clearTimeout(saveTimer); status("unsaved…");
   saveTimer = setTimeout(save, 500);
@@ -697,7 +718,10 @@ function key(k, shift, alt) {
   return true;
 }
 addEventListener("keydown", (ev) => {
-  if ($("review").hidden || ev.metaKey || ev.ctrlKey || /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) return;
+  if ($("review").hidden || /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) return;
+  // ⌘Z undoes a change to the labels, ⌘⇧Z redoes it.
+  if ((ev.metaKey || ev.ctrlKey) && (ev.key === "z" || ev.key === "Z")) { ev.preventDefault(); undo(ev.shiftKey); return; }
+  if (ev.metaKey || ev.ctrlKey) return;
   if (key(ev.key, ev.shiftKey, ev.altKey)) ev.preventDefault();
 });
 document.querySelectorAll("[data-k]").forEach((b) => b.addEventListener("click", () => { key(b.dataset.k, false, false); b.blur(); }));
