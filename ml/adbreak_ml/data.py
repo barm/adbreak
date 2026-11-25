@@ -1,7 +1,8 @@
 """The dataset as the training code sees it: recordings, per-second labels, frames and their embeddings.
 
-Labels and suggestions come from ``../dataset`` (git); media and cached features from the media store
-(``ADBREAK_MEDIA``, default ``~/Movies/adbreak``), never from git.
+Recordings, labels and suggestions come from the adbreak database (``ADBREAK_DB``, default
+``~/Library/Application Support/adbreak/adbreak.db``; ``adbreak-db``), shared with the app; media and cached features
+from the media store (``ADBREAK_MEDIA``, default ``~/Movies/adbreak``). Neither is in git.
 """
 
 from __future__ import annotations
@@ -14,8 +15,10 @@ from pathlib import Path
 
 import numpy as np
 
+import sqlite3
+
 REPO = Path(__file__).resolve().parents[2]
-DATASET = Path(os.environ.get("ADBREAK_DATASET", REPO / "dataset"))
+DB = Path(os.environ.get("ADBREAK_DB", Path.home() / "Library" / "Application Support" / "adbreak" / "adbreak.db"))
 MEDIA = Path(os.environ.get("ADBREAK_MEDIA", Path.home() / "Movies" / "adbreak"))
 
 # Per-second classes. IGNORE is left out of training and scoring.
@@ -47,25 +50,46 @@ class Recording:
         return MEDIA / self.id / "features" / f"{name}.npz"
 
 
+def connect() -> sqlite3.Connection:
+    if not DB.is_file():
+        raise SystemExit(f"no adbreak database at {DB} (run the app, or adbreak dataset import, first)")
+    c = sqlite3.connect(DB, timeout=10)
+    c.execute("PRAGMA busy_timeout = 10000")
+    return c
+
+
 def recordings() -> list[Recording]:
+    with connect() as c:
+        recs = c.execute("SELECT id, recording FROM recordings ORDER BY id").fetchall()
+        labels = dict(c.execute("SELECT id, labels FROM labels").fetchall())
+        sources: dict[str, list] = {}
+        for i, s in c.execute("SELECT id, source FROM sources ORDER BY id, name"):
+            sources.setdefault(i, []).append(json.loads(s))
     out = []
-    for d in sorted(DATASET.iterdir()):
-        meta = d / "recording.json"
-        if not meta.is_file():
-            continue
-        read = lambda n: json.loads((d / n).read_text()) if (d / n).is_file() else None  # noqa: E731
-        out.append(Recording(d.name, json.loads(meta.read_text()), read("labels.json"), read("suggestions.json")))
+    for i, meta in recs:
+        meta = json.loads(meta)
+        sugg = {"format": 1, "recording": meta, "sources": sources[i]} if i in sources else None
+        out.append(Recording(i, meta, json.loads(labels[i]) if i in labels else None, sugg))
     return out
 
 
+def save_source(rec_id: str, source: dict) -> None:
+    """Adds or replaces one of a recording's sources (by name)."""
+    with connect() as c:
+        c.execute(
+            "INSERT INTO sources (id, name, source) VALUES (?, ?, ?) ON CONFLICT(id, name) DO UPDATE SET "
+            "source = excluded.source, updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')",
+            (rec_id, source["name"], json.dumps(source)),
+        )
+
+
 def labels_fingerprint() -> str:
-    """Which labels a model was trained against: FNV-1a 64 over every recording's labels.json, in id order. The
-    labelling page computes the same, and marks sources trained on other labels as stale."""
+    """Which labels a model was trained against: FNV-1a 64 over every recording's labels JSON in id order, as
+    adbreak_db::Db::fingerprint. The app marks sources trained on other labels as stale."""
     h = 0xCBF29CE484222325
-    for d in sorted(DATASET.iterdir()):
-        f = d / "labels.json"
-        if f.is_file():
-            for b in f.read_bytes():
+    with connect() as c:
+        for (t,) in c.execute("SELECT labels FROM labels ORDER BY id"):
+            for b in t.encode():
                 h = ((h ^ b) * 0x100000001B3) & 0xFFFFFFFFFFFFFFFF
     return f"{h:016x}"
 

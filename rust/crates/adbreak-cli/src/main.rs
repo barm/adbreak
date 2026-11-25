@@ -23,9 +23,9 @@ use std::path::{Path, PathBuf};
 #[derive(Parser)]
 #[command(version, about = "Build a dataset of labelled commercial breaks and score detectors against it")]
 struct Cli {
-    /// The dataset directory: metadata, labels and suggestions, one directory per recording (kept in git).
-    #[arg(long, env = "ADBREAK_DATASET", default_value = "dataset", global = true)]
-    dataset: PathBuf,
+    /// The dataset: recordings, labels and suggestions (SQLite; `adbreak dataset export` writes a snapshot for git).
+    #[arg(long, env = "ADBREAK_DB", default_value_os_t = adbreak_db::default_path(), global = true)]
+    db: PathBuf,
     /// The media store: each recording's low-resolution copy and captions (never in git).
     #[arg(long, env = "ADBREAK_MEDIA", default_value_os_t = home().join("Movies/adbreak"), global = true)]
     media: PathBuf,
@@ -35,6 +35,12 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Cmd {
+    /// Snapshots of the dataset in the directory layout kept in git (one directory per recording:
+    /// recording.json, labels.json, suggestions.json).
+    Dataset {
+        #[command(subcommand)]
+        cmd: DatasetCmd,
+    },
     /// Add a recording from an import directory: `recording.json` (adbreak_labels::Recording), `media.mp4` (a
     /// fragmented MP4, HEVC and AAC), and optionally `captions.vtt`, `suggestions.json` and
     /// `labels.json`.
@@ -93,6 +99,22 @@ enum Cmd {
     },
 }
 
+#[derive(Subcommand)]
+enum DatasetCmd {
+    /// Write the dataset to a directory (default: dataset/, to commit).
+    Export {
+        #[arg(default_value = "dataset")]
+        dir: PathBuf,
+    },
+    /// Read a directory into the dataset. Labels already in it are kept unless --replace.
+    Import {
+        #[arg(default_value = "dataset")]
+        dir: PathBuf,
+        #[arg(long)]
+        replace: bool,
+    },
+}
+
 fn home() -> PathBuf {
     std::env::var_os("HOME").map(PathBuf::from).unwrap_or_default()
 }
@@ -100,7 +122,7 @@ fn home() -> PathBuf {
 #[tokio::main]
 async fn main() -> Result<()> {
     let cli = Cli::parse();
-    let data = Dataset::new(cli.dataset.clone(), cli.media.clone());
+    let data = Dataset::open(&cli.db, cli.media.clone())?;
     match cli.cmd {
         Cmd::Import { dirs, height } => {
             for d in dirs {
@@ -129,6 +151,14 @@ async fn main() -> Result<()> {
             label::serve(data, &bind, &web, &model, &ml).await?
         }
         Cmd::Eval { each } => eval(&data, each)?,
+        Cmd::Dataset { cmd: DatasetCmd::Export { dir } } => {
+            let n = data.db.export_dir(&dir)?;
+            eprintln!("wrote {n} recordings to {}", dir.display());
+        }
+        Cmd::Dataset { cmd: DatasetCmd::Import { dir, replace } } => {
+            let n = data.db.import_dir(&dir, replace)?;
+            eprintln!("read {n} recordings from {} into {}", dir.display(), data.db.path.display());
+        }
     }
     Ok(())
 }
@@ -161,7 +191,7 @@ fn import(data: &Dataset, dir: &Path, height: u32) -> Result<()> {
             data.save_labels(&id, &l)?;
         }
     }
-    eprintln!("  added: {}", data.root.join(&id).display());
+    eprintln!("  added: {id}");
     Ok(())
 }
 
@@ -247,7 +277,7 @@ fn eval(data: &Dataset, each: bool) -> Result<()> {
         }
     }
     if labelled == 0 {
-        bail!("no labelled recordings with suggestions in {}", data.root.display());
+        bail!("no labelled recordings with suggestions in {}", data.db.path.display());
     }
     println!("{labelled} labelled recording(s)");
     println!(

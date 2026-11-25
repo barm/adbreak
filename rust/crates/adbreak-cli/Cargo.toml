@@ -16,6 +16,7 @@ adbreak-captions = { path = "../adbreak-captions" }
 adbreak-features = { path = "../adbreak-features", features = ["coreml"] }
 adbreak-model = { path = "../adbreak-model" }
 adbreak-labels = { path = "../adbreak-labels" }
+adbreak-db = { path = "../adbreak-db" }
 anyhow = "1"
 axum = "0.8"
 clap = { version = "4", features = ["derive", "env"] }

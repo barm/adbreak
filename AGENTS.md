@@ -29,9 +29,13 @@ data or commit messages. A recording's source is `"recorder"`.
   it when there is none. `src/editor/engine.ts` is the editing engine (canvas timeline, keys, undo, saving), ported
   from the plain-JS page; the React components around it are Astryx. Before committing web changes:
   `cd web && npm run typecheck && npm run build`.
-- `dataset/<date>_<channel>_<job>/` recording.json, labels.json, suggestions.json; commit them. Label kinds
+- The dataset is a SQLite database (`crates/adbreak-db`; `ADBREAK_DB`, default
+  `~/Library/Application Support/adbreak/adbreak.db`): recordings, labels (with every save in `label_history`) and
+  sources, shared by the app and `ml/` (WAL, so both can write). Don't commit day-to-day changes: `dataset/` is a
+  snapshot (`adbreak dataset export` / `import`), committed when a versioned or public copy is wanted. Label kinds
   and how to place them: `docs/labels.md`; keep it, `adbreak-labels`' `Kind`, `ml/adbreak_ml/data.py` and
-  `web/src/editor/engine.ts` in step. The copy
+  `web/src/editor/engine.ts` in step. Labels versions and the fingerprint are FNV-1a 64 over the stored labels
+  JSON (`adbreak_db`, `ml/adbreak_ml/data.py`): keep both sides the same. The copy
   (`media.mp4`, `index.m3u8`), captions and features live in the media store (`ADBREAK_MEDIA`, default
   `~/Movies/adbreak`) and are never committed: broadcasts can't be redistributed.
 - Comskip 0.83 doesn't build against ffmpeg 8+: `ticks_per_frame` is gone. In `mpeg2dec.c`, replace the

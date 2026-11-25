@@ -30,7 +30,7 @@ fn unbuilt(web: &std::path::Path) -> String {
 
 /// Serves the labelling page (the web app's build in `web`, from `web/`: `npm run build`) and its API.
 pub async fn serve(data: Dataset, bind: &str, web: &std::path::Path, model_dir: &std::path::Path, ml: &std::path::Path) -> Result<()> {
-    let root = std::fs::canonicalize(&data.root).unwrap_or_else(|_| data.root.clone());
+    let root = data.db.path.clone();
     let web = std::fs::canonicalize(web).unwrap_or_else(|_| web.to_path_buf());
     let page = if web.join("index.html").is_file() {
         tower_http::services::ServeDir::new(&web).append_index_html_on_directories(true)
@@ -134,25 +134,14 @@ struct Detail {
     fingerprint: String,
 }
 
-/// FNV-1a 64 over every recording's labels.json, in id order; `adbreak_ml.data.labels_fingerprint` computes the same.
+/// The whole dataset's labels fingerprint (`adbreak_db::Db::fingerprint`; `adbreak_ml.data.labels_fingerprint`).
 pub(crate) fn fingerprint(data: &Dataset) -> String {
-    let mut h = 0xcbf2_9ce4_8422_2325u64;
-    for id in data.ids() {
-        if let Ok(bytes) = std::fs::read(data.root.join(&id).join("labels.json")) {
-            for b in bytes {
-                h = (h ^ u64::from(b)).wrapping_mul(0x0100_0000_01b3);
-            }
-        }
-    }
-    format!("{h:016x}")
+    data.db.fingerprint().unwrap_or_default()
 }
 
-/// A version for a labels file: a hash of its bytes ("" when there is none yet).
+/// A recording's labels version ("" when there are none yet).
 fn version(data: &Dataset, id: &str) -> String {
-    match std::fs::read(data.root.join(id).join("labels.json")) {
-        Ok(bytes) => format!("{:016x}", bytes.iter().fold(0xcbf2_9ce4_8422_2325u64, |h, b| (h ^ u64::from(*b)).wrapping_mul(0x0100_0000_01b3))),
-        Err(_) => String::new(),
-    }
+    data.db.labels_version(id).unwrap_or_default()
 }
 
 #[derive(Serialize)]
@@ -217,9 +206,9 @@ async fn save(State(data): State<Shared>, Path(id): Path<String>, headers: Heade
     }
     labels.recording = data.entry(&id)?.recording;
     labels.normalise().map_err(anyhow::Error::msg)?;
-    data.save_labels(&id, &labels)?;
+    let v = data.save_labels(&id, &labels)?;
     let mut r = Json(labels).into_response();
-    r.headers_mut().insert("x-labels-version", version(&data, &id).parse()?);
+    r.headers_mut().insert("x-labels-version", v.parse()?);
     Ok(r)
 }
 

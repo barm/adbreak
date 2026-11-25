@@ -279,6 +279,9 @@ async fn exec(m: &Model, args: &[String]) -> anyhow::Result<bool> {
     let mut child = tokio::process::Command::new(uv)
         .args(args)
         .current_dir(&m.ml)
+        // The same dataset and media store as this server.
+        .env("ADBREAK_DB", &m.data.db.path)
+        .env("ADBREAK_MEDIA", &m.data.media)
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
         .kill_on_drop(true)
