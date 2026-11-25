@@ -85,7 +85,7 @@ const $ = (id) => document.getElementById(id);
 const v = $("v"), tl = $("tl");
 const KINDS = ["ad", "promo", "paid_programming"];
 const KIND_COLOR = { ad: "var(--ad)", promo: "var(--promo)", paid_programming: "var(--paid)" };
-const SOURCE_COLOR = { comskip: "#3e63dd", captions: "#12a594", adbreak: "#ad7f58", recorder: "#8b8d98" };
+const SOURCE_COLOR = { comskip: "#3e63dd", captions: "#12a594", "logo-detector": "#ad7f58", recorder: "#8b8d98" };
 const ZOOMS = [null, 3600, 1200, 300, 60, 15];
 let S = null; // { id, labels, sources, cues, covered, dur }
 let sel = null, pending = null, zoom = 0, saveTimer = null, drag = null;

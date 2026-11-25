@@ -4,7 +4,7 @@
 //!
 //! - `adbreak import <dir>` adds a recording: a low-resolution copy and its captions to the media store,
 //!   its metadata (and any suggestions or labels it came with) to the dataset.
-//! - `adbreak suggest <id>` asks the automatic sources (Comskip, the captions, the adbreak detector).
+//! - `adbreak suggest <id>` asks the automatic sources (Comskip, the captions, the logo detector).
 //! - `adbreak label` serves a page to review recordings against the suggestions and save labels.
 //! - `adbreak eval` scores every source against the labels.
 
@@ -43,7 +43,7 @@ enum Cmd {
         #[arg(long, default_value_t = 360)]
         height: u32,
     },
-    /// Ask Comskip, the captions and the adbreak detector where a recording's breaks are.
+    /// Ask Comskip, the captions and the logo detector where a recording's breaks are.
     Suggest {
         /// Recordings: their dataset id, or a unique part of it such as the job number.
         #[arg(required = true)]
@@ -178,7 +178,11 @@ fn suggest(data: &Dataset, id: &str, comskip: Option<PathBuf>, detector: bool) -
         }
         if let Some(t) = det {
             let breaks = t.join().expect("detector thread")?;
-            sources.push(Source { name: "adbreak".into(), detail: format!("adbreak {} defaults", env!("CARGO_PKG_VERSION")), breaks });
+            sources.push(Source {
+                name: "logo-detector".into(),
+                detail: format!("logo detector (crates/adbreak) {}, defaults", env!("CARGO_PKG_VERSION")),
+                breaks,
+            });
         }
         eprintln!("  sources ran in {:.0} s", started.elapsed().as_secs_f64());
         std::fs::remove_dir_all(&work)?;

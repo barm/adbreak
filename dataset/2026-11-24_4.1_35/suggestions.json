@@ -11,11 +11,6 @@
   },
   "sources": [
     {
-      "name": "adbreak",
-      "detail": "adbreak 0.1.0 defaults",
-      "breaks": []
-    },
-    {
       "name": "captions",
       "detail": "uncaptioned: window 30 s, coverage < 0.5, at least 30 s",
       "breaks": [
@@ -120,11 +115,6 @@
       ]
     },
     {
-      "name": "recorder",
-      "detail": "the recorder's own break scan",
-      "breaks": []
-    },
-    {
       "name": "fusion",
       "detail": "frames (mobileclip2-s0, logistic regression) + captions (text and timing) + black/silence, gradient-boosted over windows to 150 s; edges snapped to black-and-silent moments; leave-one-recording-out",
       "breaks": [
@@ -193,6 +183,16 @@
           "end": 8046.26
         }
       ]
+    },
+    {
+      "name": "logo-detector",
+      "detail": "logo detector (crates/adbreak) 0.1.0, defaults",
+      "breaks": []
+    },
+    {
+      "name": "recorder",
+      "detail": "the recorder's own break scan",
+      "breaks": []
     }
   ]
 }
