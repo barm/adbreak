@@ -80,8 +80,8 @@
   <div class="stage"><video id="v" playsinline controls preload="auto"></video><div id="cap"></div></div>
   <div class="bar">
     <span class="time" id="time">0:00:00.0</span>
-    <button data-k="[">Start <kbd>[</kbd></button>
-    <button data-k="]">End <kbd>]</kbd></button>
+    <button data-k="[">Start <kbd>I</kbd></button>
+    <button data-k="]">End <kbd>O</kbd></button>
     <button data-k="a">Accept <kbd>A</kbd></button>
     <button data-k="k">Kind <kbd>K</kbd></button>
     <button data-k="Backspace">Delete <kbd>⌫</kbd></button>
@@ -106,7 +106,7 @@
         <tr><td><kbd>Space</kbd></td><td>play / pause</td></tr>
         <tr><td><kbd>← →</kbd></td><td>1 s (<kbd>⇧</kbd> 10 s, <kbd>⌥</kbd> 60 s)</td></tr>
         <tr><td><kbd>, .</kbd></td><td>one frame</td></tr>
-        <tr><td><kbd>[ ]</kbd></td><td>mark a new break's start and end here, in either order; with a break selected, move its edge here</td></tr>
+        <tr><td><kbd>I O</kbd> or <kbd>[ ]</kbd></td><td>mark a new break's start and end here, in either order; with a break selected, move its edge here</td></tr>
         <tr><td><kbd>A</kbd></td><td>accept the selected suggestion as a break</td></tr>
         <tr><td>right-click</td><td>a label on the timeline: change its kind, split it where you clicked or at the playhead, or delete it (or select it and click ▾ by its kind)</td></tr>
         <tr><td><kbd>S</kbd></td><td>split the selected label at the playhead: say, an ad read at the end of a break</td></tr>
@@ -633,6 +633,9 @@ async function save() {
 }
 
 function key(k, shift, alt) {
+  // I and O mark in and out, as in Final Cut Pro: the same as [ and ].
+  if (k === "i" || k === "I") k = "[";
+  if (k === "o" || k === "O") k = "]";
   const t = v.currentTime || 0;
   const b = sel && sel.label ? S.labels.breaks[sel.i] : null;
   switch (k) {
