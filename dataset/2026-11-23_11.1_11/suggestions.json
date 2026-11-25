@@ -665,16 +665,16 @@
     },
     {
       "name": "model",
-      "detail": "adbreak-model inputs (rust-v1), leave-one-recording-out over 10",
+      "detail": "adbreak-model inputs (rust-v1), leave-one-recording-out over 9",
       "breaks": [
         {
           "start": 349.0,
-          "end": 362.0,
+          "end": 361.0,
           "kind": "ad_read"
         },
         {
-          "start": 723.0,
-          "end": 893.0,
+          "start": 750.91,
+          "end": 872.3,
           "kind": "ad"
         },
         {
@@ -688,8 +688,8 @@
           "kind": "ad"
         },
         {
-          "start": 1908.0,
-          "end": 1920.0,
+          "start": 1788.0,
+          "end": 1792.0,
           "kind": "ad_read"
         },
         {
@@ -698,19 +698,9 @@
           "kind": "ad"
         },
         {
-          "start": 2707.0,
+          "start": 2694.0,
           "end": 2794.56,
           "kind": "ad"
-        },
-        {
-          "start": 2794.56,
-          "end": 2803.0,
-          "kind": "ad_read"
-        },
-        {
-          "start": 3641.0,
-          "end": 3645.0,
-          "kind": "ad_read"
         },
         {
           "start": 3648.16,
@@ -718,22 +708,17 @@
           "kind": "ad"
         },
         {
-          "start": 3785.0,
-          "end": 3790.0,
-          "kind": "ad_read"
-        },
-        {
           "start": 3885.11,
           "end": 4021.16,
           "kind": "ad"
         },
         {
-          "start": 4500.0,
-          "end": 4504.0,
+          "start": 4497.0,
+          "end": 4512.0,
           "kind": "ad_read"
         },
         {
-          "start": 4683.31,
+          "start": 4653.0,
           "end": 4819.16,
           "kind": "ad"
         },
@@ -743,8 +728,8 @@
           "kind": "ad"
         },
         {
-          "start": 5250.0,
-          "end": 5260.0,
+          "start": 5242.0,
+          "end": 5261.0,
           "kind": "ad_read"
         },
         {
@@ -759,22 +744,22 @@
         },
         {
           "start": 5951.66,
-          "end": 6176.0,
+          "end": 6177.0,
           "kind": "ad"
         },
         {
           "start": 6488.47,
-          "end": 6566.0,
+          "end": 6555.0,
           "kind": "ad"
         },
         {
           "start": 6826.5,
-          "end": 7024.0,
+          "end": 7028.0,
           "kind": "ad"
         },
         {
-          "start": 7024.0,
-          "end": 7058.0,
+          "start": 7028.0,
+          "end": 7059.0,
           "kind": "ad_read"
         },
         {
@@ -788,11 +773,6 @@
           "kind": "ad"
         },
         {
-          "start": 8026.0,
-          "end": 8031.0,
-          "kind": "ad_read"
-        },
-        {
           "start": 8288.31,
           "end": 8424.61,
           "kind": "ad"
@@ -803,13 +783,13 @@
           "kind": "ad"
         },
         {
-          "start": 9316.21,
-          "end": 9446.0,
+          "start": 9296.0,
+          "end": 9449.0,
           "kind": "ad"
         },
         {
           "start": 10086.06,
-          "end": 10235.0,
+          "end": 10232.0,
           "kind": "ad"
         },
         {
@@ -821,9 +801,14 @@
           "start": 10871.91,
           "end": 11007.96,
           "kind": "ad"
+        },
+        {
+          "start": 11014.0,
+          "end": 11019.0,
+          "kind": "ad_read"
         }
       ],
-      "trained_on": "e1b9c74ed4b3e657"
+      "trained_on": "01ad3d2d1243cb83"
     },
     {
       "name": "recorder",
