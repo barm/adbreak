@@ -113,6 +113,14 @@ enum DatasetCmd {
         #[arg(long)]
         replace: bool,
     },
+    /// Write a consistent copy of the database (label history included) to a dated file, keeping the newest --keep.
+    Backup {
+        /// Default: `backups/` beside the database.
+        #[arg(long)]
+        dir: Option<PathBuf>,
+        #[arg(long, default_value_t = 30)]
+        keep: usize,
+    },
 }
 
 fn home() -> PathBuf {
@@ -158,6 +166,10 @@ async fn main() -> Result<()> {
         Cmd::Dataset { cmd: DatasetCmd::Import { dir, replace } } => {
             let n = data.db.import_dir(&dir, replace)?;
             eprintln!("read {n} recordings from {} into {}", dir.display(), data.db.path.display());
+        }
+        Cmd::Dataset { cmd: DatasetCmd::Backup { dir, keep } } => {
+            let dir = dir.unwrap_or_else(|| data.db.path.with_file_name("backups"));
+            println!("{}", data.db.backup(&dir, keep)?.display());
         }
     }
     Ok(())
