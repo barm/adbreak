@@ -1,0 +1,654 @@
+{
+  "format": 1,
+  "recording": {
+    "source": "recorder",
+    "job": 35,
+    "channel": "4.1",
+    "network": "KRON-TV",
+    "title": "dataset KRON daytime",
+    "start": "2026-11-24T17:38:17+00:00",
+    "duration": 8998.572911111176
+  },
+  "sources": [
+    {
+      "name": "captions",
+      "detail": "uncaptioned: window 30 s, coverage < 0.5, at least 30 s",
+      "breaks": [
+        {
+          "start": 1015.0,
+          "end": 1101.0,
+          "kind": "ad"
+        },
+        {
+          "start": 1193.0,
+          "end": 1293.0,
+          "kind": "ad"
+        },
+        {
+          "start": 4810.0,
+          "end": 4872.0,
+          "kind": "ad"
+        },
+        {
+          "start": 5684.0,
+          "end": 5878.0,
+          "kind": "ad"
+        },
+        {
+          "start": 6192.0,
+          "end": 6257.0,
+          "kind": "ad"
+        },
+        {
+          "start": 6651.0,
+          "end": 6715.0,
+          "kind": "ad"
+        },
+        {
+          "start": 7451.0,
+          "end": 7684.0,
+          "kind": "ad"
+        },
+        {
+          "start": 7953.0,
+          "end": 8047.0,
+          "kind": "ad"
+        },
+        {
+          "start": 8450.0,
+          "end": 8530.0,
+          "kind": "ad"
+        }
+      ]
+    },
+    {
+      "name": "comskip",
+      "detail": "Comskip 0.83.001, made using ffmpeg",
+      "breaks": [
+        {
+          "start": 263.63,
+          "end": 404.47,
+          "kind": "ad"
+        },
+        {
+          "start": 954.04,
+          "end": 1287.72,
+          "kind": "ad"
+        },
+        {
+          "start": 2005.95,
+          "end": 2146.56,
+          "kind": "ad"
+        },
+        {
+          "start": 2750.46,
+          "end": 2891.12,
+          "kind": "ad"
+        },
+        {
+          "start": 2978.31,
+          "end": 3119.03,
+          "kind": "ad"
+        },
+        {
+          "start": 3871.0,
+          "end": 4011.31,
+          "kind": "ad"
+        },
+        {
+          "start": 4555.63,
+          "end": 4696.29,
+          "kind": "ad"
+        },
+        {
+          "start": 4779.11,
+          "end": 4919.23,
+          "kind": "ad"
+        },
+        {
+          "start": 5697.24,
+          "end": 5877.27,
+          "kind": "ad"
+        },
+        {
+          "start": 6194.91,
+          "end": 6285.05,
+          "kind": "ad"
+        },
+        {
+          "start": 6693.14,
+          "end": 6714.26,
+          "kind": "ad"
+        },
+        {
+          "start": 7464.64,
+          "end": 7644.8,
+          "kind": "ad"
+        },
+        {
+          "start": 7955.81,
+          "end": 8046.04,
+          "kind": "ad"
+        },
+        {
+          "start": 8488.43,
+          "end": 8519.54,
+          "kind": "ad"
+        }
+      ]
+    },
+    {
+      "name": "frames-lr",
+      "detail": "mobileclip2-s0 1 fps, logistic regression trained on the other recordings (2026-11-23_11.1_11, 2026-11-24_11.1_36, 2026-11-24_2.1_32, 2026-11-24_2.1_37, 2026-11-24_5.1_33, 2026-11-24_5.1_38, 2026-11-24_7.1_34), smoothed 15 s",
+      "breaks": [
+        {
+          "start": 38.0,
+          "end": 90.0,
+          "kind": "ad"
+        },
+        {
+          "start": 106.0,
+          "end": 147.0,
+          "kind": "ad"
+        },
+        {
+          "start": 272.0,
+          "end": 391.0,
+          "kind": "ad"
+        },
+        {
+          "start": 713.0,
+          "end": 802.0,
+          "kind": "ad"
+        },
+        {
+          "start": 837.0,
+          "end": 900.0,
+          "kind": "ad"
+        },
+        {
+          "start": 955.0,
+          "end": 1127.0,
+          "kind": "ad"
+        },
+        {
+          "start": 1146.0,
+          "end": 1288.0,
+          "kind": "ad"
+        },
+        {
+          "start": 1868.0,
+          "end": 1922.0,
+          "kind": "ad"
+        },
+        {
+          "start": 2032.0,
+          "end": 2146.0,
+          "kind": "ad"
+        },
+        {
+          "start": 2750.0,
+          "end": 2888.0,
+          "kind": "ad"
+        },
+        {
+          "start": 2977.0,
+          "end": 3117.0,
+          "kind": "ad"
+        },
+        {
+          "start": 3483.0,
+          "end": 3538.0,
+          "kind": "ad"
+        },
+        {
+          "start": 3658.0,
+          "end": 3688.0,
+          "kind": "ad"
+        },
+        {
+          "start": 3868.0,
+          "end": 4000.0,
+          "kind": "ad"
+        },
+        {
+          "start": 4556.0,
+          "end": 4726.0,
+          "kind": "ad"
+        },
+        {
+          "start": 4774.0,
+          "end": 4920.0,
+          "kind": "ad"
+        },
+        {
+          "start": 5330.0,
+          "end": 5451.0,
+          "kind": "ad"
+        },
+        {
+          "start": 5685.0,
+          "end": 5878.0,
+          "kind": "ad"
+        },
+        {
+          "start": 6072.0,
+          "end": 6198.0,
+          "kind": "ad"
+        },
+        {
+          "start": 6220.0,
+          "end": 6286.0,
+          "kind": "ad"
+        },
+        {
+          "start": 6651.0,
+          "end": 6715.0,
+          "kind": "ad"
+        },
+        {
+          "start": 7081.0,
+          "end": 7202.0,
+          "kind": "ad"
+        },
+        {
+          "start": 7452.0,
+          "end": 7649.0,
+          "kind": "ad"
+        },
+        {
+          "start": 7833.0,
+          "end": 7961.0,
+          "kind": "ad"
+        },
+        {
+          "start": 7978.0,
+          "end": 8047.0,
+          "kind": "ad"
+        },
+        {
+          "start": 8447.0,
+          "end": 8517.0,
+          "kind": "ad"
+        }
+      ],
+      "trained_on": "9958897eb13afd2c"
+    },
+    {
+      "name": "frames-zeroshot",
+      "detail": "mobileclip2-s0 1 fps, zero-shot ad vs programme prompts, smoothed 15 s",
+      "breaks": [
+        {
+          "start": 39.0,
+          "end": 197.0,
+          "kind": "ad"
+        },
+        {
+          "start": 260.0,
+          "end": 402.0,
+          "kind": "ad"
+        },
+        {
+          "start": 435.0,
+          "end": 476.0,
+          "kind": "ad"
+        },
+        {
+          "start": 1006.0,
+          "end": 1299.0,
+          "kind": "ad"
+        },
+        {
+          "start": 1644.0,
+          "end": 1730.0,
+          "kind": "ad"
+        },
+        {
+          "start": 1754.0,
+          "end": 1918.0,
+          "kind": "ad"
+        },
+        {
+          "start": 2003.0,
+          "end": 2145.0,
+          "kind": "ad"
+        },
+        {
+          "start": 2161.0,
+          "end": 2217.0,
+          "kind": "ad"
+        },
+        {
+          "start": 2582.0,
+          "end": 2617.0,
+          "kind": "ad"
+        },
+        {
+          "start": 2748.0,
+          "end": 2886.0,
+          "kind": "ad"
+        },
+        {
+          "start": 2972.0,
+          "end": 3014.0,
+          "kind": "ad"
+        },
+        {
+          "start": 3030.0,
+          "end": 3133.0,
+          "kind": "ad"
+        },
+        {
+          "start": 3329.0,
+          "end": 3365.0,
+          "kind": "ad"
+        },
+        {
+          "start": 3483.0,
+          "end": 3564.0,
+          "kind": "ad"
+        },
+        {
+          "start": 3577.0,
+          "end": 3626.0,
+          "kind": "ad"
+        },
+        {
+          "start": 3656.0,
+          "end": 3776.0,
+          "kind": "ad"
+        },
+        {
+          "start": 3863.0,
+          "end": 4012.0,
+          "kind": "ad"
+        },
+        {
+          "start": 4287.0,
+          "end": 4329.0,
+          "kind": "ad"
+        },
+        {
+          "start": 4479.0,
+          "end": 4514.0,
+          "kind": "ad"
+        },
+        {
+          "start": 4554.0,
+          "end": 4755.0,
+          "kind": "ad"
+        },
+        {
+          "start": 4770.0,
+          "end": 4930.0,
+          "kind": "ad"
+        },
+        {
+          "start": 5130.0,
+          "end": 5160.0,
+          "kind": "ad"
+        },
+        {
+          "start": 5223.0,
+          "end": 5280.0,
+          "kind": "ad"
+        },
+        {
+          "start": 5310.0,
+          "end": 5455.0,
+          "kind": "ad"
+        },
+        {
+          "start": 5666.0,
+          "end": 5879.0,
+          "kind": "ad"
+        },
+        {
+          "start": 6055.0,
+          "end": 6203.0,
+          "kind": "ad"
+        },
+        {
+          "start": 6218.0,
+          "end": 6290.0,
+          "kind": "ad"
+        },
+        {
+          "start": 6597.0,
+          "end": 6719.0,
+          "kind": "ad"
+        },
+        {
+          "start": 7058.0,
+          "end": 7203.0,
+          "kind": "ad"
+        },
+        {
+          "start": 7434.0,
+          "end": 7715.0,
+          "kind": "ad"
+        },
+        {
+          "start": 7816.0,
+          "end": 7961.0,
+          "kind": "ad"
+        },
+        {
+          "start": 7976.0,
+          "end": 8050.0,
+          "kind": "ad"
+        },
+        {
+          "start": 8312.0,
+          "end": 8347.0,
+          "kind": "ad"
+        },
+        {
+          "start": 8443.0,
+          "end": 8564.0,
+          "kind": "ad"
+        },
+        {
+          "start": 8826.0,
+          "end": 8861.0,
+          "kind": "ad"
+        }
+      ],
+      "trained_on": "9958897eb13afd2c"
+    },
+    {
+      "name": "fusion",
+      "detail": "frames (mobileclip2-s0, logistic regression) + captions (text and timing) + black/silence, gradient-boosted over windows to 150 s; edges snapped to black-and-silent moments; leave-one-recording-out",
+      "breaks": [
+        {
+          "start": 279.2,
+          "end": 389.32,
+          "kind": "ad"
+        },
+        {
+          "start": 954.23,
+          "end": 1287.97,
+          "kind": "ad"
+        },
+        {
+          "start": 1886.0,
+          "end": 1918.0,
+          "kind": "ad"
+        },
+        {
+          "start": 2036.47,
+          "end": 2146.83,
+          "kind": "ad"
+        },
+        {
+          "start": 2750.66,
+          "end": 2894.0,
+          "kind": "ad"
+        },
+        {
+          "start": 2978.49,
+          "end": 3119.25,
+          "kind": "ad"
+        },
+        {
+          "start": 3870.74,
+          "end": 4011.57,
+          "kind": "ad"
+        },
+        {
+          "start": 4555.83,
+          "end": 4729.0,
+          "kind": "ad"
+        },
+        {
+          "start": 4779.31,
+          "end": 4919.45,
+          "kind": "ad"
+        },
+        {
+          "start": 5336.0,
+          "end": 5440.0,
+          "kind": "ad"
+        },
+        {
+          "start": 5684.45,
+          "end": 5862.48,
+          "kind": "ad"
+        },
+        {
+          "start": 6072.02,
+          "end": 6285.27,
+          "kind": "ad"
+        },
+        {
+          "start": 6667.0,
+          "end": 6714.47,
+          "kind": "ad"
+        },
+        {
+          "start": 7087.0,
+          "end": 7191.0,
+          "kind": "ad"
+        },
+        {
+          "start": 7451.82,
+          "end": 7630.08,
+          "kind": "ad"
+        },
+        {
+          "start": 7832.92,
+          "end": 8046.26,
+          "kind": "ad"
+        },
+        {
+          "start": 8462.0,
+          "end": 8514.27,
+          "kind": "ad"
+        }
+      ],
+      "trained_on": "9958897eb13afd2c"
+    },
+    {
+      "name": "logo-detector",
+      "detail": "logo detector (crates/adbreak) 0.1.0, defaults",
+      "breaks": []
+    },
+    {
+      "name": "model",
+      "detail": "adbreak-model inputs (rust-v1), leave-one-recording-out over 13",
+      "breaks": [
+        {
+          "start": 263.86,
+          "end": 391.0,
+          "kind": "ad"
+        },
+        {
+          "start": 954.25,
+          "end": 1115.0,
+          "kind": "ad"
+        },
+        {
+          "start": 1147.06,
+          "end": 1288.0,
+          "kind": "ad"
+        },
+        {
+          "start": 2006.15,
+          "end": 2126.56,
+          "kind": "ad"
+        },
+        {
+          "start": 2750.66,
+          "end": 2888.0,
+          "kind": "ad"
+        },
+        {
+          "start": 2978.51,
+          "end": 3116.0,
+          "kind": "ad"
+        },
+        {
+          "start": 3870.76,
+          "end": 3991.25,
+          "kind": "ad"
+        },
+        {
+          "start": 4571.31,
+          "end": 4710.0,
+          "kind": "ad"
+        },
+        {
+          "start": 4779.36,
+          "end": 4919.51,
+          "kind": "ad"
+        },
+        {
+          "start": 5333.0,
+          "end": 5448.0,
+          "kind": "ad"
+        },
+        {
+          "start": 5687.0,
+          "end": 5878.0,
+          "kind": "ad"
+        },
+        {
+          "start": 6072.07,
+          "end": 6285.31,
+          "kind": "ad"
+        },
+        {
+          "start": 6658.0,
+          "end": 6714.51,
+          "kind": "ad"
+        },
+        {
+          "start": 7082.0,
+          "end": 7199.0,
+          "kind": "ad"
+        },
+        {
+          "start": 7454.0,
+          "end": 7653.0,
+          "kind": "ad"
+        },
+        {
+          "start": 7838.0,
+          "end": 8047.0,
+          "kind": "ad"
+        },
+        {
+          "start": 8457.0,
+          "end": 8512.0,
+          "kind": "ad"
+        }
+      ],
+      "trained_on": "4dd90cb09bd5828e"
+    },
+    {
+      "name": "recorder",
+      "detail": "the recorder's own break scan",
+      "breaks": []
+    }
+  ]
+}

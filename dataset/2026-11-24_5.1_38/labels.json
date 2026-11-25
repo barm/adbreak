@@ -1,0 +1,97 @@
+{
+  "format": 1,
+  "recording": {
+    "source": "recorder",
+    "job": 38,
+    "channel": "5.1",
+    "network": "KPIX-TV",
+    "title": "dataset CBS KPIX afternoon",
+    "start": "2026-11-24T22:48:33+00:00",
+    "duration": 8954.16187777786
+  },
+  "reviewed": [
+    {
+      "start": 0.0,
+      "end": 8954.16187777786
+    }
+  ],
+  "breaks": [
+    {
+      "start": 2053.0,
+      "end": 2245.8,
+      "kind": "ad"
+    },
+    {
+      "start": 2338.0,
+      "end": 2449.7,
+      "kind": "ad"
+    },
+    {
+      "start": 2847.0,
+      "end": 3030.9,
+      "kind": "ad"
+    },
+    {
+      "start": 3224.7,
+      "end": 3375.0,
+      "kind": "ad"
+    },
+    {
+      "start": 3770.6,
+      "end": 3985.9,
+      "kind": "ad"
+    },
+    {
+      "start": 4187.0,
+      "end": 4250.0,
+      "kind": "ad"
+    },
+    {
+      "start": 4851.9,
+      "end": 4977.4,
+      "kind": "ad"
+    },
+    {
+      "start": 5267.1,
+      "end": 5447.0,
+      "kind": "ad"
+    },
+    {
+      "start": 5587.1,
+      "end": 5834.0,
+      "kind": "ad"
+    },
+    {
+      "start": 6003.0,
+      "end": 6048.2,
+      "kind": "ad"
+    },
+    {
+      "start": 6490.4,
+      "end": 6585.9,
+      "kind": "ad"
+    },
+    {
+      "start": 6788.1,
+      "end": 7058.4,
+      "kind": "ad"
+    },
+    {
+      "start": 7468.2,
+      "end": 7654.0,
+      "kind": "ad"
+    },
+    {
+      "start": 8506.0,
+      "end": 8632.6,
+      "kind": "ad"
+    }
+  ],
+  "excluded": [
+    {
+      "start": 0.0,
+      "end": 2520.0
+    }
+  ],
+  "notes": "Labelled by Claude from frames, 2026-11-24. Poor reception: the first 30 min are badly corrupted and excluded (reviewed from 30:00). Candidates from Comskip and the fusion draft, edges checked at 2 s and snapped to black-and-silent moments within 3 s; the 1:10 break's end is approximate. Show plugs, 'coming up' teases and credits count as programme; KPIX/CBS promos count as ad. Not yet checked by a person.\nReviewed from 0:42:00 only: the tuner's reception is bad before that."
+}

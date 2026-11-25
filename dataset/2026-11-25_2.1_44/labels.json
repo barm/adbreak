@@ -1,0 +1,111 @@
+{
+  "format": 1,
+  "recording": {
+    "source": "recorder",
+    "job": 44,
+    "channel": "2.1",
+    "network": "KTVU-HD",
+    "title": "dataset FOX primetime",
+    "start": "2026-11-25T03:56:09+00:00",
+    "duration": 8997.321677777829
+  },
+  "reviewed": [
+    {
+      "start": 0.0,
+      "end": 8997.321677777829
+    }
+  ],
+  "breaks": [
+    {
+      "start": 0.0,
+      "end": 31.5,
+      "kind": "ad"
+    },
+    {
+      "start": 84.5,
+      "end": 236.0,
+      "kind": "ad"
+    },
+    {
+      "start": 1134.5,
+      "end": 1284.1024385574049,
+      "kind": "ad"
+    },
+    {
+      "start": 1648.0,
+      "end": 1886.0,
+      "kind": "ad"
+    },
+    {
+      "start": 2277.0,
+      "end": 2488.0,
+      "kind": "ad"
+    },
+    {
+      "start": 2816.0,
+      "end": 3030.0,
+      "kind": "ad"
+    },
+    {
+      "start": 3379.0,
+      "end": 3541.1336158155814,
+      "kind": "ad"
+    },
+    {
+      "start": 3801.311041264643,
+      "end": 3831.035047407727,
+      "kind": "double_box"
+    },
+    {
+      "start": 3831.035047407727,
+      "end": 3837.737787068981,
+      "kind": "ad"
+    },
+    {
+      "start": 4444.578761468428,
+      "end": 4595.71579633116,
+      "kind": "ad"
+    },
+    {
+      "start": 4929.0,
+      "end": 5177.0,
+      "kind": "ad"
+    },
+    {
+      "start": 5463.945015708962,
+      "end": 5690.245739791575,
+      "kind": "ad"
+    },
+    {
+      "start": 6037.187361498671,
+      "end": 6239.732292418552,
+      "kind": "ad"
+    },
+    {
+      "start": 6557.598232344742,
+      "end": 6710.8425301457855,
+      "kind": "ad"
+    },
+    {
+      "start": 7388.0,
+      "end": 7418.402350583518,
+      "kind": "double_box"
+    },
+    {
+      "start": 7418.402350583518,
+      "end": 7454.998869032588,
+      "kind": "ad"
+    },
+    {
+      "start": 8357.58071411039,
+      "end": 8460.08250439073,
+      "kind": "ad"
+    },
+    {
+      "start": 8810.0,
+      "end": 8933.0,
+      "kind": "ad"
+    }
+  ],
+  "notes": "Labelled by Claude from frames, 2026-11-25, to docs/labels.md. End of TMZ Live, two FOX dramas, then KTVU's 10 o'clock news. Double boxes: each drama's credits squeezed beside promos. Production-company logos after the credits are programme. Small promo snipes in the corner during the dramas count as corner bugs (programme). News 'coming up' teases are programme; the station's One Warm Coat spot starts a break. Every edge checked in frames 2 s apart. Not yet checked by a person."
+}

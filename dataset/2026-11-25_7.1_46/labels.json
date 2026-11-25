@@ -1,0 +1,25 @@
+{
+  "format": 1,
+  "recording": {
+    "source": "recorder",
+    "job": 46,
+    "channel": "7.1",
+    "network": "KGO-HD",
+    "title": "Good Morning America First Look",
+    "start": "2026-11-25T12:52:02+00:00",
+    "duration": 658.4411222222197
+  },
+  "reviewed": [
+    {
+      "start": 0.0,
+      "end": 658.4411222222197
+    }
+  ],
+  "breaks": [
+    {
+      "start": 116.66708639164166,
+      "end": 403.8626583252648,
+      "kind": "ad"
+    }
+  ]
+}

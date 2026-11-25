@@ -1,0 +1,161 @@
+{
+  "format": 1,
+  "recording": {
+    "source": "recorder",
+    "job": 32,
+    "channel": "2.1",
+    "network": "KTVU-HD",
+    "title": "step3 2.1",
+    "start": "2026-11-24T07:06:41Z",
+    "duration": 12596.71747777857
+  },
+  "reviewed": [
+    {
+      "start": 0.0,
+      "end": 12596.71747777857
+    }
+  ],
+  "breaks": [
+    {
+      "start": 455.2,
+      "end": 526.9782020908439,
+      "kind": "ad"
+    },
+    {
+      "start": 983.3,
+      "end": 1125.3094806326205,
+      "kind": "ad"
+    },
+    {
+      "start": 1301.3,
+      "end": 1401.3,
+      "kind": "ad"
+    },
+    {
+      "start": 2025.4,
+      "end": 2115.5,
+      "kind": "ad"
+    },
+    {
+      "start": 2127.0,
+      "end": 2278.2965056493404,
+      "kind": "ad"
+    },
+    {
+      "start": 2625.9,
+      "end": 2806.9,
+      "kind": "ad"
+    },
+    {
+      "start": 2811.5,
+      "end": 2883.5,
+      "kind": "ad"
+    },
+    {
+      "start": 2966.1,
+      "end": 3131.8951869066154,
+      "kind": "ad"
+    },
+    {
+      "start": 3837.39749036917,
+      "end": 3845.8587938611945,
+      "kind": "ad_read"
+    },
+    {
+      "start": 3845.8587938611945,
+      "end": 3981.0,
+      "kind": "paid_programming"
+    },
+    {
+      "start": 4121.517330756954,
+      "end": 4331.7480322595175,
+      "kind": "ad"
+    },
+    {
+      "start": 4564.332694983026,
+      "end": 4834.7,
+      "kind": "ad"
+    },
+    {
+      "start": 5660.5,
+      "end": 5666.536905924569,
+      "kind": "ad_read"
+    },
+    {
+      "start": 5666.536905924569,
+      "end": 5917.9,
+      "kind": "ad"
+    },
+    {
+      "start": 6104.1,
+      "end": 6326.5,
+      "kind": "ad"
+    },
+    {
+      "start": 6331.5,
+      "end": 6377.0,
+      "kind": "ad"
+    },
+    {
+      "start": 6513.3778625413315,
+      "end": 6633.52415665931,
+      "kind": "ad"
+    },
+    {
+      "start": 7209.5,
+      "end": 7215.987419985012,
+      "kind": "ad_read"
+    },
+    {
+      "start": 7215.987419985012,
+      "end": 7366.0,
+      "kind": "ad"
+    },
+    {
+      "start": 7647.951226093293,
+      "end": 7813.288394074948,
+      "kind": "ad"
+    },
+    {
+      "start": 8101.158443068118,
+      "end": 8221.2,
+      "kind": "ad"
+    },
+    {
+      "start": 8511.3,
+      "end": 8601.3,
+      "kind": "ad"
+    },
+    {
+      "start": 9011.66884442601,
+      "end": 9201.0,
+      "kind": "ad"
+    },
+    {
+      "start": 9476.5,
+      "end": 9717.3,
+      "kind": "ad"
+    },
+    {
+      "start": 10015.5,
+      "end": 10256.511279902661,
+      "kind": "ad"
+    },
+    {
+      "start": 10401.5,
+      "end": 12131.4,
+      "kind": "paid_programming"
+    },
+    {
+      "start": 12131.4,
+      "end": 12201.5,
+      "kind": "ad"
+    },
+    {
+      "start": 12201.5,
+      "end": 12596.7,
+      "kind": "paid_programming"
+    }
+  ],
+  "notes": "Labelled by Claude from frames (contact sheets every 10 s, then 1 s around each edge), 2026-11-24. Edges to about half a second. Show bumpers, title cards and 'coming up' teases count as programme, so a few breaks are split around 5-11 s bumpers. Not yet checked by a person."
+}

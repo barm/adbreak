@@ -1,0 +1,111 @@
+{
+  "format": 1,
+  "recording": {
+    "source": "recorder",
+    "job": 33,
+    "channel": "5.1",
+    "network": "KPIX-TV",
+    "title": "step3 5.1",
+    "start": "2026-11-24T07:06:41+00:00",
+    "duration": 10797.386588889365
+  },
+  "reviewed": [
+    {
+      "start": 0.0,
+      "end": 10797.386588889365
+    }
+  ],
+  "breaks": [
+    {
+      "start": 325.9,
+      "end": 456.0,
+      "kind": "ad"
+    },
+    {
+      "start": 1040.5,
+      "end": 1206.6,
+      "kind": "ad"
+    },
+    {
+      "start": 1413.2476148404005,
+      "end": 1604.1105659623754,
+      "kind": "ad"
+    },
+    {
+      "start": 2073.4,
+      "end": 2281.405727692275,
+      "kind": "ad"
+    },
+    {
+      "start": 2540.7,
+      "end": 2768.6,
+      "kind": "ad"
+    },
+    {
+      "start": 3092.887947160834,
+      "end": 3296.311548217639,
+      "kind": "ad"
+    },
+    {
+      "start": 3823.5316716904113,
+      "end": 4031.8,
+      "kind": "ad"
+    },
+    {
+      "start": 4313.8,
+      "end": 4542.593465228224,
+      "kind": "ad"
+    },
+    {
+      "start": 4781.632460926288,
+      "end": 5073.501101908986,
+      "kind": "ad"
+    },
+    {
+      "start": 5658.225245118059,
+      "end": 5866.297848296131,
+      "kind": "ad"
+    },
+    {
+      "start": 6137.669627990445,
+      "end": 6365.6,
+      "kind": "ad"
+    },
+    {
+      "start": 6663.854793827203,
+      "end": 6867.082649169441,
+      "kind": "ad"
+    },
+    {
+      "start": 7452.051132605042,
+      "end": 7660.519111065362,
+      "kind": "ad"
+    },
+    {
+      "start": 7932.3915305227165,
+      "end": 8161.1,
+      "kind": "ad"
+    },
+    {
+      "start": 8439.218130868736,
+      "end": 8642.037757856662,
+      "kind": "ad"
+    },
+    {
+      "start": 8874.013665308226,
+      "end": 8994.966502318039,
+      "kind": "ad"
+    },
+    {
+      "start": 9728.588208940278,
+      "end": 9879.273701384345,
+      "kind": "ad"
+    },
+    {
+      "start": 10463.673662075531,
+      "end": 10629.57385469967,
+      "kind": "ad"
+    }
+  ],
+  "notes": "Labelled by Claude from frames (contact sheets every 10 s, then 1 s around each edge), 2026-11-24. KPIX news leaves for breaks through a live-camera bumper with no black frame; the break starts after it. KPIX's own Food for Bay Area Families appeal is labelled promo. Allen Media shows run into the next episode with no break. Not yet checked by a person."
+}

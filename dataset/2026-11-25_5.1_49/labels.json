@@ -1,0 +1,50 @@
+{
+  "format": 1,
+  "recording": {
+    "source": "recorder",
+    "job": 49,
+    "channel": "5.1",
+    "network": "KPIX-TV",
+    "title": "CBS News Bay Area: Morning Edition 6am",
+    "start": "2026-11-25T14:53:32+00:00",
+    "duration": 3054.584855555553
+  },
+  "reviewed": [
+    {
+      "start": 0.0,
+      "end": 3054.584855555553
+    }
+  ],
+  "breaks": [
+    {
+      "start": 0.0,
+      "end": 64.26,
+      "kind": "ad"
+    },
+    {
+      "start": 1459.5362166754094,
+      "end": 1551.5344167663384,
+      "kind": "double_box"
+    },
+    {
+      "start": 1581.0,
+      "end": 1890.36,
+      "kind": "ad"
+    },
+    {
+      "start": 1996.0,
+      "end": 2131.17,
+      "kind": "ad"
+    },
+    {
+      "start": 2600.71,
+      "end": 2847.36,
+      "kind": "ad"
+    },
+    {
+      "start": 3049.8184953416685,
+      "end": 3054.584855555553,
+      "kind": "ad"
+    }
+  ]
+}

@@ -1,0 +1,882 @@
+{
+  "format": 1,
+  "recording": {
+    "source": "recorder",
+    "job": 43,
+    "channel": "11.1",
+    "network": "KNTV HD",
+    "title": "dataset NBA basketball NBC",
+    "start": "2026-11-25T03:22:16+00:00",
+    "duration": 10798.220766667104
+  },
+  "sources": [
+    {
+      "name": "captions",
+      "detail": "uncaptioned: window 30 s, coverage < 0.5, at least 30 s",
+      "breaks": [
+        {
+          "start": 116.0,
+          "end": 157.0,
+          "kind": "ad"
+        },
+        {
+          "start": 424.0,
+          "end": 495.0,
+          "kind": "ad"
+        },
+        {
+          "start": 1073.0,
+          "end": 1124.0,
+          "kind": "ad"
+        },
+        {
+          "start": 1348.0,
+          "end": 1378.0,
+          "kind": "ad"
+        },
+        {
+          "start": 2075.0,
+          "end": 2135.0,
+          "kind": "ad"
+        },
+        {
+          "start": 2642.0,
+          "end": 2682.0,
+          "kind": "ad"
+        },
+        {
+          "start": 2985.0,
+          "end": 3031.0,
+          "kind": "ad"
+        },
+        {
+          "start": 3445.0,
+          "end": 3510.0,
+          "kind": "ad"
+        },
+        {
+          "start": 3591.0,
+          "end": 3633.0,
+          "kind": "ad"
+        },
+        {
+          "start": 3753.0,
+          "end": 3800.0,
+          "kind": "ad"
+        },
+        {
+          "start": 4347.0,
+          "end": 4395.0,
+          "kind": "ad"
+        },
+        {
+          "start": 4411.0,
+          "end": 4463.0,
+          "kind": "ad"
+        },
+        {
+          "start": 5032.0,
+          "end": 5105.0,
+          "kind": "ad"
+        },
+        {
+          "start": 5523.0,
+          "end": 5553.0,
+          "kind": "ad"
+        },
+        {
+          "start": 5628.0,
+          "end": 5674.0,
+          "kind": "ad"
+        },
+        {
+          "start": 5916.0,
+          "end": 5977.0,
+          "kind": "ad"
+        },
+        {
+          "start": 6007.0,
+          "end": 6060.0,
+          "kind": "ad"
+        },
+        {
+          "start": 6655.0,
+          "end": 6700.0,
+          "kind": "ad"
+        },
+        {
+          "start": 6871.0,
+          "end": 6910.0,
+          "kind": "ad"
+        },
+        {
+          "start": 8065.0,
+          "end": 8097.0,
+          "kind": "ad"
+        },
+        {
+          "start": 8136.0,
+          "end": 8170.0,
+          "kind": "ad"
+        },
+        {
+          "start": 8198.0,
+          "end": 8264.0,
+          "kind": "ad"
+        },
+        {
+          "start": 9066.0,
+          "end": 9104.0,
+          "kind": "ad"
+        },
+        {
+          "start": 9364.0,
+          "end": 9411.0,
+          "kind": "ad"
+        },
+        {
+          "start": 9441.0,
+          "end": 9480.0,
+          "kind": "ad"
+        },
+        {
+          "start": 10520.0,
+          "end": 10647.0,
+          "kind": "ad"
+        }
+      ]
+    },
+    {
+      "name": "comskip",
+      "detail": "Comskip 0.83.001, made using ffmpeg",
+      "breaks": [
+        {
+          "start": 426.89,
+          "end": 487.1,
+          "kind": "ad"
+        },
+        {
+          "start": 1087.99,
+          "end": 1148.95,
+          "kind": "ad"
+        },
+        {
+          "start": 1344.08,
+          "end": 1404.72,
+          "kind": "ad"
+        },
+        {
+          "start": 2013.49,
+          "end": 2059.01,
+          "kind": "ad"
+        },
+        {
+          "start": 2610.84,
+          "end": 2671.67,
+          "kind": "ad"
+        },
+        {
+          "start": 2937.88,
+          "end": 3124.32,
+          "kind": "ad"
+        },
+        {
+          "start": 3491.25,
+          "end": 3601.41,
+          "kind": "ad"
+        },
+        {
+          "start": 4289.5,
+          "end": 4455.53,
+          "kind": "ad"
+        },
+        {
+          "start": 5029.02,
+          "end": 5195.02,
+          "kind": "ad"
+        },
+        {
+          "start": 5521.42,
+          "end": 5642.87,
+          "kind": "ad"
+        },
+        {
+          "start": 5885.53,
+          "end": 6051.28,
+          "kind": "ad"
+        },
+        {
+          "start": 6761.17,
+          "end": 6900.61,
+          "kind": "ad"
+        },
+        {
+          "start": 8061.02,
+          "end": 8167.53,
+          "kind": "ad"
+        },
+        {
+          "start": 9589.85,
+          "end": 9635.08,
+          "kind": "ad"
+        },
+        {
+          "start": 9966.99,
+          "end": 10147.09,
+          "kind": "ad"
+        },
+        {
+          "start": 10428.62,
+          "end": 10519.96,
+          "kind": "ad"
+        }
+      ]
+    },
+    {
+      "name": "fusion",
+      "detail": "frames (mobileclip2-s0, logistic regression) + captions (text and timing) + black/silence, gradient-boosted over windows to 150 s; edges snapped to black-and-silent moments; trained on 8 labelled recordings",
+      "breaks": [
+        {
+          "start": 0.0,
+          "end": 147.83,
+          "kind": "ad"
+        },
+        {
+          "start": 306.61,
+          "end": 487.33,
+          "kind": "ad"
+        },
+        {
+          "start": 966.68,
+          "end": 1152.0,
+          "kind": "ad"
+        },
+        {
+          "start": 1344.28,
+          "end": 1510.19,
+          "kind": "ad"
+        },
+        {
+          "start": 2013.7,
+          "end": 2194.5,
+          "kind": "ad"
+        },
+        {
+          "start": 2611.05,
+          "end": 2671.89,
+          "kind": "ad"
+        },
+        {
+          "start": 2938.09,
+          "end": 3124.54,
+          "kind": "ad"
+        },
+        {
+          "start": 3341.24,
+          "end": 3542.0,
+          "kind": "ad"
+        },
+        {
+          "start": 3601.62,
+          "end": 3767.61,
+          "kind": "ad"
+        },
+        {
+          "start": 4289.69,
+          "end": 4455.75,
+          "kind": "ad"
+        },
+        {
+          "start": 5029.22,
+          "end": 5195.26,
+          "kind": "ad"
+        },
+        {
+          "start": 5521.65,
+          "end": 5707.0,
+          "kind": "ad"
+        },
+        {
+          "start": 5885.73,
+          "end": 6051.5,
+          "kind": "ad"
+        },
+        {
+          "start": 6608.79,
+          "end": 6774.85,
+          "kind": "ad"
+        },
+        {
+          "start": 6840.11,
+          "end": 6900.84,
+          "kind": "ad"
+        },
+        {
+          "start": 8061.19,
+          "end": 8260.0,
+          "kind": "ad"
+        },
+        {
+          "start": 8955.94,
+          "end": 9092.17,
+          "kind": "ad"
+        },
+        {
+          "start": 9362.8,
+          "end": 9478.0,
+          "kind": "ad"
+        },
+        {
+          "start": 9905.55,
+          "end": 10102.81,
+          "kind": "ad"
+        },
+        {
+          "start": 10455.0,
+          "end": 10640.78,
+          "kind": "ad"
+        }
+      ],
+      "trained_on": "7064102b7de483ee"
+    },
+    {
+      "name": "logo-detector",
+      "detail": "logo detector (crates/adbreak) 0.1.0, defaults",
+      "breaks": [
+        {
+          "start": 147.91443333333333,
+          "end": 187.0,
+          "kind": "ad"
+        },
+        {
+          "start": 306.65635,
+          "end": 487.3535277777778,
+          "kind": "ad"
+        },
+        {
+          "start": 966.7157444444445,
+          "end": 1154.0,
+          "kind": "ad"
+        },
+        {
+          "start": 1344.3096333333333,
+          "end": 1510.2087000000001,
+          "kind": "ad"
+        },
+        {
+          "start": 2013.7617500000001,
+          "end": 2194.5089777777775,
+          "kind": "ad"
+        },
+        {
+          "start": 2611.05845,
+          "end": 2671.9025666666666,
+          "kind": "ad"
+        },
+        {
+          "start": 2938.101833333333,
+          "end": 3832.0,
+          "kind": "ad"
+        },
+        {
+          "start": 4289.702077777778,
+          "end": 4464.0,
+          "kind": "ad"
+        },
+        {
+          "start": 5029.2575611111115,
+          "end": 5218.0,
+          "kind": "ad"
+        },
+        {
+          "start": 5521.657805555556,
+          "end": 5709.0,
+          "kind": "ad"
+        },
+        {
+          "start": 5885.763216666666,
+          "end": 6051.562183333333,
+          "kind": "ad"
+        },
+        {
+          "start": 6608.8022,
+          "end": 6774.901466666666,
+          "kind": "ad"
+        },
+        {
+          "start": 6840.1583222222225,
+          "end": 6900.910677777778,
+          "kind": "ad"
+        },
+        {
+          "start": 8061.2531944444445,
+          "end": 9116.0,
+          "kind": "ad"
+        },
+        {
+          "start": 9379.103066666667,
+          "end": 10799.0,
+          "kind": "ad"
+        }
+      ]
+    },
+    {
+      "name": "model",
+      "detail": "adbreak-model inputs (rust-v1), leave-one-recording-out over 13",
+      "breaks": [
+        {
+          "start": 0.0,
+          "end": 147.91,
+          "kind": "ad"
+        },
+        {
+          "start": 161.0,
+          "end": 171.0,
+          "kind": "ad_read"
+        },
+        {
+          "start": 298.0,
+          "end": 306.66,
+          "kind": "ad_read"
+        },
+        {
+          "start": 306.66,
+          "end": 487.35,
+          "kind": "ad"
+        },
+        {
+          "start": 487.35,
+          "end": 502.0,
+          "kind": "ad_read"
+        },
+        {
+          "start": 966.72,
+          "end": 1150.0,
+          "kind": "ad"
+        },
+        {
+          "start": 1150.0,
+          "end": 1162.0,
+          "kind": "ad_read"
+        },
+        {
+          "start": 1344.31,
+          "end": 1510.21,
+          "kind": "ad"
+        },
+        {
+          "start": 1523.0,
+          "end": 1528.0,
+          "kind": "ad_read"
+        },
+        {
+          "start": 1676.0,
+          "end": 1685.0,
+          "kind": "ad_read"
+        },
+        {
+          "start": 1703.0,
+          "end": 1709.0,
+          "kind": "ad_read"
+        },
+        {
+          "start": 1716.0,
+          "end": 1726.0,
+          "kind": "ad_read"
+        },
+        {
+          "start": 1895.0,
+          "end": 1909.0,
+          "kind": "ad_read"
+        },
+        {
+          "start": 1931.0,
+          "end": 1936.0,
+          "kind": "ad_read"
+        },
+        {
+          "start": 2002.0,
+          "end": 2010.0,
+          "kind": "ad_read"
+        },
+        {
+          "start": 2013.76,
+          "end": 2160.0,
+          "kind": "ad"
+        },
+        {
+          "start": 2194.51,
+          "end": 2207.0,
+          "kind": "ad_read"
+        },
+        {
+          "start": 2378.0,
+          "end": 2389.0,
+          "kind": "ad_read"
+        },
+        {
+          "start": 2478.0,
+          "end": 2483.0,
+          "kind": "ad_read"
+        },
+        {
+          "start": 2500.0,
+          "end": 2511.0,
+          "kind": "ad_read"
+        },
+        {
+          "start": 2530.0,
+          "end": 2536.0,
+          "kind": "ad_read"
+        },
+        {
+          "start": 2587.0,
+          "end": 2596.0,
+          "kind": "ad_read"
+        },
+        {
+          "start": 2611.06,
+          "end": 2671.9,
+          "kind": "ad"
+        },
+        {
+          "start": 2704.0,
+          "end": 2719.0,
+          "kind": "ad_read"
+        },
+        {
+          "start": 2789.0,
+          "end": 2799.0,
+          "kind": "ad_read"
+        },
+        {
+          "start": 2813.0,
+          "end": 2824.0,
+          "kind": "ad_read"
+        },
+        {
+          "start": 2857.0,
+          "end": 2867.0,
+          "kind": "ad_read"
+        },
+        {
+          "start": 2891.0,
+          "end": 2928.0,
+          "kind": "ad_read"
+        },
+        {
+          "start": 2938.1,
+          "end": 3145.0,
+          "kind": "ad"
+        },
+        {
+          "start": 3341.3,
+          "end": 3502.12,
+          "kind": "ad"
+        },
+        {
+          "start": 3549.0,
+          "end": 3557.0,
+          "kind": "ad_read"
+        },
+        {
+          "start": 3601.66,
+          "end": 3793.0,
+          "kind": "ad"
+        },
+        {
+          "start": 4289.7,
+          "end": 4455.8,
+          "kind": "ad"
+        },
+        {
+          "start": 4625.0,
+          "end": 4638.0,
+          "kind": "ad_read"
+        },
+        {
+          "start": 4966.0,
+          "end": 4970.0,
+          "kind": "ad_read"
+        },
+        {
+          "start": 5029.26,
+          "end": 5195.31,
+          "kind": "ad"
+        },
+        {
+          "start": 5483.0,
+          "end": 5499.0,
+          "kind": "ad_read"
+        },
+        {
+          "start": 5504.0,
+          "end": 5508.0,
+          "kind": "ad_read"
+        },
+        {
+          "start": 5521.66,
+          "end": 5709.0,
+          "kind": "ad"
+        },
+        {
+          "start": 5849.0,
+          "end": 5853.0,
+          "kind": "ad_read"
+        },
+        {
+          "start": 5866.0,
+          "end": 5871.0,
+          "kind": "ad_read"
+        },
+        {
+          "start": 5885.76,
+          "end": 6051.56,
+          "kind": "ad"
+        },
+        {
+          "start": 6051.56,
+          "end": 6059.0,
+          "kind": "ad_read"
+        },
+        {
+          "start": 6078.0,
+          "end": 6093.0,
+          "kind": "ad_read"
+        },
+        {
+          "start": 6214.0,
+          "end": 6223.0,
+          "kind": "ad_read"
+        },
+        {
+          "start": 6313.0,
+          "end": 6318.0,
+          "kind": "ad_read"
+        },
+        {
+          "start": 6343.0,
+          "end": 6348.0,
+          "kind": "ad_read"
+        },
+        {
+          "start": 6366.0,
+          "end": 6372.0,
+          "kind": "ad_read"
+        },
+        {
+          "start": 6482.0,
+          "end": 6488.0,
+          "kind": "ad_read"
+        },
+        {
+          "start": 6608.8,
+          "end": 6774.9,
+          "kind": "ad"
+        },
+        {
+          "start": 6784.0,
+          "end": 6788.0,
+          "kind": "ad_read"
+        },
+        {
+          "start": 6840.16,
+          "end": 6900.91,
+          "kind": "ad"
+        },
+        {
+          "start": 7293.0,
+          "end": 7306.0,
+          "kind": "ad_read"
+        },
+        {
+          "start": 7580.0,
+          "end": 7587.0,
+          "kind": "ad_read"
+        },
+        {
+          "start": 7950.0,
+          "end": 7957.0,
+          "kind": "ad_read"
+        },
+        {
+          "start": 8027.0,
+          "end": 8033.0,
+          "kind": "ad_read"
+        },
+        {
+          "start": 8061.25,
+          "end": 8269.0,
+          "kind": "ad"
+        },
+        {
+          "start": 8269.0,
+          "end": 8273.0,
+          "kind": "ad_read"
+        },
+        {
+          "start": 8662.0,
+          "end": 8671.0,
+          "kind": "double_box"
+        },
+        {
+          "start": 8927.0,
+          "end": 8936.0,
+          "kind": "ad_read"
+        },
+        {
+          "start": 8955.96,
+          "end": 9092.21,
+          "kind": "ad"
+        },
+        {
+          "start": 9100.0,
+          "end": 9105.0,
+          "kind": "ad_read"
+        },
+        {
+          "start": 9122.0,
+          "end": 9140.0,
+          "kind": "ad_read"
+        },
+        {
+          "start": 9156.0,
+          "end": 9160.0,
+          "kind": "ad_read"
+        },
+        {
+          "start": 9165.0,
+          "end": 9177.0,
+          "kind": "ad_read"
+        },
+        {
+          "start": 9359.0,
+          "end": 9473.0,
+          "kind": "ad"
+        },
+        {
+          "start": 9905.56,
+          "end": 10102.86,
+          "kind": "ad"
+        },
+        {
+          "start": 10428.85,
+          "end": 10640.86,
+          "kind": "ad"
+        }
+      ],
+      "trained_on": "4dd90cb09bd5828e"
+    },
+    {
+      "name": "recorder",
+      "detail": "the recorder's own break scan",
+      "breaks": [
+        {
+          "start": 0.0,
+          "end": 169.0,
+          "kind": "ad"
+        },
+        {
+          "start": 306.66,
+          "end": 487.35,
+          "kind": "ad"
+        },
+        {
+          "start": 966.72,
+          "end": 1156.0,
+          "kind": "ad"
+        },
+        {
+          "start": 1344.31,
+          "end": 1510.21,
+          "kind": "ad"
+        },
+        {
+          "start": 2013.76,
+          "end": 2194.51,
+          "kind": "ad"
+        },
+        {
+          "start": 2611.06,
+          "end": 2671.9,
+          "kind": "ad"
+        },
+        {
+          "start": 2938.1,
+          "end": 3124.55,
+          "kind": "ad"
+        },
+        {
+          "start": 3318.0,
+          "end": 3542.0,
+          "kind": "ad"
+        },
+        {
+          "start": 3601.66,
+          "end": 3767.66,
+          "kind": "ad"
+        },
+        {
+          "start": 4289.7,
+          "end": 4455.8,
+          "kind": "ad"
+        },
+        {
+          "start": 5029.26,
+          "end": 5195.31,
+          "kind": "ad"
+        },
+        {
+          "start": 5521.66,
+          "end": 5711.0,
+          "kind": "ad"
+        },
+        {
+          "start": 5885.76,
+          "end": 6051.56,
+          "kind": "ad"
+        },
+        {
+          "start": 6608.8,
+          "end": 6775.6,
+          "kind": "ad"
+        },
+        {
+          "start": 6840.16,
+          "end": 6900.91,
+          "kind": "ad"
+        },
+        {
+          "start": 8061.25,
+          "end": 8269.0,
+          "kind": "ad"
+        },
+        {
+          "start": 8955.96,
+          "end": 9092.21,
+          "kind": "ad"
+        },
+        {
+          "start": 9359.0,
+          "end": 9485.0,
+          "kind": "ad"
+        },
+        {
+          "start": 9797.0,
+          "end": 9834.0,
+          "kind": "ad"
+        },
+        {
+          "start": 9905.56,
+          "end": 10077.0,
+          "kind": "ad"
+        },
+        {
+          "start": 10428.85,
+          "end": 10640.86,
+          "kind": "ad"
+        }
+      ]
+    }
+  ]
+}

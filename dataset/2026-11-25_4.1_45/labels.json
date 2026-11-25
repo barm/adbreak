@@ -1,0 +1,55 @@
+{
+  "format": 1,
+  "recording": {
+    "source": "recorder",
+    "job": 45,
+    "channel": "4.1",
+    "network": "KRON-TV",
+    "title": "KRON 4 News at 5am",
+    "start": "2026-11-25T12:59:00+00:00",
+    "duration": 3837.6171222222056
+  },
+  "reviewed": [
+    {
+      "start": 0.0,
+      "end": 3837.6171222222056
+    }
+  ],
+  "breaks": [
+    {
+      "start": 0.0,
+      "end": 77.18544205367061,
+      "kind": "ad"
+    },
+    {
+      "start": 735.18,
+      "end": 875.96,
+      "kind": "ad"
+    },
+    {
+      "start": 1361.26,
+      "end": 1502.0,
+      "kind": "ad"
+    },
+    {
+      "start": 1656.67,
+      "end": 1797.41,
+      "kind": "ad"
+    },
+    {
+      "start": 2542.34,
+      "end": 2683.28,
+      "kind": "ad"
+    },
+    {
+      "start": 3144.619592774996,
+      "end": 3284.98,
+      "kind": "ad"
+    },
+    {
+      "start": 3466.76,
+      "end": 3607.67,
+      "kind": "ad"
+    }
+  ]
+}

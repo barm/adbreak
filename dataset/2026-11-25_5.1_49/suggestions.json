@@ -1,0 +1,129 @@
+{
+  "format": 1,
+  "recording": {
+    "source": "recorder",
+    "job": 49,
+    "channel": "5.1",
+    "network": "KPIX-TV",
+    "title": "CBS News Bay Area: Morning Edition 6am",
+    "start": "2026-11-25T14:53:32+00:00",
+    "duration": 3054.584855555553
+  },
+  "sources": [
+    {
+      "name": "captions",
+      "detail": "uncaptioned: window 30 s, coverage < 0.5, at least 30 s",
+      "breaks": [
+        {
+          "start": 1429.0,
+          "end": 1631.0,
+          "kind": "ad"
+        },
+        {
+          "start": 1853.0,
+          "end": 1897.0,
+          "kind": "ad"
+        },
+        {
+          "start": 2100.0,
+          "end": 2136.0,
+          "kind": "ad"
+        },
+        {
+          "start": 2767.0,
+          "end": 2797.0,
+          "kind": "ad"
+        }
+      ]
+    },
+    {
+      "name": "comskip",
+      "detail": "Comskip 0.83.001, made using ffmpeg",
+      "breaks": [
+        {
+          "start": 0.03,
+          "end": 330.35,
+          "kind": "ad"
+        },
+        {
+          "start": 1581.2,
+          "end": 2141.94,
+          "kind": "ad"
+        },
+        {
+          "start": 2599.93,
+          "end": 2846.99,
+          "kind": "ad"
+        },
+        {
+          "start": 3048.96,
+          "end": 3054.13,
+          "kind": "ad"
+        }
+      ]
+    },
+    {
+      "name": "logo-detector",
+      "detail": "logo detector (crates/adbreak) 0.1.0, defaults",
+      "breaks": [
+        {
+          "start": 64.26419444444446,
+          "end": 294.0,
+          "kind": "ad"
+        },
+        {
+          "start": 330.61361111111114,
+          "end": 469.0,
+          "kind": "ad"
+        },
+        {
+          "start": 1612.8112,
+          "end": 2131.166533333333,
+          "kind": "ad"
+        },
+        {
+          "start": 2600.7147777777777,
+          "end": 2847.3611833333334,
+          "kind": "ad"
+        }
+      ]
+    },
+    {
+      "name": "model",
+      "detail": "adbreak-model inputs (rust-v1), leave-one-recording-out over 13",
+      "breaks": [
+        {
+          "start": 0.0,
+          "end": 64.26,
+          "kind": "ad"
+        },
+        {
+          "start": 846.0,
+          "end": 851.0,
+          "kind": "ad_read"
+        },
+        {
+          "start": 1433.0,
+          "end": 1890.36,
+          "kind": "ad"
+        },
+        {
+          "start": 1908.0,
+          "end": 1932.0,
+          "kind": "ad_read"
+        },
+        {
+          "start": 1996.0,
+          "end": 2131.17,
+          "kind": "ad"
+        },
+        {
+          "start": 2600.71,
+          "end": 2847.36,
+          "kind": "ad"
+        }
+      ],
+      "trained_on": "4dd90cb09bd5828e"
+    }
+  ]
+}

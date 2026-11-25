@@ -1,0 +1,25 @@
+{
+  "format": 1,
+  "recording": {
+    "source": "recorder",
+    "job": 52,
+    "channel": "9.3",
+    "network": "WORLD",
+    "title": "First Contact: An Alien Encounter",
+    "start": "2026-11-25T15:02:35+00:00",
+    "duration": 3596.9933888888772
+  },
+  "reviewed": [
+    {
+      "start": 0.0,
+      "end": 3596.9933888888772
+    }
+  ],
+  "breaks": [
+    {
+      "start": 3056.8281258140305,
+      "end": 3426.530036012944,
+      "kind": "ad"
+    }
+  ]
+}
