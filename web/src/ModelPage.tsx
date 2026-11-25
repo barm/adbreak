@@ -41,7 +41,9 @@ type Overview = {
   recordings: Rec[];
   can_run: boolean;
   history: Info[];
+  coverage: Coverage[];
 };
+type Coverage = { channel: string; network: string; recordings: number; seconds: number; breaks: number; double_box_seconds: number; ad_read_seconds: number; new_network_f1: number | null };
 type Job = { running: boolean; action: string; only: string | null; ok: boolean | null; log: string[] };
 
 const pct = (x: number) => `${Math.round(100 * x)}%`;
@@ -211,6 +213,28 @@ export function ModelPage() {
                     { key: "start_error", header: "Start / end error", align: "end" as const, renderCell: (t: Total) => (t.matched ? `${secs(t.start_error)} / ${secs(t.end_error)}` : "") },
                     { key: "wrongly_skipped_per_hour", header: "Show cut / h", align: "end" as const, renderCell: (t: Total) => (t.kind === "commercial break" ? `${Math.round(t.wrongly_skipped_per_hour)} s` : "") },
                     { key: "missed_per_hour", header: "Ads left / h", align: "end" as const, renderCell: (t: Total) => (t.kind === "commercial break" ? `${Math.round(t.missed_per_hour)} s` : "") },
+                  ]}
+                />
+              </Stack>
+            )}
+            {m && m.coverage.length > 0 && (
+              <Stack gap={2}>
+                <Heading level={3}>Coverage by channel</Heading>
+                <Text type="supporting" color="secondary">
+                  What the labelled data holds, least first. More recordings teach the model most on channels near the top, where its new-network score is weak, and in programmes with double boxes or ad reads (sports), which it has too few of to learn.
+                </Text>
+                <Table
+                  data={m.coverage}
+                  idKey="channel"
+                  density="compact"
+                  columns={[
+                    { key: "channel", header: "Channel", renderCell: (c: Coverage) => `${c.channel} ${c.network}` },
+                    { key: "recordings", header: "Recordings", align: "end" as const },
+                    { key: "seconds", header: "Reviewed", align: "end" as const, renderCell: (c: Coverage) => hours(c.seconds) },
+                    { key: "breaks", header: "Breaks", align: "end" as const },
+                    { key: "double_box_seconds", header: "Double box", align: "end" as const, renderCell: (c: Coverage) => (c.double_box_seconds ? hours(c.double_box_seconds) : "") },
+                    { key: "ad_read_seconds", header: "Ad read", align: "end" as const, renderCell: (c: Coverage) => (c.ad_read_seconds ? hours(c.ad_read_seconds) : "") },
+                    { key: "new_network_f1", header: "New network F1", align: "end" as const, renderCell: (c: Coverage) => (c.new_network_f1 != null ? pct(c.new_network_f1) : "") },
                   ]}
                 />
               </Stack>
