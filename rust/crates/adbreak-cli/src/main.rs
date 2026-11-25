@@ -50,6 +50,26 @@ enum Cmd {
         #[arg(long, default_value_t = 360)]
         height: u32,
     },
+    /// Everything a new recording needs before labelling, in one step: import it, ask the automatic sources (as
+    /// `suggest`), compute the model's inputs (as `features`) and have the model draft its breaks (`adbreak-ml
+    /// evaluate --only`, if the ML project is there).
+    Ingest {
+        /// Import directories (as for `import`).
+        #[arg(required = true)]
+        dirs: Vec<PathBuf>,
+        /// Comskip binary (default: `comskip` on PATH; skipped if there is none).
+        #[arg(long, env = "ADBREAK_COMSKIP")]
+        comskip: Option<PathBuf>,
+        /// Directory with the image model.
+        #[arg(long, env = "ADBREAK_MODEL_DIR", default_value_os_t = home().join("Movies/adbreak/model"))]
+        model_dir: PathBuf,
+        /// The ML project (`ml/`), for the model's draft.
+        #[arg(long, env = "ADBREAK_ML", default_value = "ml")]
+        ml: PathBuf,
+        /// Delete each import directory once it is in.
+        #[arg(long)]
+        remove: bool,
+    },
     /// Ask Comskip, the captions and the logo detector where a recording's breaks are.
     Suggest {
         /// Recordings: their dataset id, or a unique part of it such as the job number.
@@ -90,6 +110,11 @@ enum Cmd {
         /// The ML project (`ml/`), run through uv by the Model page's actions. Optional: without it they're off.
         #[arg(long, env = "ADBREAK_ML", default_value = "ml")]
         ml: PathBuf,
+        /// Import directories dropped here (by a recorder) are ingested on their own, one at a time, and deleted
+        /// once in; one that fails is renamed `<name>.failed`. Default: `inbox/` beside the database. A writer
+        /// should fill a directory whose name starts with `.` and rename it when complete.
+        #[arg(long, env = "ADBREAK_INBOX")]
+        inbox: Option<PathBuf>,
     },
     /// Score each source against the labels.
     Eval {
@@ -137,6 +162,22 @@ async fn main() -> Result<()> {
                 import(&data, &d, height)?;
             }
         }
+        Cmd::Ingest { dirs, comskip, model_dir, ml, remove } => {
+            let comskip = tools::find(comskip.as_deref(), "comskip");
+            if comskip.is_none() {
+                eprintln!("no Comskip found (--comskip or ADBREAK_COMSKIP); skipping it");
+            }
+            for d in dirs {
+                let id = import(&data, &d, 360)?;
+                suggest(&data, &id, comskip.clone(), true)?;
+                features::compute(&data, &id, &model_dir, false)?;
+                draft(&data, &ml, &id)?;
+                if remove {
+                    std::fs::remove_dir_all(&d).with_context(|| format!("removing {}", d.display()))?;
+                }
+                eprintln!("ingested {id}");
+            }
+        }
         Cmd::Suggest { ids, comskip, quick } => {
             let comskip = if quick { None } else { tools::find(comskip.as_deref(), "comskip") };
             if !quick && comskip.is_none() {
@@ -151,12 +192,13 @@ async fn main() -> Result<()> {
                 features::compute(&data, &data.resolve(&name)?, &model_dir, force)?;
             }
         }
-        Cmd::Label { bind, web, model, ml } => {
+        Cmd::Label { bind, web, model, ml, inbox } => {
             let model = match model.strip_prefix("~/") {
                 Some(rest) => PathBuf::from(std::env::var("HOME").unwrap_or_default()).join(rest),
                 None => PathBuf::from(model),
             };
-            label::serve(data, &bind, &web, &model, &ml).await?
+            let inbox = inbox.unwrap_or_else(|| data.db.path.with_file_name("inbox"));
+            label::serve(data, &bind, &web, &model, &ml, inbox).await?
         }
         Cmd::Eval { each } => eval(&data, each)?,
         Cmd::Dataset { cmd: DatasetCmd::Export { dir } } => {
@@ -175,7 +217,7 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-fn import(data: &Dataset, dir: &Path, height: u32) -> Result<()> {
+fn import(data: &Dataset, dir: &Path, height: u32) -> Result<String> {
     let mut rec: Recording = dataset::read(&dir.join("recording.json"))?.with_context(|| format!("no recording.json in {}", dir.display()))?;
     let media = dir.join("media.mp4");
     if !media.is_file() {
@@ -204,6 +246,27 @@ fn import(data: &Dataset, dir: &Path, height: u32) -> Result<()> {
         }
     }
     eprintln!("  added: {id}");
+    Ok(id)
+}
+
+/// The model's draft of a recording's breaks, through the ML project: `uv run adbreak-ml evaluate --only <id>`.
+fn draft(data: &Dataset, ml: &Path, id: &str) -> Result<()> {
+    if !ml.join("pyproject.toml").is_file() {
+        eprintln!("  no ML project at {} (--ml): no model draft", ml.display());
+        return Ok(());
+    }
+    let uv = std::env::var("ADBREAK_UV").unwrap_or_else(|_| "uv".into());
+    let ok = std::process::Command::new(uv)
+        .args(["run", "-q", "adbreak-ml", "evaluate", "--only", id])
+        .current_dir(ml)
+        .env("ADBREAK_DB", &data.db.path)
+        .env("ADBREAK_MEDIA", &data.media)
+        .status()
+        .context("running uv (ADBREAK_UV)")?
+        .success();
+    if !ok {
+        bail!("the model's draft failed (adbreak-ml evaluate --only {id})");
+    }
     Ok(())
 }
 

@@ -272,13 +272,82 @@ async fn run(State(m): State<Arc<Model>>, Json(r): Json<Run>) -> Response {
     (StatusCode::ACCEPTED, Json(m.job.lock().unwrap().clone())).into_response()
 }
 
+/// Ingests the import directories that land in `inbox` (see `adbreak label --inbox`), one at a time, as the page's
+/// job (so it shows there, and never runs beside a retrain). Checks every minute.
+pub async fn watch_inbox(m: Arc<Model>, inbox: PathBuf) {
+    let exe = match std::env::current_exe() {
+        Ok(e) => e,
+        Err(e) => return eprintln!("inbox: can't find this program to run ingest: {e}"),
+    };
+    if let Err(e) = std::fs::create_dir_all(&inbox) {
+        return eprintln!("inbox: can't create {}: {e}", inbox.display());
+    }
+    eprintln!("watching {} for recordings to ingest", inbox.display());
+    loop {
+        for dir in ready(&inbox) {
+            let name = dir.file_name().unwrap_or_default().to_string_lossy().into_owned();
+            {
+                let mut j = m.job.lock().unwrap();
+                if j.running {
+                    break;
+                }
+                *j = Job { running: true, action: "ingest".into(), only: Some(name.clone()), started: now(), ..Default::default() };
+            }
+            let mut args: Vec<String> = vec!["ingest".into(), "--remove".into(), "--model-dir".into(), m.dir.display().to_string()];
+            args.extend(["--ml".into(), std::fs::canonicalize(&m.ml).unwrap_or(m.ml.clone()).display().to_string(), dir.display().to_string()]);
+            m.job.lock().unwrap().log.push(format!("$ adbreak {}", args.join(" ")));
+            let ok = match exec_program(&m, exe.as_os_str(), &args, None).await {
+                Ok(ok) => ok,
+                Err(e) => {
+                    m.job.lock().unwrap().log.push(format!("{e:#}"));
+                    false
+                }
+            };
+            if !ok {
+                let failed = dir.with_file_name(format!("{name}.failed"));
+                eprintln!("inbox: ingesting {name} failed; kept as {}", failed.display());
+                let _ = std::fs::rename(&dir, failed);
+            }
+            let mut j = m.job.lock().unwrap();
+            j.running = false;
+            j.ok = Some(ok);
+            j.finished = now();
+        }
+        tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+    }
+}
+
+/// Complete import directories in the inbox, oldest name first: not hidden (still being written), not failed, with
+/// `recording.json` and `media.mp4`.
+fn ready(inbox: &Path) -> Vec<PathBuf> {
+    let mut dirs: Vec<PathBuf> = std::fs::read_dir(inbox)
+        .map(|r| r.flatten().map(|e| e.path()).collect::<Vec<_>>())
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|p| {
+            let n = p.file_name().unwrap_or_default().to_string_lossy();
+            !n.starts_with('.') && !n.ends_with(".failed") && p.join("recording.json").is_file() && p.join("media.mp4").is_file()
+        })
+        .collect();
+    dirs.sort();
+    dirs
+}
+
 /// Runs `uv <args>` in the ML project, keeping the last lines of its output in the job's log.
 async fn exec(m: &Model, args: &[String]) -> anyhow::Result<bool> {
-    use tokio::io::{AsyncBufReadExt, BufReader};
     let uv = std::env::var("ADBREAK_UV").unwrap_or_else(|_| "uv".into());
-    let mut child = tokio::process::Command::new(uv)
+    exec_program(m, std::ffi::OsStr::new(&uv), args, Some(&m.ml)).await
+}
+
+/// Runs a program with the server's dataset and media store, keeping the last lines of its output in the job's log.
+async fn exec_program(m: &Model, program: &std::ffi::OsStr, args: &[String], dir: Option<&Path>) -> anyhow::Result<bool> {
+    use tokio::io::{AsyncBufReadExt, BufReader};
+    let mut cmd = tokio::process::Command::new(program);
+    if let Some(d) = dir {
+        cmd.current_dir(d);
+    }
+    let mut child = cmd
         .args(args)
-        .current_dir(&m.ml)
         // The same dataset and media store as this server.
         .env("ADBREAK_DB", &m.data.db.path)
         .env("ADBREAK_MEDIA", &m.data.media)
@@ -310,4 +379,30 @@ async fn exec(m: &Model, args: &[String]) -> anyhow::Result<bool> {
 fn now() -> String {
     let t = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs();
     format!("{t}")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn inbox_takes_only_complete_directories() {
+        let inbox = std::env::temp_dir().join(format!("adbreak-inbox-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&inbox);
+        for (name, files) in [
+            ("b", &["recording.json", "media.mp4"][..]),
+            ("a", &["recording.json", "media.mp4"]),
+            (".c", &["recording.json", "media.mp4"]),
+            ("d.failed", &["recording.json", "media.mp4"]),
+            ("e", &["recording.json"]),
+        ] {
+            std::fs::create_dir_all(inbox.join(name)).unwrap();
+            for f in files {
+                std::fs::write(inbox.join(name).join(f), "").unwrap();
+            }
+        }
+        let names: Vec<_> = ready(&inbox).iter().map(|p| p.file_name().unwrap().to_string_lossy().into_owned()).collect();
+        assert_eq!(names, ["a", "b"]);
+        std::fs::remove_dir_all(&inbox).unwrap();
+    }
 }
