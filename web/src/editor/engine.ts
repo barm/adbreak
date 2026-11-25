@@ -310,8 +310,17 @@ export function createEngine(env) {
   function placeKindMenu(g, vw) {
     const b = sel && sel.label ? S.labels.breaks[sel.i] : null;
     if (!b || b.end < vw[0] || b.start > vw[1]) { env.kindTag(null); return; }
-    const x0 = Math.max(NAME, g.x(b.start, vw));
-    env.kindTag({ left: Math.min(x0 + 6, g.w - 160), top: TOP + 1, text: KIND_NAME[b.kind || "ad"], i: sel.i });
+    const x0 = Math.max(NAME, g.x(b.start, vw)), x1 = Math.min(g.w - 6, g.x(b.end, vw));
+    const text = KIND_NAME[b.kind || "ad"];
+    // About as wide as the tag draws (a small ghost button: its text and caret).
+    const w = 7.5 * text.length + 44, clear = 12;
+    // Inside the label when it fits with its edges clear to grab; otherwise just past its end, or before its start.
+    let left = x0 + clear;
+    if (x1 - x0 < w + 2 * clear) {
+      if (x1 + 8 + w <= g.w - 6) left = x1 + 8;
+      else if (x0 - 8 - w >= NAME) left = x0 - 8 - w;
+    }
+    env.kindTag({ left: Math.min(left, g.w - w), top: TOP + 1, text, i: sel.i });
   }
   // Splits label `i` at `t` into two of the same kind and selects the second half (to change its kind, say).
   function splitBreak(i, t) {
