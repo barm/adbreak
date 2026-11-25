@@ -533,13 +533,18 @@
       "detail": "adbreak-model inputs (rust-v1), leave-one-recording-out over 8",
       "breaks": [
         {
-          "start": 0.0,
+          "start": 33.0,
+          "end": 39.0,
+          "kind": "ad_read"
+        },
+        {
+          "start": 39.0,
           "end": 84.0,
           "kind": "ad"
         },
         {
-          "start": 156.0,
-          "end": 247.0,
+          "start": 174.0,
+          "end": 236.0,
           "kind": "ad"
         },
         {
@@ -548,48 +553,43 @@
           "kind": "ad_read"
         },
         {
-          "start": 381.0,
-          "end": 387.0,
+          "start": 380.0,
+          "end": 388.0,
           "kind": "ad_read"
         },
         {
-          "start": 425.0,
-          "end": 554.05,
+          "start": 429.0,
+          "end": 540.19,
           "kind": "ad"
         },
         {
-          "start": 582.0,
-          "end": 589.0,
+          "start": 579.0,
+          "end": 592.98,
           "kind": "ad_read"
         },
         {
           "start": 592.98,
-          "end": 698.0,
-          "kind": "ad"
-        },
-        {
-          "start": 1166.0,
-          "end": 1280.0,
+          "end": 692.0,
           "kind": "ad"
         },
         {
           "start": 1471.0,
-          "end": 1683.0,
+          "end": 1678.0,
           "kind": "ad"
         },
         {
-          "start": 2025.0,
-          "end": 2247.0,
+          "start": 2024.0,
+          "end": 2250.0,
           "kind": "ad"
         },
         {
-          "start": 2325.0,
+          "start": 2319.0,
           "end": 2450.0,
           "kind": "ad"
         },
         {
           "start": 2847.0,
-          "end": 3018.0,
+          "end": 3017.0,
           "kind": "ad"
         },
         {
@@ -599,42 +599,37 @@
         },
         {
           "start": 3225.0,
-          "end": 3371.0,
+          "end": 3373.0,
           "kind": "ad"
         },
         {
-          "start": 3375.0,
+          "start": 3374.0,
           "end": 3385.0,
           "kind": "ad_read"
         },
         {
-          "start": 3773.0,
-          "end": 3985.0,
+          "start": 3772.0,
+          "end": 3986.0,
           "kind": "ad"
         },
         {
-          "start": 4181.0,
-          "end": 4251.0,
+          "start": 4183.0,
+          "end": 4249.0,
           "kind": "ad"
         },
         {
-          "start": 4853.0,
+          "start": 4852.0,
           "end": 4981.0,
           "kind": "ad"
         },
         {
-          "start": 5268.0,
-          "end": 5450.0,
+          "start": 5267.0,
+          "end": 5451.0,
           "kind": "ad"
         },
         {
           "start": 5587.16,
-          "end": 5842.0,
-          "kind": "ad"
-        },
-        {
-          "start": 6003.0,
-          "end": 6051.0,
+          "end": 5840.0,
           "kind": "ad"
         },
         {
@@ -643,13 +638,13 @@
           "kind": "ad_read"
         },
         {
-          "start": 6502.0,
+          "start": 6499.0,
           "end": 6586.0,
           "kind": "ad"
         },
         {
           "start": 6788.11,
-          "end": 7058.0,
+          "end": 7059.0,
           "kind": "ad"
         },
         {
@@ -658,17 +653,17 @@
           "kind": "ad"
         },
         {
-          "start": 7728.0,
+          "start": 7733.0,
           "end": 7782.66,
           "kind": "ad"
         },
         {
-          "start": 8505.0,
+          "start": 8506.0,
           "end": 8632.61,
           "kind": "ad"
         }
       ],
-      "trained_on": "a8894a152e7ac5b7"
+      "trained_on": "f88e5151e5a38d51"
     }
   ]
 }
