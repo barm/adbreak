@@ -219,17 +219,25 @@ fn eval(data: &Dataset, each: bool) -> Result<()> {
         bail!("no labelled recordings with suggestions in {}", data.root.display());
     }
     println!("{labelled} labelled recording(s)");
-    println!("  {:10} {:>9} {:>9} {:>9} {:>14} {:>9} {:>9} {:>9}", "source", "precision", "recall", "F1", "breaks matched", "start err", "end err", "sponsor");
+    println!(
+        "  {:10} {:>9} {:>9} {:>9} {:>14} {:>9} {:>9} {:>12} {:>12}",
+        "source", "precision", "recall", "F1", "breaks matched", "start err", "end err", "double box", "ad read"
+    );
     for (name, sc) in &totals {
         line(&format!("  {name}"), sc);
     }
     Ok(())
 }
 
+/// "40% of 120s": how much of some labelled time was marked as break.
+fn marked(marked: f64, seconds: f64) -> String {
+    if seconds > 0.0 { format!("{:.0}% of {:.0}s", 100.0 * marked / seconds, seconds) } else { "-".into() }
+}
+
 fn line(name: &str, s: &Score) {
     let pct = |x: f64| format!("{:.0}%", 100.0 * x);
     println!(
-        "{:12} {:>9} {:>9} {:>9} {:>14} {:>8.1}s {:>8.1}s {:>9}",
+        "{:12} {:>9} {:>9} {:>9} {:>14} {:>8.1}s {:>8.1}s {:>12} {:>12}",
         name,
         pct(s.precision()),
         pct(s.recall()),
@@ -237,7 +245,8 @@ fn line(name: &str, s: &Score) {
         format!("{}/{} ({} found)", s.matched, s.breaks, s.found),
         s.mean_start_error(),
         s.mean_end_error(),
-        // How much labelled sponsor time it skipped (not scored either way).
-        if s.sponsor_seconds > 0.0 { format!("{:.0}% of {:.0}s", 100.0 * s.sponsor_skipped / s.sponsor_seconds, s.sponsor_seconds) } else { "-".into() }
+        // How much labelled double box and ad read time it marked as break.
+        marked(s.double_box_marked, s.double_box_seconds),
+        marked(s.ad_read_marked, s.ad_read_seconds),
     );
 }
