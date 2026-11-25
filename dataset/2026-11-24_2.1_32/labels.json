@@ -1,7 +1,7 @@
 {
   "format": 1,
   "recording": {
-    "source": "dvr",
+    "source": "recorder",
     "job": 32,
     "channel": "2.1",
     "network": "KTVU-HD",

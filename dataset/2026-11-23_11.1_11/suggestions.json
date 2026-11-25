@@ -1,7 +1,7 @@
 {
   "format": 1,
   "recording": {
-    "source": "dvr",
+    "source": "recorder",
     "job": 11,
     "channel": "11.1",
     "network": "KNTV HD",
@@ -199,8 +199,8 @@
       ]
     },
     {
-      "name": "dvr",
-      "detail": "the DVR's own scan",
+      "name": "recorder",
+      "detail": "the recorder's own break scan",
       "breaks": [
         {
           "start": 1.1011,

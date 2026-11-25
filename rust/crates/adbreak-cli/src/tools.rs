@@ -7,7 +7,7 @@ use anyhow::{Context, Result, bail};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
-/// The same picture size and rate the DVR scans at.
+/// The picture size and rate the detector is tuned for.
 const W: usize = 480;
 const H: usize = 270;
 const FPS: f64 = 10.0;

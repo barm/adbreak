@@ -1,7 +1,7 @@
 {
   "format": 1,
   "recording": {
-    "source": "dvr",
+    "source": "recorder",
     "job": 35,
     "channel": "4.1",
     "network": "KRON-TV",

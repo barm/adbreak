@@ -87,7 +87,7 @@ impl Break {
 /// Which recording a file is about.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct Recording {
-    /// Where it came from, e.g. `"dvr"` (barm/dvr, with `job` its job id).
+    /// Where it came from, e.g. `"recorder"` (with `job` the recorder's id for it).
     pub source: String,
     pub job: i64,
     /// Virtual channel, e.g. `"2.1"`.
@@ -298,7 +298,7 @@ mod tests {
 
     fn labels(breaks: &[(f64, f64, Kind)]) -> Labels {
         let mut l = Labels::new(Recording {
-            source: "dvr".into(),
+            source: "recorder".into(),
             job: 7,
             channel: "2.1".into(),
             start: "2026-11-23T07:06:41Z".into(),
