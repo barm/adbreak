@@ -22,7 +22,9 @@ data or commit messages. A recording's source is `"recorder"`.
   - New self-contained functionality gets its own crate.
 - `ml/` Python (uv): `features`/`baseline`/`fusion` (experiments on Python-computed features), `evaluate` and
   `export` (the shipped model, on the Rust-computed `rust-v1` features). See `ml/README.md`.
-- `web/` the labelling page: React + Vite on the Astryx design system (follow `web/AGENTS.md`). Optional and
+- `web/` the Adbreak app: Recordings (labelling) and Model (the installed model, its training and leave-one-out
+  scores, and actions that run `adbreak-ml` in `ml/` through uv: `adbreak label --ml`, `--model`; `src/model.rs` in the
+  CLI). React + Vite on the Astryx design system (follow `web/AGENTS.md`). Optional and
   decoupled from Rust: `adbreak label` serves its build from `web/dist` at run time (`--web`), and says how to build
   it when there is none. `src/editor/engine.ts` is the editing engine (canvas timeline, keys, undo, saving), ported
   from the plain-JS page; the React components around it are Astryx. Before committing web changes:

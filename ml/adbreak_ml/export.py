@@ -213,6 +213,29 @@ def model_version(text: str) -> str:
     return f"{h:016x}"
 
 
+def training_info(trees: HistGradientBoostingClassifier, labelled: list[Data], version: str) -> dict:
+    """What the model was trained on and how training went, for the app's Model page (`model-info.json`)."""
+    from datetime import datetime, timezone
+
+    seconds = sum(int((d.y != IGNORE).sum()) for d in labelled)
+    breaks = sum(int((d.y == BREAK).sum()) for d in labelled)
+    # The trees stop early on a held-out tenth of their training seconds: its log loss each round, and the training's.
+    loss = {}
+    if getattr(trees, "validation_score_", None) is not None and len(trees.validation_score_):
+        loss = {"train": [round(-float(v), 5) for v in trees.train_score_], "validation": [round(-float(v), 5) for v in trees.validation_score_]}
+    return {
+        "version": version,
+        "exported_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "trained_on": [d.rec.id for d in labelled],
+        "seconds": seconds,
+        "break_seconds": breaks,
+        "kind_seconds": {k: int(sum((d.ys[k] == BREAK).sum() for d in labelled)) for k in MINOR_KINDS},
+        "trees": int(trees.n_iter_),
+        "max_trees": int(trees.max_iter),
+        "loss": loss,
+    }
+
+
 def export(recs: list[Recording], out: Path, vector_secs: int = 600) -> None:
     data = [Data(r) for r in recs if r.features(RUST).with_suffix(".json").exists()]
     labelled = [d for d in data if (d.y != IGNORE).any()]
@@ -232,6 +255,7 @@ def export(recs: list[Recording], out: Path, vector_secs: int = 600) -> None:
             model["kinds"][k] = {"frame_coef": [float(c) for c in f.coef_[0]], "frame_intercept": float(f.intercept_[0]),
                                  "smooth": KIND_SMOOTH, "post": KIND_POST[k]}
     text = json.dumps(model)
+    info = training_info(trees, labelled, model_version(text))
     # A test vector: the first `vector_secs` seconds of a captioned recording, the exported model's outputs on it.
     d = next(d for d in labelled if d.cap[:, 0].any())
     n = min(vector_secs, len(d.t))
@@ -257,7 +281,7 @@ def export(recs: list[Recording], out: Path, vector_secs: int = 600) -> None:
     # Installed atomically, the test vector first: a recorder watching model.json reloads when it changes, and
     # checks the model against the test vector made for it (its "model" is model.json's version).
     out.mkdir(parents=True, exist_ok=True)
-    for name, body in (("test_vector.json", json.dumps(vec)), ("model.json", text)):
+    for name, body in (("test_vector.json", json.dumps(vec)), ("model-info.json", json.dumps(info)), ("model.json", text)):
         tmp = out / f".{name}.tmp"
         tmp.write_text(body)
         tmp.replace(out / name)
@@ -265,7 +289,7 @@ def export(recs: list[Recording], out: Path, vector_secs: int = 600) -> None:
           f"({n} s, {len(vec['breaks'])} breaks)")
 
 
-def evaluate(recs: list[Recording]) -> None:
+def evaluate(recs: list[Recording], only: set[str] | None = None) -> None:
     """The shipped model's results for every recording, written as the "model" suggestion (score with `adbreak
     eval`) and, per second, as `features/model-out.json` (the picture score and the final probability, for the
     labelling page). Labelled recordings: leave-one-recording-out, from frame and tree models trained on the others
@@ -286,14 +310,22 @@ def evaluate(recs: list[Recording]) -> None:
         breaks = [{"start": a, "end": b, "kind": k} for a, b, k in found]
         save_source(d.rec, "model", f"adbreak-model inputs (rust-v1), {how}", breaks)
         out = d.rec.features(RUST).parent / "model-out.json"
-        out.write_text(json.dumps({"trained_on": fp, "how": how, "picture": [round(float(v), 3) for v in p_frame],
+        metrics = {}
+        m = d.y != IGNORE
+        if m.any() and (d.y[m] == BREAK).any() and (d.y[m] != BREAK).any():
+            from sklearn.metrics import log_loss, roc_auc_score
+
+            y = d.y[m] == BREAK
+            metrics = {"log_loss": round(float(log_loss(y, np.clip(prob[m], 1e-6, 1 - 1e-6))), 4), "auc": round(float(roc_auc_score(y, prob[m])), 4)}
+        out.write_text(json.dumps({"trained_on": fp, "how": how, "metrics": metrics, "picture": [round(float(v), 3) for v in p_frame],
                                    "probability": [round(float(v), 3) for v in prob],
                                    "kinds": {k: [round(float(v), 3) for v in p] for k, p in probs.items()}}))
         n = {k: sum(1 for *_, kk in found if kk == k) for k in ("ad", *MINOR_KINDS)}
         print(f"  {d.rec.id}: " + ", ".join(f"{v} {k}" for k, v in n.items()))
 
     for d in labelled:
-        write(d, [o for o in labelled if o is not d], f"leave-one-recording-out over {len(labelled)}")
+        if only is None or d.rec.id in only:
+            write(d, [o for o in labelled if o is not d], f"leave-one-recording-out over {len(labelled)}")
     for d in data:
-        if d not in labelled:
+        if d not in labelled and (only is None or d.rec.id in only):
             write(d, labelled, f"trained on all {len(labelled)} labelled recordings")

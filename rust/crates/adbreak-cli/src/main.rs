@@ -11,6 +11,7 @@
 mod dataset;
 mod features;
 mod label;
+mod model;
 mod tools;
 
 use adbreak_labels::{Kind, Labels, Recording, Score, Source, Span, Suggestions, score};
@@ -77,6 +78,12 @@ enum Cmd {
         /// and the page says how to build it.
         #[arg(long, env = "ADBREAK_WEB", default_value = "web/dist")]
         web: PathBuf,
+        /// The installed model, for the Model page (what `adbreak-ml export` writes and a recorder loads).
+        #[arg(long, env = "ADBREAK_MODEL_DIR", default_value = "~/Movies/adbreak/model")]
+        model: String,
+        /// The ML project (`ml/`), run through uv by the Model page's actions. Optional: without it they're off.
+        #[arg(long, env = "ADBREAK_ML", default_value = "ml")]
+        ml: PathBuf,
     },
     /// Score each source against the labels.
     Eval {
@@ -114,7 +121,13 @@ async fn main() -> Result<()> {
                 features::compute(&data, &data.resolve(&name)?, &model_dir, force)?;
             }
         }
-        Cmd::Label { bind, web } => label::serve(data, &bind, &web).await?,
+        Cmd::Label { bind, web, model, ml } => {
+            let model = match model.strip_prefix("~/") {
+                Some(rest) => PathBuf::from(std::env::var("HOME").unwrap_or_default()).join(rest),
+                None => PathBuf::from(model),
+            };
+            label::serve(data, &bind, &web, &model, &ml).await?
+        }
         Cmd::Eval { each } => eval(&data, each)?,
     }
     Ok(())
