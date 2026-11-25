@@ -20,24 +20,44 @@ defaults:
     working-directory: rust
 
 jobs:
-  rust:
-    name: Rust (fmt, tests, clippy)
-    # The command decodes through barm/avkit (VideoToolbox, AudioToolbox).
+  fmt:
+    name: fmt
+    # Formatting needs no build, so no Mac.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup toolchain install stable --profile minimal --component rustfmt && rustup default stable
+      - run: cargo fmt --all --check
+
+  test:
+    name: tests
+    # The command decodes through barm/avkit (VideoToolbox, AudioToolbox, Core ML).
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install Rust
-        run: |
-          rustup toolchain install stable --profile minimal --component clippy,rustfmt
-          rustup default stable
+      - run: rustup toolchain install stable --profile minimal && rustup default stable
       - uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry/index
             ~/.cargo/registry/cache
             rust/target
-          key: cargo-${{ runner.os }}-${{ hashFiles('rust/Cargo.lock') }}
-          restore-keys: cargo-${{ runner.os }}-
-      - run: cargo fmt --all --check
+          key: cargo-test-${{ runner.os }}-${{ hashFiles('rust/Cargo.lock') }}
+          restore-keys: cargo-test-${{ runner.os }}-
       - run: cargo test --locked --workspace
+
+  clippy:
+    name: clippy
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup toolchain install stable --profile minimal --component clippy && rustup default stable
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            rust/target
+          key: cargo-clippy-${{ runner.os }}-${{ hashFiles('rust/Cargo.lock') }}
+          restore-keys: cargo-clippy-${{ runner.os }}-
       - run: cargo clippy --locked --workspace --all-targets -- -D warnings
