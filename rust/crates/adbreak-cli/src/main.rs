@@ -329,7 +329,8 @@ fn eval(data: &Dataset, each: bool) -> Result<()> {
         if each {
             println!("{}  ({} labelled breaks)", e.id, labels.breaks.len());
         }
-        for s in &sugg.sources {
+        // "viewer": spots a recorder's viewer corrected a skip, to review; not breaks, so not scored.
+        for s in sugg.sources.iter().filter(|s| s.name != "viewer") {
             let sc = score(labels, &s.spans(Kind::Ad));
             if each {
                 line(&format!("  {}", s.name), &sc);
