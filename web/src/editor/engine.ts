@@ -1,0 +1,603 @@
+// @ts-nocheck
+// The labelling page's editing engine: the recording's labels and suggestions, the canvas timeline (drawing,
+// scrubbing, dragging edges, zoom), keyboard editing, undo and saving. Ported from the plain-JS page; the app (React,
+// Astryx) owns everything around it and passes the hooks in `env`.
+
+import Hls from "hls.js";
+
+export const KINDS = ["ad", "double_box", "ad_read", "paid_programming"];
+export const KIND_NAME = { ad: "commercial break", double_box: "double box", ad_read: "ad read", paid_programming: "paid programming" };
+
+export function fmt(t) {
+  const h = Math.floor(t / 3600), m = Math.floor(t / 60) % 60, s = t % 60;
+  return `${h}:${String(m).padStart(2, "0")}:${s.toFixed(1).padStart(4, "0")}`;
+}
+
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  if (!r.ok) throw new Error((await r.text()) || r.statusText);
+  return r.json();
+}
+
+/** env: { canvas, video, timeEl?, capEl?, zoomEl?, status(msg, err), render(), toggleLayout(), kindTag(tag|null),
+ *  crumb(text), active(): boolean } */
+export function createEngine(env) {
+  const v = env.video, tl = env.canvas;
+  let alive = true, hls = null;
+  const offs = [];
+  function on(target, type, fn, opts) { target.addEventListener(type, fn, opts); offs.push(() => target.removeEventListener(type, fn, opts)); }
+  function renderList() { env.render(); }
+  const KIND_RGB = { double_box: [76, 177, 245], ad_read: [245, 165, 36] };
+  const KIND_COLOR = { ad: "var(--ad)", double_box: "var(--double)", ad_read: "var(--adread)", paid_programming: "var(--paid)" };
+  const SOURCE_COLOR = { comskip: "#3e63dd", captions: "#12a594", "logo-detector": "#ad7f58", recorder: "#8b8d98" };
+  // The visible stretch of the timeline: from vs, vspan seconds long (continuous zoom; see zoomAt).
+  const MIN_SPAN = 5;
+  let vs = 0, vspan = 1;
+  // Pointer state: scrubbing (dragging the playhead), the time under the pointer (skim line), and play state to restore.
+  let scrubbing = false, hoverT = null, resume = false;
+  let S = null; // { id, labels, sources, cues, covered, dur }
+  let sel = null, pending = null, saveTimer = null, drag = null, dragMate = null;
+
+  function status(msg, err) { env.status(msg, !!err); }
+  const VARS = { "--ad": "#e5484d", "--double": "#4cb1f5", "--adread": "#f5a524", "--paid": "#8e4ec6", "--dim": "#9a9aa6", "--line": "#2c2c34", "--warn": "#f5a524", "--accent": "#3e63dd" };
+  function cssVar(c) { const m = /^var\((--[a-z]+)\)$/.exec(c); if (m) return VARS[m[1]] || c; return c; }
+  function cssVarOld(c) { return c.startsWith("var(") ? getComputedStyle(document.documentElement).getPropertyValue(c.slice(4, -1)).trim() : c; }
+
+  function cueAt(t) {
+    const c = S.cues; let lo = 0, hi = c.length - 1, found = null;
+    while (lo <= hi) { const mid = (lo + hi) >> 1; if (c[mid].start <= t) { found = c[mid]; lo = mid + 1; } else hi = mid - 1; }
+    return found && t < found.end ? found : null;
+  }
+
+  // ---- timeline ----
+  const ROW = 22, NAME = 136, TOP = 18;
+  // What each timeline row is, for its ⓘ popover.
+  const ROW_INFO = {
+    labels: "The ground truth, and the row you edit, marking what is on screen: red commercial break (the programme is gone), blue double box (the programme shrunk beside an ad), amber ad read (advertising over the full-screen programme), purple paid programming. Unlabelled reviewed time is programme. Detectors are scored on commercial breaks.",
+    fusion: "The model's output: its commercial-break probability each second (the strip; brighter is more likely a break), and what it finds (the bars, coloured by kind like the labels: commercial breaks snapped to black-and-silent edges, and double boxes and ad reads from their own outputs below). The product of the input rows below. Scored on a model that never saw this recording.",
+    "double box": "Output: how likely each second is a double box (the programme shrunk beside an ad), from the picture alone averaged over ±5 s. Its runs show on the fusion row in blue. Weak until more double boxes are labelled.",
+    "ad read": "Output: how likely each second is an ad read (advertising over the full-screen programme), from the picture alone averaged over ±5 s. Its runs show on the fusion row in amber. Weak until more ad reads are labelled.",
+    picture: "Input: how much each second's picture looks like an ad, from the image model (MobileCLIP2) and a classifier trained on the labels. One picture a second; brighter is more ad-like.",
+    captions: "Input: captions on screen each second (filled), roll-up captions as live shows use them (taller), and a new cue starting (tick). Ads are captioned less, and pop on rather than roll up.",
+    black: "Input: how much of each second the picture was black.",
+    silence: "Input: how much of each second the sound was silent.",
+    edges: "Input: moments both black and silent, which networks put between ads and around breaks. Break edges snap to these.",
+    comskip: "For comparison, not an input: Comskip, the established open-source detector. Rarely marks programme as a break, but often ends breaks early and misses some.",
+    "frames-zeroshot": "For comparison, not an input: pictures matched against text such as \"a TV commercial\", with no training. A baseline.",
+    "logo-detector": "For comparison, not an input: the first, non-ML detector (black-and-silent edges plus the network's corner logo).",
+    reviewed: "The parts whose labels have been checked (green). Only reviewed time is scored. Hatched parts are excluded (bad reception, say): never scored or trained on, and not counted as left to review. Right-click this row to exclude everything before or after the playhead, or to clear exclusions.",
+  };
+  // The comparison sources shown (the others in suggestions.json are superseded or duplicates).
+  const COMPARE = ["comskip", "frames-zeroshot", "logo-detector"];
+  // The timeline's rows, top to bottom, each with its y and height: labels, the output, its inputs, comparisons.
+  function rows() {
+    const r = [{ name: "labels", type: "spans", spans: S.labels.breaks, label: true, h: ROW }];
+    const model = S.sources.find((x) => x.name === "model");
+    r.push({ group: "output" });
+    r.push({ name: "fusion", type: "output", spans: model ? model.breaks : [], source: model ? "model" : null, h: ROW });
+    // The other kinds' outputs, when the model has them: their probability, each second.
+    for (const k of ["double_box", "ad_read"]) if (S.tracks && S.tracks.kinds && S.tracks.kinds[k]) r.push({ name: KIND_NAME[k], type: "heat", kindTrack: k, color: KIND_RGB[k], h: 10 });
+    r.push({ group: "inputs" });
+    r.push({ name: "picture", type: "heat", track: "picture", color: [229, 72, 77], h: 14 });
+    r.push({ name: "captions", type: "captions", h: 14 });
+    r.push({ name: "black", type: "heat", track: "black", color: [200, 200, 210], h: 12 });
+    r.push({ name: "silence", type: "heat", track: "silent", color: [62, 99, 221], h: 12 });
+    r.push({ name: "edges", type: "ticks", h: 12 });
+    const cmp = COMPARE.map((n) => S.sources.find((x) => x.name === n)).filter(Boolean);
+    if (cmp.length) r.push({ group: "for comparison" });
+    for (const x of cmp) r.push({ name: x.name, type: "spans", spans: x.breaks, source: x.name, h: 16, dim: true });
+    r.push({ name: "reviewed", type: "reviewed", h: 10 });
+    let y = TOP;
+    for (const row of r) { row.y = y; y += row.group ? 14 : row.h + 2; }
+    return r;
+  }
+  function clampView() {
+    vspan = Math.min(Math.max(vspan, MIN_SPAN), Math.max(S.dur, MIN_SPAN));
+    vs = Math.min(Math.max(vs, 0), Math.max(S.dur - vspan, 0));
+  }
+  function view() {
+    clampView();
+    // While playing (not scrubbing), page along so the playhead stays in view.
+    const t = v.currentTime || 0;
+    if (!v.paused && !scrubbing && (t > vs + vspan * 0.95 || t < vs)) { vs = t - vspan * 0.1; clampView(); }
+    return [vs, vs + vspan];
+  }
+  // Show the stretch a..b on the timeline (zoom and pan), with a margin either side.
+  function focusSpan(a, b) {
+    const len = Math.max(b - a, 1), pad = Math.max(len * 0.15, 10);
+    vspan = len + 2 * pad; vs = a - pad; clampView(); draw();
+  }
+  // Zoom by `factor` (<1 in, >1 out) keeping time `anchor` where it is on screen.
+  function zoomAt(factor, anchor) {
+    const old = vspan;
+    vspan = old * factor; clampView();
+    vs = anchor - (anchor - vs) * (vspan / old); clampView();
+    draw();
+  }
+  function geometry() {
+    const w = tl.clientWidth, all = rows(), last = all[all.length - 1];
+    const h = last.y + last.h + 6;
+    return { w, h, x: (t, [a, b]) => NAME + (t - a) / (b - a) * (w - NAME - 6), t: (x, [a, b]) => a + (x - NAME) / (w - NAME - 6) * (b - a) };
+  }
+
+  function draw() {
+    if (!S) return;
+    const g = geometry(), dpr = devicePixelRatio || 1, vw = view();
+    if (tl.width !== g.w * dpr || tl.height !== g.h * dpr) { tl.width = g.w * dpr; tl.height = g.h * dpr; tl.style.height = g.h + "px"; }
+    const c = tl.getContext("2d"); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, g.w, g.h);
+    c.font = "12px -apple-system, system-ui, sans-serif"; c.textBaseline = "middle";
+    // ticks
+    const span = vw[1] - vw[0], steps = [1, 5, 10, 30, 60, 300, 600, 1800, 3600];
+    const step = steps.find((s) => span / s <= 12) || 3600;
+    c.fillStyle = cssVar("var(--dim)"); c.strokeStyle = cssVar("var(--line)");
+    for (let t = Math.ceil(vw[0] / step) * step; t <= vw[1]; t += step) {
+      const x = g.x(t, vw); c.beginPath(); c.moveTo(x, TOP - 4); c.lineTo(x, g.h); c.stroke();
+      c.fillText(fmt(t).replace(/\.\d$/, ""), x + 3, 8);
+    }
+    const px = (g.w - NAME - 6) / span;
+    const secs = (fn) => { for (let t = Math.max(0, Math.floor(vw[0])); t < Math.min(S.dur, vw[1]); t++) fn(t, g.x(t, vw)); };
+    const T = S.tracks || {};
+    for (const r of rows()) {
+      if (r.group) {
+        c.fillStyle = cssVar("var(--dim)"); c.globalAlpha = 0.7; c.font = "10px -apple-system, system-ui, sans-serif";
+        c.fillText(r.group.toUpperCase(), 6, r.y + 8); c.font = "12px -apple-system, system-ui, sans-serif"; c.globalAlpha = 1;
+        c.strokeStyle = cssVar("var(--line)"); c.beginPath(); c.moveTo(NAME, r.y + 8); c.lineTo(g.w - 6, r.y + 8); c.stroke();
+        continue;
+      }
+      const y = r.y, mid = y + r.h / 2;
+      if (r.label || r.type === "output") { c.fillStyle = "rgba(255,255,255,0.05)"; c.fillRect(0, y - 1, g.w, r.h + 2); }
+      const stale = r.source && isStale(r.source);
+      c.fillStyle = r.dim ? cssVar("var(--dim)") : (r.label || r.type === "output" ? "#fff" : cssVar("var(--dim)"));
+      c.font = (r.label || r.type === "output" ? "600 " : "") + (r.h < 14 ? "11px" : "12px") + " -apple-system, system-ui, sans-serif";
+      c.fillText(r.name + (stale ? " ⚠︎" : ""), 6, mid); c.font = "12px -apple-system, system-ui, sans-serif";
+    
+      if (r.type === "heat" || r.type === "output") {
+        const v = r.kindTrack ? T.kinds[r.kindTrack] : T[r.type === "output" ? "probability" : r.track], col = r.type === "output" ? [229, 72, 77] : r.color;
+        if (v) secs((t, x) => { const a = (v[t] || 0) / 100; if (a > 0.02) { c.fillStyle = `rgba(${col[0]},${col[1]},${col[2]},${a})`; c.fillRect(x, y + (r.type === "output" ? 1 : 0), Math.max(1, px), r.type === "output" ? 6 : r.h); } });
+        else if (r.type === "heat") { c.fillStyle = cssVar("var(--dim)"); c.fillText("run adbreak features / adbreak-ml evaluate", NAME + 6, mid); }
+      }
+      if (r.type === "captions") {
+        const vis = T.caption_visible, roll = T.caption_roll_up, nw = T.caption_new;
+        if (vis) secs((t, x) => {
+          if (vis[t]) { const tall = roll && roll[t]; c.fillStyle = SOURCE_COLOR.captions; c.fillRect(x, tall ? y : y + 4, Math.max(1, px), tall ? r.h : r.h - 8); }
+          if (nw && nw[t] && px > 2) { c.fillStyle = "#fff"; c.fillRect(x, y, 1, 3); }
+        });
+        else secs((t, x) => { if (S.covered[t]) { c.fillStyle = SOURCE_COLOR.captions; c.fillRect(x, y + 4, Math.max(1, px), r.h - 8); } });
+      }
+      if (r.type === "ticks" && T.edges) {
+        c.fillStyle = "#fff";
+        for (const e of T.edges) if (e >= vw[0] && e <= vw[1]) c.fillRect(g.x(e, vw) - 0.5, y, 1.5, r.h);
+      }
+      if (r.type === "reviewed") {
+        c.fillStyle = "#30a46c";
+        for (const rv of S.labels.reviewed) {
+          const x0 = Math.max(NAME, g.x(rv.start, vw)), x1 = Math.min(g.w - 6, g.x(rv.end, vw));
+          if (x1 > x0) c.fillRect(x0, y + 2, x1 - x0, r.h - 4);
+        }
+        // Excluded parts: hatched grey over the whole timeline height, so it's clear nothing there counts.
+        for (const x of S.labels.excluded || []) {
+          const x0 = Math.max(NAME, g.x(x.start, vw)), x1 = Math.min(g.w - 6, g.x(x.end, vw));
+          if (x1 <= x0) continue;
+          c.fillStyle = "rgba(20,20,24,0.55)"; c.fillRect(x0, TOP, x1 - x0, y + r.h - TOP);
+          c.strokeStyle = "rgba(255,255,255,0.12)"; c.beginPath();
+          for (let hx = x0 - (y + r.h); hx < x1; hx += 8) { c.moveTo(Math.max(hx, x0), TOP + Math.max(0, x0 - hx)); c.lineTo(Math.min(hx + (y + r.h - TOP), x1), TOP + Math.min(y + r.h - TOP, x1 - hx)); }
+          c.stroke();
+          c.fillStyle = cssVar("var(--dim)"); c.font = "11px -apple-system, system-ui, sans-serif";
+          if (x1 - x0 > 90) c.fillText("excluded", x0 + 6, y + r.h / 2);
+          c.font = "12px -apple-system, system-ui, sans-serif";
+        }
+      }
+      if (r.spans) r.spans.forEach((sp, j) => {
+        if (sp.end < vw[0] || sp.start > vw[1]) return;
+        const x0 = Math.max(NAME, g.x(sp.start, vw)), x1 = Math.min(g.w - 6, g.x(sp.end, vw));
+        const top = r.type === "output" ? y + 8 : y + 3, hh = r.type === "output" ? r.h - 10 : r.h - 6;
+        c.fillStyle = r.label || r.type === "output" ? cssVar(KIND_COLOR[sp.kind || "ad"]) : (SOURCE_COLOR[r.name] || "#888");
+        c.globalAlpha = r.label ? 0.9 : r.dim ? 0.4 : 0.75; c.fillRect(x0, top, Math.max(2, x1 - x0), hh); c.globalAlpha = 1;
+        if (r.label) {
+          // Labels that touch: a dark gap at the join, so two kinds side by side read as two labels.
+          if (j > 0 && Math.abs(r.spans[j - 1].end - sp.start) < 0.05 && x0 > NAME) { c.fillStyle = "#111114"; c.fillRect(x0 - 1, top, 2, hh); }
+          // Its kind written on it, where it fits (the selected one shows its kind with a menu caret instead).
+          const name = KIND_NAME[sp.kind || "ad"], tw = c.measureText(name).width;
+          if (!(sel && sel.label && sel.i === j) && x1 - x0 > tw + 12) {
+            c.fillStyle = "rgba(0,0,0,0.75)"; c.font = "11px -apple-system, system-ui, sans-serif";
+            c.fillText(name, x0 + 6, top + hh / 2 + 0.5); c.font = "12px -apple-system, system-ui, sans-serif";
+          }
+        }
+        const isSel = sel && ((sel.label && r.label && sel.i === j) || (sel.source && sel.source === r.source && sel.i === j && !r.label));
+        if (isSel) { c.strokeStyle = "#fff"; c.lineWidth = 2; c.strokeRect(x0, top - 1, Math.max(2, x1 - x0), hh + 2); c.lineWidth = 1; }
+      });
+    }
+    // pending start, playhead
+    if (pending !== null) { c.strokeStyle = cssVar("var(--ad)"); c.setLineDash([4, 3]); const x = g.x(pending.t, vw); c.beginPath(); c.moveTo(x, TOP); c.lineTo(x, g.h); c.stroke(); c.setLineDash([]); }
+    const x = g.x(v.currentTime || 0, vw); c.strokeStyle = "#fff"; c.beginPath(); c.moveTo(x, 0); c.lineTo(x, g.h); c.stroke();
+    placeKindMenu(g, vw);
+    // Skim line: where the pointer is, with its time.
+    if (hoverT !== null && !scrubbing && hoverT >= vw[0] && hoverT <= vw[1]) {
+      const hx = g.x(hoverT, vw);
+      c.strokeStyle = "rgba(255,255,255,0.35)"; c.beginPath(); c.moveTo(hx, TOP - 4); c.lineTo(hx, g.h); c.stroke();
+      const label = fmt(hoverT), w = c.measureText(label).width + 8, lx = Math.min(hx + 4, g.w - w);
+      c.fillStyle = "rgba(0,0,0,0.75)"; c.fillRect(lx, 0, w, 16); c.fillStyle = "#fff"; c.fillText(label, lx + 4, 8);
+    }
+    if (env.zoomEl) env.zoomEl.textContent = vspan >= S.dur - 0.5 ? "whole recording" : `showing ${fmt(vspan).replace(/\.\d$/, "")} · pinch or ⌥-scroll to zoom`;
+  }
+
+  function hit(ev) {
+    const g = geometry(), vw = view(), r = tl.getBoundingClientRect();
+    const x = ev.clientX - r.left, y = ev.clientY - r.top;
+    const t = Math.min(S.dur, Math.max(0, g.t(x, vw)));
+    const row = rows().find((r) => !r.group && y >= r.y && y < r.y + r.h + 2);
+    const tol = 5 * (vw[1] - vw[0]) / (g.w - NAME);
+    return { t, x, row, tol };
+  }
+
+  // Pointer: drag a selected break's edge to move it; otherwise press and drag anywhere to scrub. Clicking a span
+  // selects it. Hovering shows a skim line with the time under the pointer.
+  // The label edge under the pointer, in the labels row: where two labels meet, the side the pointer is on picks
+  // which (left: the earlier one's end; right: the later one's start).
+  function edgeAt(h) {
+    if (!h.row || !h.row.label) return null;
+    let best = null;
+    S.labels.breaks.forEach((b, i) => {
+      for (const edge of ["start", "end"]) {
+        const d = Math.abs(h.t - b[edge]);
+        if (d >= h.tol) continue;
+        const inside = edge === "start" ? h.t >= b.start : h.t <= b.end;
+        const score = d - (inside ? h.tol : 0);
+        if (!best || score < best.score) best = { i, edge, score };
+      }
+    });
+    return best;
+  }
+  on(tl, "pointerdown", (ev) => {
+    if (!S || ev.button !== 0) return;
+    const h = hit(ev);
+    if (h.x < NAME) return;
+    tl.setPointerCapture(ev.pointerId);
+    const e = edgeAt(h);
+    if (e) {
+      sel = { label: true, i: e.i }; drag = e.edge;
+      // A label touching this edge (back to back) moves with it, unless ⌥ is held.
+      const b = S.labels.breaks[e.i];
+      const m = ev.altKey ? -1 : S.labels.breaks.findIndex((x, j) => j !== e.i && Math.abs(e.edge === "start" ? x.end - b.start : x.start - b.end) < 0.05);
+      dragMate = m >= 0 ? S.labels.breaks[m] : null;
+      renderList(); return;
+    }
+    if (h.row && h.row.spans) {
+      const j = h.row.spans.findIndex((s) => s.start <= h.t && h.t < s.end);
+      if (j >= 0) sel = h.row.label ? { label: true, i: j } : { source: h.row.source, i: j };
+      else if (h.row.label) sel = null;
+    }
+    scrubbing = true; resume = !v.paused; v.pause();
+    seek(h.t); renderList();
+  });
+  on(tl, "pointermove", (ev) => {
+    if (!S) return;
+    const h = hit(ev);
+    hoverT = h.x >= NAME ? h.t : null;
+    tl.style.cursor = drag || (h.x >= NAME && edgeAt(h)) ? "col-resize" : "crosshair";
+    if (drag && sel) {
+      // Stay a break, and stop at the neighbouring labels.
+      const b = S.labels.breaks[sel.i], mate = dragMate;
+      const others = S.labels.breaks.filter((x, j) => j !== sel.i && x !== mate);
+      const prev = others.filter((x) => x.end <= b.start + 1e-6).reduce((m, x) => Math.max(m, x.end), 0);
+      const next = others.filter((x) => x.start >= b.end - 1e-6).reduce((m, x) => Math.min(m, x.start), S.dur);
+      if (drag === "start") {
+        // With a label ending here, the shared edge moves both, keeping each at least 0.1 s.
+        b.start = mate ? Math.max(mate.start + 0.1, Math.min(h.t, b.end - 0.1)) : Math.max(prev, Math.min(h.t, b.end - 0.1));
+        if (mate) mate.end = b.start;
+      } else {
+        b.end = mate ? Math.min(mate.end - 0.1, Math.max(h.t, b.start + 0.1)) : Math.min(next, Math.max(h.t, b.start + 0.1));
+        if (mate) mate.start = b.end;
+      }
+      seek(b[drag], true);
+    } else if (scrubbing) {
+      seek(h.t, true);
+    }
+    draw();
+  });
+  function endPointer() {
+    if (drag) { drag = null; dragMate = null; seek(v.currentTime); changed(); }
+    if (scrubbing) { scrubbing = false; seek(v.currentTime); if (resume) v.play(); }
+  }
+  on(tl, "pointerup", endPointer);
+  on(tl, "pointercancel", endPointer);
+  on(tl, "pointerleave", () => { hoverT = null; draw(); });
+
+  // The selected label's kind, written on it with a caret (the app draws it): where it goes, or null.
+  function placeKindMenu(g, vw) {
+    const b = sel && sel.label ? S.labels.breaks[sel.i] : null;
+    if (!b || b.end < vw[0] || b.start > vw[1]) { env.kindTag(null); return; }
+    const x0 = Math.max(NAME, g.x(b.start, vw));
+    env.kindTag({ left: Math.min(x0 + 6, g.w - 160), top: TOP + 1, text: KIND_NAME[b.kind || "ad"], i: sel.i });
+  }
+  // Splits label `i` at `t` into two of the same kind and selects the second half (to change its kind, say).
+  function splitBreak(i, t) {
+    const b = S.labels.breaks[i];
+    if (!(t - b.start >= 0.5 && b.end - t >= 0.5)) return status("split inside the label, at least half a second from its ends", true);
+    S.labels.breaks.splice(i, 1, { ...b, end: t }, { ...b, start: t });
+    sel = { label: true, i: i + 1 };
+    changed();
+    status(`split at ${fmt(t)}`);
+  }
+  function deleteBreak(i) { S.labels.breaks.splice(i, 1); sel = null; changed(); }
+  function closeMenu() {}
+  // Label `i`'s menu items (Astryx menu options); `at`: where it was right-clicked, offered as a split point.
+  function labelMenu(i, at) {
+    const b = S.labels.breaks[i], t = v.currentTime || 0;
+    const items = [{ type: "section", title: "Kind", items: KINDS.map((k) => ({ label: `${(b.kind || "ad") === k ? "✓ " : "  "}${KIND_NAME[k]}`, onClick: () => { b.kind = k; changed(); } })) }, { type: "divider" }];
+    const inside = (u) => u !== null && u !== undefined && u - b.start >= 0.5 && b.end - u >= 0.5;
+    if (inside(at)) items.push({ label: `Split here (${fmt(at)})`, onClick: () => splitBreak(i, at) });
+    if (inside(t)) items.push({ label: `Split at the playhead (${fmt(t)})`, onClick: () => splitBreak(i, t) });
+    items.push({ label: "Delete", variant: "destructive", onClick: () => deleteBreak(i) });
+    return items;
+  }
+  // The reviewed row's menu: leave out everything before or after the playhead (bad reception, say), or undo that.
+  function excludeMenu() {
+    const t = v.currentTime || 0, ex = S.labels.excluded || [];
+    const set = (spans) => { S.labels.excluded = spans; changed(); };
+    const items = [
+      { label: `Exclude everything before ${fmt(t)}`, onClick: () => set([...ex.filter((e) => e.start >= t), { start: 0, end: t }].sort((a, b) => a.start - b.start)) },
+      { label: `Exclude everything after ${fmt(t)}`, onClick: () => set([...ex.filter((e) => e.end <= t), { start: t, end: S.dur }].sort((a, b) => a.start - b.start)) },
+    ];
+    if (ex.length) items.push({ label: "Clear exclusions", onClick: () => set([]) });
+    return items;
+  }
+  // The menu for a right-click over the timeline, or null for none: a label's (selecting it), or the reviewed row's.
+  function menuAt(ev) {
+    if (!S) return null;
+    const h = hit(ev);
+    if (h.row && h.row.type === "reviewed") return excludeMenu();
+    if (!h.row || !h.row.label) return null;
+    const j = S.labels.breaks.findIndex((b) => b.start <= h.t && h.t < b.end);
+    if (j < 0) return null;
+    sel = { label: true, i: j }; renderList(); draw();
+    return labelMenu(j, h.t);
+  }
+
+  // A learned source trained against other labels than the dataset's current ones (labels edited or recordings added
+  // since): its results are out of date until `uv run adbreak-ml refresh`.
+  function isStale(name) {
+    const src = S.sources.find((s) => s.name === name);
+    return !!(src && src.trained_on && S.fingerprint && src.trained_on !== S.fingerprint);
+  }
+  // Trackpad: pinch (sent as ctrl+wheel) or ⌥+scroll zooms around the pointer; a sideways two-finger swipe pans.
+  on(tl, "wheel", (ev) => {
+    if (!S) return;
+    const h = hit(ev), g = geometry();
+    if (ev.ctrlKey || ev.altKey) {
+      ev.preventDefault();
+      const anchor = h.x >= NAME ? h.t : (vs + vspan / 2);
+      zoomAt(Math.exp(ev.deltaY * (ev.ctrlKey ? 0.01 : 0.002)), anchor);
+    } else if (Math.abs(ev.deltaX) > Math.abs(ev.deltaY)) {
+      ev.preventDefault();
+      vs += ev.deltaX * vspan / (g.w - NAME); clampView(); draw();
+    }
+  }, { passive: false });
+  // A pinch anywhere else on the page zooms the timeline too (not the page), around the playhead.
+  on(window, "wheel", (ev) => {
+    if (!S || !env.active() || !ev.ctrlKey || tl.contains(ev.target)) return;
+    ev.preventDefault();
+    zoomAt(Math.exp(ev.deltaY * 0.01), v.currentTime || 0);
+  }, { passive: false });
+  // Safari sends pinches as gesture events: around the pointer over the timeline, else the playhead.
+  let gestureSpan = null, gestureAnchor = 0;
+  on(window, "gesturestart", (ev) => {
+    if (!S || !env.active()) return;
+    ev.preventDefault(); gestureSpan = vspan;
+    const h = tl.contains(ev.target) ? hit(ev) : null;
+    gestureAnchor = h && h.x >= NAME ? h.t : v.currentTime || 0;
+  });
+  on(window, "gesturechange", (ev) => { if (gestureSpan) { ev.preventDefault(); zoomAt((gestureSpan / ev.scale) / vspan, gestureAnchor); } });
+  on(window, "gestureend", (ev) => { if (gestureSpan) { ev.preventDefault(); gestureSpan = null; } });
+
+  // ---- editing ----
+  // `quick`: while scrubbing, seek to the nearest keyframe if the browser can (much faster); the exact frame on release.
+  function seek(t, quick) {
+    t = Math.max(0, Math.min(S.dur, t));
+    if (quick && v.fastSeek) v.fastSeek(t); else v.currentTime = t;
+    draw();
+  }
+  function overlaps(a, b, skip) { return S.labels.breaks.some((x, i) => i !== skip && a < x.end && x.start < b); }
+  function addBreak(start, end, kind) {
+    if (end - start < 0.5) return status("a break needs at least half a second", true);
+    if (overlaps(start, end, -1)) return status("that would overlap a labelled break", true);
+    S.labels.breaks.push({ start, end, kind: kind || "ad" });
+    S.labels.breaks.sort((a, b) => a.start - b.start);
+    sel = { label: true, i: S.labels.breaks.findIndex((b) => b.start === start) };
+    changed();
+  }
+  function edges() {
+    const e = [];
+    for (const r of rows()) for (const s of r.spans || []) e.push(s.start, s.end);
+    for (const x of (S.tracks && S.tracks.edges) || []) e.push(x);
+    return e.sort((a, b) => a - b);
+  }
+  // Undo: the labels (breaks and reviewed parts) after each change, to step back and forth through.
+  let undoStack = [], redoStack = [];
+  function snapshot() { return JSON.stringify({ breaks: S.labels.breaks, reviewed: S.labels.reviewed, excluded: S.labels.excluded || [] }); }
+  function undo(redo) {
+    const from = redo ? redoStack : undoStack, to = redo ? undoStack : redoStack;
+    if (!from.length) return status(redo ? "nothing to redo" : "nothing to undo");
+    to.push(snapshot());
+    const s = JSON.parse(from.pop());
+    S.labels.breaks = s.breaks; S.labels.reviewed = s.reviewed; S.labels.excluded = s.excluded;
+    sel = null; pending = null; closeMenu();
+    last = snapshot();
+    renderList(); draw();
+    clearTimeout(saveTimer); status(redo ? "redone; unsaved…" : "undone; unsaved…");
+    saveTimer = setTimeout(save, 500);
+  }
+  let last = null;
+  function changed() {
+    const now = snapshot();
+    if (last !== null && now !== last) { undoStack.push(last); redoStack = []; if (undoStack.length > 200) undoStack.shift(); }
+    last = now;
+    renderList(); draw();
+    clearTimeout(saveTimer); status("unsaved…");
+    saveTimer = setTimeout(save, 500);
+  }
+  async function save() {
+    try {
+      // Name the version this page loaded: the server refuses a save over labels changed since (another tab, say).
+      const r = await fetch(`/api/recordings/${S.id}/labels`, { method: "PUT", headers: { "content-type": "application/json", "if-match": S.version || "" }, body: JSON.stringify(S.labels) });
+      if (!r.ok) throw new Error(await r.text() || r.statusText);
+      const saved = await r.json();
+      S.version = r.headers.get("x-labels-version") || S.version;
+      S.labels.reviewed = saved.reviewed; status("saved"); draw();
+      // Scores against the edited labels, for the row popovers.
+      api(`/api/recordings/${S.id}`).then((d) => { S.scores = d.scores || {}; }).catch(() => {});
+    } catch (e) { status("not saved: " + e.message, true); }
+  }
+
+  function key(k, shift, alt) {
+    // I and O mark in and out, as in Final Cut Pro: the same as [ and ].
+    if (k === "i" || k === "I") k = "[";
+    if (k === "o" || k === "O") k = "]";
+    const t = v.currentTime || 0;
+    const b = sel && sel.label ? S.labels.breaks[sel.i] : null;
+    switch (k) {
+      case " ": v.paused ? v.play() : v.pause(); break;
+      case "ArrowLeft": seek(t - (alt ? 60 : shift ? 10 : 1)); break;
+      case "ArrowRight": seek(t + (alt ? 60 : shift ? 10 : 1)); break;
+      case ",": v.pause(); seek(t - 1 / 29.97); break;
+      case ".": v.pause(); seek(t + 1 / 29.97); break;
+      case "[": case "]": {
+        const edge = k === "[" ? "start" : "end";
+        // A new break marked by one edge: the other key completes it (either order).
+        if (pending !== null && pending.edge !== edge) { const p = pending.t; pending = null; addBreak(Math.min(p, t), Math.max(p, t)); break; }
+        // With a break selected, move its edge here, if that leaves it a break (start before end, no overlap);
+        // otherwise (e.g. [ at or after the selected break's end) start marking a new break here.
+        if (b && pending === null) {
+          const [a2, b2] = edge === "start" ? [t, b.end] : [b.start, t];
+          if (a2 < b2 && !overlaps(a2, b2, sel.i)) { b[edge] = t; changed(); break; }
+        }
+        pending = { edge, t }; sel = null; renderList();
+        status(`new break ${edge}s at ${fmt(t)}: press ${edge === "start" ? "]" : "["} at its ${edge === "start" ? "end" : "start"}`); draw();
+        break;
+      }
+      case "a": case "A":
+        if (sel && sel.source) { const s = S.sources.find((x) => x.name === sel.source).breaks[sel.i]; addBreak(s.start, s.end); }
+        else status("select a suggestion on the timeline first", true);
+        break;
+      case "s": case "S":
+        if (b) splitBreak(sel.i, t); else status("select a label to split", true);
+        break;
+      case "k": case "K":
+        if (b) { b.kind = KINDS[(KINDS.indexOf(b.kind || "ad") + 1) % KINDS.length]; changed(); }
+        break;
+      case "Backspace": case "Delete":
+        if (b) { S.labels.breaks.splice(sel.i, 1); sel = null; changed(); }
+        break;
+      case "n": case "N": { const e = edges().find((x) => x > t + 0.05); if (e !== undefined) seek(e); break; }
+      case "p": case "P": { const e = edges().reverse().find((x) => x < t - 0.05); if (e !== undefined) seek(e); break; }
+      case "r": case "R": {
+        const before = S.labels.reviewed.filter((r) => r.start <= t).map((r) => r.end).filter((e) => e <= t);
+        const from = before.length ? Math.max(...before) : 0;
+        if (t > from) { S.labels.reviewed.push({ start: from, end: t >= S.dur - 1 ? S.dur : t }); changed(); }
+        break;
+      }
+      case "=": case "+": zoomAt(0.5, t); break;
+      case "-": case "_": zoomAt(2, t); break;
+      case "\\": env.toggleLayout(); break;
+      case "Escape": sel = null; pending = null; renderList(); draw(); break;
+      default: return false;
+    }
+    return true;
+  }
+  on(window, "keydown", (ev) => {
+    if (!env.active() || /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName) || document.activeElement.isContentEditable) return;
+    // ⌘Z undoes a change to the labels, ⌘⇧Z redoes it.
+    if ((ev.metaKey || ev.ctrlKey) && (ev.key === "z" || ev.key === "Z")) { ev.preventDefault(); undo(ev.shiftKey); return; }
+    if (ev.metaKey || ev.ctrlKey) return;
+    if (key(ev.key, ev.shiftKey, ev.altKey)) ev.preventDefault();
+  });
+  function tick() {
+    if (S && env.active()) {
+      if (env.timeEl) env.timeEl.textContent = fmt(v.currentTime || 0);
+      const c = cueAt(v.currentTime || 0);
+      if (env.capEl) { env.capEl.textContent = c ? c.text : ""; env.capEl.hidden = !c; }
+      draw();
+    }
+    if (alive) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+  on(window, "resize", draw);
+
+  // ---- loading ----
+  async function attach(url) {
+    if (hls) { hls.destroy(); hls = null; }
+    if (v.canPlayType("application/vnd.apple.mpegurl")) { v.src = url; return; }
+    hls = new Hls({ maxBufferLength: 30 }); hls.loadSource(url); hls.attachMedia(v);
+  }
+  async function loadCaptions(id) {
+    try {
+      const r = await fetch(`/files/${id}/captions.vtt`);
+      if (!r.ok) return;
+      const text = await r.text();
+      const ts = (s) => s.split(":").reduce((a, x) => a * 60 + parseFloat(x), 0);
+      const cues = [];
+      const re = /([\d:.]+) --> ([\d:.]+)[^\n]*\n((?:.+\n?)*)/g;
+      let m;
+      while ((m = re.exec(text))) cues.push({ start: ts(m[1]), end: ts(m[2]), text: m[3].trim() });
+      const covered = new Uint8Array(Math.ceil(S.dur) + 1);
+      for (const c of cues) for (let s = Math.floor(c.start); s < Math.min(Math.ceil(c.end), covered.length); s++) covered[s] = 1;
+      S.cues = cues; S.covered = covered; draw();
+    } catch { /* captions are optional */ }
+  }
+  async function load(id) {
+    status("loading…");
+    sel = null; pending = null;
+    const d = await api(`/api/recordings/${encodeURIComponent(id)}`);
+    const sources = d.suggestions ? d.suggestions.sources : [];
+    undoStack = []; redoStack = []; last = JSON.stringify({ breaks: d.labels.breaks, reviewed: d.labels.reviewed, excluded: d.labels.excluded || [] });
+    S = { id, labels: d.labels, sources, scores: d.scores || {}, version: d.version || "", fingerprint: d.fingerprint || "", cues: [], covered: new Uint8Array(0), dur: d.labels.recording.duration };
+    vs = 0; vspan = Math.max(S.dur, 1);
+    const r = d.labels.recording;
+    env.crumb(`${r.title} · ${r.channel} ${r.network} · ${new Date(r.start).toLocaleString()}`);
+    await attach(`/files/${id}/index.m3u8`);
+    loadCaptions(id);
+    api(`/api/recordings/${id}/inputs`).then((t) => { S.tracks = t; draw(); env.render(); }).catch(() => {});
+    status(sources.length ? "" : `no suggestions yet: run  adbreak suggest ${id}`);
+    renderList(); draw();
+  }
+
+  // ---- what a row is, for its info popover ----
+  function info(name) {
+    const key = name === "fusion" ? "model" : name;
+    const src = S.sources.find((s) => s.name === key), sc = S.scores && S.scores[key];
+    const out = { title: name, text: ROW_INFO[name] || "A source of suggested breaks.", details: [], warning: null, score: null };
+    if (name === "labels") out.details.push(`${S.labels.breaks.length} breaks${S.labels.notes ? " · " + S.labels.notes : ""}`);
+    if (src && isStale(key)) out.warning = "Stale: trained before the labels last changed. Run uv run adbreak-ml refresh in ml/ to retrain.";
+    else if (src && !src.trained_on && key === "model") out.warning = "Trained before training was tracked: treat as stale.";
+    if (src) {
+      out.details.push(`${src.breaks.length} breaks${src.detail ? " · " + src.detail : ""}`);
+      if (sc) out.score = sc;
+      else if (!S.labels.reviewed.length) out.details.push("No labels reviewed yet, so no score.");
+    }
+    return out;
+  }
+
+  return {
+    load,
+    key: (k, shift = false, alt = false) => key(k, shift, alt),
+    undo: (redo = false) => undo(redo),
+    draw: () => draw(),
+    state: () => S,
+    selection: () => sel,
+    rows: () => (S ? rows().filter((r) => !r.group).map((r) => ({ name: r.name, y: r.y, h: r.h, stale: !!(r.source && isStale(r.source)) })) : []),
+    info,
+    menuAt,
+    labelMenu: (i) => labelMenu(i, null),
+    select(i, edge) {
+      const b = S.labels.breaks[i];
+      sel = { label: true, i };
+      if (edge) { focusSpan(b[edge] - 35, b[edge] + 35); seek(b[edge]); } else { focusSpan(b.start, b.end); seek(b.start); }
+      renderList(); draw();
+    },
+    setKind(i, k) { S.labels.breaks[i].kind = k; changed(); },
+    deleteBreak,
+    setNotes(text) { S.labels.notes = text; changed(); },
+    stale: (name) => isStale(name),
+    destroy() { alive = false; for (const off of offs) off(); if (hls) hls.destroy(); v.pause(); v.removeAttribute("src"); v.load(); },
+  };
+}

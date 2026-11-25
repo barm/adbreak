@@ -22,10 +22,14 @@ data or commit messages. A recording's source is `"recorder"`.
   - New self-contained functionality gets its own crate.
 - `ml/` Python (uv): `features`/`baseline`/`fusion` (experiments on Python-computed features), `evaluate` and
   `export` (the shipped model, on the Rust-computed `rust-v1` features). See `ml/README.md`.
-- `web/label.html` the labelling page: plain JS, no build step, embedded with `include_str!`.
+- `web/` the labelling page: React + Vite on the Astryx design system (follow `web/AGENTS.md`). Optional and
+  decoupled from Rust: `adbreak label` serves its build from `web/dist` at run time (`--web`), and says how to build
+  it when there is none. `src/editor/engine.ts` is the editing engine (canvas timeline, keys, undo, saving), ported
+  from the plain-JS page; the React components around it are Astryx. Before committing web changes:
+  `cd web && npm run typecheck && npm run build`.
 - `dataset/<date>_<channel>_<job>/` recording.json, labels.json, suggestions.json; commit them. Label kinds
   and how to place them: `docs/labels.md`; keep it, `adbreak-labels`' `Kind`, `ml/adbreak_ml/data.py` and
-  `web/label.html` in step. The copy
+  `web/src/editor/engine.ts` in step. The copy
   (`media.mp4`, `index.m3u8`), captions and features live in the media store (`ADBREAK_MEDIA`, default
   `~/Movies/adbreak`) and are never committed: broadcasts can't be redistributed.
 - Comskip 0.83 doesn't build against ffmpeg 8+: `ticks_per_frame` is gone. In `mpeg2dec.c`, replace the

@@ -1,0 +1,29 @@
+{
+  "name": "adbreak-label",
+  "version": "1.0.0",
+  "description": "The adbreak labelling page (adbreak label serves its build).",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "license": "MIT OR Apache-2.0",
+  "type": "module",
+  "dependencies": {
+    "@astryxdesign/core": "^0.7.17",
+    "@astryxdesign/theme-neutral": "^0.7.17",
+    "@heroicons/react": "^2.2.0",
+    "hls.js": "^1.7.4",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@astryxdesign/cli": "^0.7.17",
+    "@types/react": "^19.3.2",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^4.7.0",
+    "typescript": "^5.9.3",
+    "vite": "^6.4.6"
+  },
+  "private": true
+}

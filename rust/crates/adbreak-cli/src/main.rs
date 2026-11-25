@@ -73,6 +73,10 @@ enum Cmd {
         /// with something like `tailscale serve` if needed).
         #[arg(long, default_value = "127.0.0.1:8585")]
         bind: String,
+        /// The labelling page: the web app's build (`cd web && npm run build`). Optional: without it the CLI works
+        /// and the page says how to build it.
+        #[arg(long, env = "ADBREAK_WEB", default_value = "web/dist")]
+        web: PathBuf,
     },
     /// Score each source against the labels.
     Eval {
@@ -110,7 +114,7 @@ async fn main() -> Result<()> {
                 features::compute(&data, &data.resolve(&name)?, &model_dir, force)?;
             }
         }
-        Cmd::Label { bind } => label::serve(data, &bind).await?,
+        Cmd::Label { bind, web } => label::serve(data, &bind, &web).await?,
         Cmd::Eval { each } => eval(&data, each)?,
     }
     Ok(())
