@@ -48,29 +48,40 @@ impl Span {
     }
 }
 
-/// What fills a break.
+/// What a labelled span is. Everything unlabelled in reviewed time is programme. The kinds say what is on screen,
+/// not what to do about it: whether to skip each is up to the player. See `docs/labels.md`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Kind {
-    /// Commercials, and anything else between programme parts (network bumpers).
+    /// A commercial break: the programme is gone and advertising fills the screen (commercials, the network's
+    /// promos for its own shows, station spots and bumpers). What a detector is scored on. (`promo` was a separate
+    /// kind before; it reads as this.)
     #[default]
+    #[serde(alias = "promo")]
     Ad,
-    /// The station or network advertising its own shows.
-    Promo,
-    /// A whole programme that is an advertisement (an infomercial). Not scored either way: whether to skip it is a
-    /// matter of taste, so a detector is neither rewarded nor penalised there.
+    /// The programme shrunk beside or under an ad (a squeeze-back). Not scored as break or programme, and a break's
+    /// edge anywhere across an adjacent double box counts as right. (`sponsor` was the kind before; it reads as this.)
+    #[serde(alias = "sponsor")]
+    DoubleBox,
+    /// Advertising over the full-screen programme: an announcer's sponsor read, sponsor graphics or banners over
+    /// play, a promo for what's coming up next. Programme as far as break scoring goes.
+    AdRead,
+    /// A whole programme that is an advertisement (an infomercial). Not scored either way.
     PaidProgramming,
-    /// Advertising inside the programme: sponsor billboards ("brought to you by"), a squeeze-back with an ad beside
-    /// the game, ad banners over live shots, ad reads by the presenters. Not scored either way (skipping it or not
-    /// are both fair), and a break's edge anywhere across an adjacent sponsor segment counts as right. Sponsored
-    /// programme content ("presented by …" features) is programme, not this.
-    Sponsor,
 }
 
 impl Kind {
-    /// Whether a detector should find it.
+    /// Every kind, in the order the labelling page offers them.
+    pub const ALL: [Kind; 4] = [Kind::Ad, Kind::DoubleBox, Kind::AdRead, Kind::PaidProgramming];
+
+    /// Whether it is a commercial break, which a detector should find.
     pub fn scored(self) -> bool {
-        !matches!(self, Kind::PaidProgramming | Kind::Sponsor)
+        self == Kind::Ad
+    }
+
+    /// Whether break scoring leaves it out, counting it as neither break nor programme.
+    pub fn ignored(self) -> bool {
+        matches!(self, Kind::DoubleBox | Kind::PaidProgramming)
     }
 }
 
@@ -210,9 +221,12 @@ pub struct Score {
     /// Over matched breaks: total distance (seconds) between the labelled and found start, and end.
     pub start_error: f64,
     pub end_error: f64,
-    /// Reviewed seconds labelled sponsor, and how many of them were marked as break.
-    pub sponsor_seconds: f64,
-    pub sponsor_skipped: f64,
+    /// Reviewed seconds labelled double box, and how many of them were marked as break.
+    pub double_box_seconds: f64,
+    pub double_box_marked: f64,
+    /// Reviewed seconds labelled ad read, and how many of them were marked as break (counted as false positives too).
+    pub ad_read_seconds: f64,
+    pub ad_read_marked: f64,
 }
 
 impl Score {
@@ -244,8 +258,10 @@ impl Score {
         self.matched += o.matched;
         self.start_error += o.start_error;
         self.end_error += o.end_error;
-        self.sponsor_seconds += o.sponsor_seconds;
-        self.sponsor_skipped += o.sponsor_skipped;
+        self.double_box_seconds += o.double_box_seconds;
+        self.double_box_marked += o.double_box_marked;
+        self.ad_read_seconds += o.ad_read_seconds;
+        self.ad_read_marked += o.ad_read_marked;
     }
 }
 
@@ -278,22 +294,29 @@ fn outside(x: f64, lo: f64, hi: f64) -> f64 {
     }
 }
 
-/// Scores `found` breaks against `labels`, counting only the reviewed parts and skipping paid programming.
+/// Scores `found` breaks against `labels`: only the reviewed parts, leaving out double box and paid programming.
 pub fn score(labels: &Labels, found: &[Span]) -> Score {
     const STEP: f64 = 0.1;
     let reviewed = merge(&labels.reviewed);
     let truth: Vec<Span> = labels.breaks.iter().filter(|b| b.kind.scored()).map(Break::span).collect();
-    let ignored: Vec<Span> = labels.breaks.iter().filter(|b| !b.kind.scored()).map(Break::span).collect();
-    let sponsor: Vec<Span> = labels.breaks.iter().filter(|b| b.kind == Kind::Sponsor).map(Break::span).collect();
+    let ignored: Vec<Span> = labels.breaks.iter().filter(|b| b.kind.ignored()).map(Break::span).collect();
+    let of = |k: Kind| -> Vec<Span> { labels.breaks.iter().filter(|b| b.kind == k).map(Break::span).collect() };
+    let (double_box, ad_read) = (of(Kind::DoubleBox), of(Kind::AdRead));
     let mut s = Score::default();
     let within = |t: f64, v: &[Span]| v.iter().any(|x| x.contains(t));
     for r in &reviewed {
         let mut t = r.start + STEP / 2.0;
         while t < r.end {
-            if within(t, &sponsor) {
-                s.sponsor_seconds += STEP;
+            if within(t, &double_box) {
+                s.double_box_seconds += STEP;
                 if within(t, found) {
-                    s.sponsor_skipped += STEP;
+                    s.double_box_marked += STEP;
+                }
+            }
+            if within(t, &ad_read) {
+                s.ad_read_seconds += STEP;
+                if within(t, found) {
+                    s.ad_read_marked += STEP;
                 }
             }
             if !within(t, &ignored) {
@@ -330,9 +353,9 @@ pub fn score(labels: &Labels, found: &[Span]) -> Score {
             ti[i] = true;
             fj[j] = true;
             s.matched += 1;
-            // An edge anywhere across sponsor segments next to it is right: skipping them or not are both fair.
-            let (lo, _) = stretch(truth[i].start, &sponsor, -1.0);
-            let (_, hi) = stretch(truth[i].end, &sponsor, 1.0);
+            // An edge anywhere across a double box next to it is right: it is neither break nor programme.
+            let (lo, _) = stretch(truth[i].start, &double_box, -1.0);
+            let (_, hi) = stretch(truth[i].end, &double_box, 1.0);
             s.start_error += outside(found[j].start, lo, truth[i].start);
             s.end_error += outside(found[j].end, truth[i].end, hi);
         }
@@ -360,7 +383,7 @@ mod tests {
 
     #[test]
     fn perfect_and_empty() {
-        let l = labels(&[(100.0, 200.0, Kind::Ad), (500.0, 620.0, Kind::Promo)]);
+        let l = labels(&[(100.0, 200.0, Kind::Ad), (500.0, 620.0, Kind::Ad)]);
         let s = score(&l, &[Span::new(100.0, 200.0), Span::new(500.0, 620.0)]);
         assert_eq!((s.breaks, s.found, s.matched), (2, 2, 2));
         assert!((s.recall() - 1.0).abs() < 1e-6 && (s.precision() - 1.0).abs() < 1e-6);
@@ -391,19 +414,33 @@ mod tests {
     }
 
     #[test]
-    fn sponsor_tails_are_fair_either_way() {
-        // Ads 100–200, then a sponsor squeeze-back 200–230 before the game resumes.
-        let l = labels(&[(100.0, 200.0, Kind::Ad), (200.0, 230.0, Kind::Sponsor)]);
+    fn double_box_tails_are_fair_either_way() {
+        // Ads 100–200, then a double box 200–230 before the game resumes full screen.
+        let l = labels(&[(100.0, 200.0, Kind::Ad), (200.0, 230.0, Kind::DoubleBox)]);
         for end in [200.0, 215.0, 230.0] {
             let s = score(&l, &[Span::new(100.0, end)]);
-            assert_eq!(s.matched, 1);
-            assert!(s.end_error < 1e-9, "ending at {end} is fine: {}", s.end_error);
-            assert!(s.false_pos < 0.05 && s.false_neg < 0.05);
-            assert!((s.sponsor_seconds - 30.0).abs() < 0.5 && (s.sponsor_skipped - (end - 200.0)).abs() < 0.5);
+            assert_eq!(s.end_error, 0.0, "ending anywhere across the double box is right ({end})");
+            assert!(s.false_pos.abs() < 0.5, "double box is not programme ({end})");
+            assert!((s.double_box_seconds - 30.0).abs() < 0.5 && (s.double_box_marked - (end - 200.0)).abs() < 0.5);
         }
         let s = score(&l, &[Span::new(100.0, 250.0)]);
-        assert!((s.end_error - 20.0).abs() < 1e-9 && (s.false_pos - 20.0).abs() < 0.5, "past the sponsor tail is wrong");
-        assert_eq!(serde_json::to_string(&Kind::Sponsor).unwrap(), r#""sponsor""#);
+        assert!((s.end_error - 20.0).abs() < 1e-9 && (s.false_pos - 20.0).abs() < 0.5, "past the double box is wrong");
+    }
+
+    #[test]
+    fn ad_reads_are_programme() {
+        // Ads 100–200, then the announcer's ad read 200–220 over the full-screen game.
+        let l = labels(&[(100.0, 200.0, Kind::Ad), (200.0, 220.0, Kind::AdRead)]);
+        let s = score(&l, &[Span::new(100.0, 220.0)]);
+        assert!((s.end_error - 20.0).abs() < 1e-9 && (s.false_pos - 20.0).abs() < 0.5, "an ad read is not break");
+        assert!((s.ad_read_seconds - 20.0).abs() < 0.5 && (s.ad_read_marked - 20.0).abs() < 0.5);
+    }
+
+    #[test]
+    fn old_kinds_still_read() {
+        let k: Vec<Kind> = serde_json::from_str(r#"["promo", "sponsor", "ad_read", "double_box"]"#).unwrap();
+        assert_eq!(k, [Kind::Ad, Kind::DoubleBox, Kind::AdRead, Kind::DoubleBox]);
+        assert_eq!(serde_json::to_string(&Kind::DoubleBox).unwrap(), r#""double_box""#);
     }
 
     #[test]

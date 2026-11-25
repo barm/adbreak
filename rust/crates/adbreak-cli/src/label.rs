@@ -126,8 +126,10 @@ struct RowScore {
     matched: usize,
     breaks: usize,
     found: usize,
-    sponsor_seconds: f64,
-    sponsor_skipped: f64,
+    double_box_seconds: f64,
+    double_box_marked: f64,
+    ad_read_seconds: f64,
+    ad_read_marked: f64,
 }
 
 async fn show(State(data): State<Shared>, Path(id): Path<String>) -> Result<Json<Detail>, Error> {
@@ -148,8 +150,10 @@ async fn show(State(data): State<Shared>, Path(id): Path<String>) -> Result<Json
                     matched: sc.matched,
                     breaks: sc.breaks,
                     found: sc.found,
-                    sponsor_seconds: sc.sponsor_seconds,
-                    sponsor_skipped: sc.sponsor_skipped,
+                    double_box_seconds: sc.double_box_seconds,
+                    double_box_marked: sc.double_box_marked,
+                    ad_read_seconds: sc.ad_read_seconds,
+                    ad_read_marked: sc.ad_read_marked,
                 },
             );
         }

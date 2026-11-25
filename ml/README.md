@@ -26,8 +26,8 @@ cd .. && adbreak eval --each # scores them next to Comskip
 ```
 
 - Frames are the whole picture squashed to 256×256, not centre-cropped: the network logo is in a corner.
-- Per-second labels: break (ad or promo), programme, or ignored (unreviewed, paid programming, within 1 s of an
-  edge). See `adbreak_ml/data.py`.
+- Per-second labels: break (commercial break), programme (ad reads included), or ignored (unreviewed, double box,
+  paid programming, within 1 s of an edge). See `adbreak_ml/data.py` and `docs/labels.md`.
 - Every score is leave-one-recording-out: a recording's predictions come from a model that never saw it. With one
   recording per network so far, that is also a test on an unseen network.
 

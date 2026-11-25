@@ -70,9 +70,14 @@ def labels_fingerprint() -> str:
     return f"{h:016x}"
 
 
+# Kinds that were renamed: old label files still read.
+KIND_ALIASES = {"promo": "ad", "sponsor": "double_box"}
+
+
 def second_labels(rec: Recording, times: np.ndarray) -> np.ndarray:
-    """A class for each time: BREAK inside an ad or promo, PROGRAMME elsewhere in reviewed time, IGNORE for
-    unreviewed time, paid programming, sponsor segments, and within EDGE_MARGIN of an edge."""
+    """A class for each time: BREAK inside a commercial break, PROGRAMME elsewhere in reviewed time (ad reads
+    included: the programme is on screen), IGNORE for unreviewed time, double box, paid programming, and within
+    EDGE_MARGIN of an edge. Kinds are in docs/labels.md."""
     y = np.full(len(times), IGNORE, dtype=np.int8)
     if not rec.labels:
         return y
@@ -80,8 +85,11 @@ def second_labels(rec: Recording, times: np.ndarray) -> np.ndarray:
         y[(times >= r["start"]) & (times < r["end"])] = PROGRAMME
     for b in rec.labels["breaks"]:
         inside = (times >= b["start"]) & (times < b["end"])
-        # Paid programming and in-programme sponsor segments are neither break nor programme: left out.
-        y[inside & (y != IGNORE)] = IGNORE if b.get("kind") in ("paid_programming", "sponsor") else BREAK
+        kind = KIND_ALIASES.get(b.get("kind", "ad"), b.get("kind", "ad"))
+        if kind == "ad_read":
+            continue
+        # Double box and paid programming are neither break nor programme: left out.
+        y[inside & (y != IGNORE)] = IGNORE if kind in ("double_box", "paid_programming") else BREAK
     for b in rec.labels["breaks"]:
         for edge in (b["start"], b["end"]):
             y[np.abs(times - edge) < EDGE_MARGIN] = IGNORE

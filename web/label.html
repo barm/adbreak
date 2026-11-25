@@ -7,7 +7,7 @@
 <link rel="icon" href="data:,">
 <style>
   :root { color-scheme: dark; --bg: #111113; --panel: #1b1b1f; --line: #2e2e35; --text: #ededef; --dim: #9b9ba4;
-          --ad: #e5484d; --promo: #f5a524; --paid: #8e4ec6; --sponsor: #e93d82; --accent: #3e63dd; }
+          --ad: #e5484d; --warn: #f5a524; --paid: #8e4ec6; --double: #e93d82; --adread: #f5a524; --accent: #3e63dd; }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.4 -apple-system, system-ui, sans-serif; }
   header { display: flex; gap: 12px; align-items: baseline; padding: 10px 16px; border-bottom: 1px solid var(--line); }
@@ -99,7 +99,7 @@
         <tr><td><kbd>[ ]</kbd></td><td>mark a new break's start and end here, in either order; with a break selected, move its edge here</td></tr>
         <tr><td><kbd>A</kbd></td><td>accept the selected suggestion as a break</td></tr>
         <tr><td>right-click</td><td>a label on the timeline: change its kind (or select it and use the dropdown on it)</td></tr>
-        <tr><td><kbd>K</kbd></td><td>ad → promo → sponsor (in-programme ads: billboards, squeeze-backs, banners) → paid programming</td></tr>
+        <tr><td><kbd>K</kbd></td><td>commercial break → double box (programme shrunk beside an ad) → ad read (advertising over the full-screen programme) → paid programming</td></tr>
         <tr><td><kbd>N P</kbd></td><td>next / previous edge from any source</td></tr>
         <tr><td><kbd>R</kbd></td><td>mark reviewed up to here (only reviewed parts are scored)</td></tr>
         <tr><td><kbd>Esc</kbd></td><td>clear the selection</td></tr>
@@ -113,8 +113,10 @@
 "use strict";
 const $ = (id) => document.getElementById(id);
 const v = $("v"), tl = $("tl");
-const KINDS = ["ad", "promo", "sponsor", "paid_programming"];
-const KIND_COLOR = { ad: "var(--ad)", promo: "var(--promo)", sponsor: "var(--sponsor)", paid_programming: "var(--paid)" };
+// The label kinds (docs/labels.md): what is on screen, not whether to skip it.
+const KINDS = ["ad", "double_box", "ad_read", "paid_programming"];
+const KIND_NAME = { ad: "commercial break", double_box: "double box", ad_read: "ad read", paid_programming: "paid programming" };
+const KIND_COLOR = { ad: "var(--ad)", double_box: "var(--double)", ad_read: "var(--adread)", paid_programming: "var(--paid)" };
 const SOURCE_COLOR = { comskip: "#3e63dd", captions: "#12a594", "logo-detector": "#ad7f58", recorder: "#8b8d98" };
 // The visible stretch of the timeline: from vs, vspan seconds long (continuous zoom; see zoomAt).
 const MIN_SPAN = 5;
@@ -220,7 +222,7 @@ function cueAt(t) {
 const ROW = 22, NAME = 136, TOP = 18;
 // What each timeline row is, for its ⓘ popover.
 const ROW_INFO = {
-  labels: "The ground truth, and the row you edit: breaks marked by hand (red ad, orange promo, pink sponsor, purple paid programming). Everything else is scored against these.",
+  labels: "The ground truth, and the row you edit, marking what is on screen: red commercial break (the programme is gone), pink double box (the programme shrunk beside an ad), amber ad read (advertising over the full-screen programme), purple paid programming. Unlabelled reviewed time is programme. Detectors are scored on commercial breaks.",
   fusion: "The model's output: its break probability each second (the strip; brighter is more likely a break), and the breaks it finds from that (the bars), snapped to black-and-silent edges. The product of the input rows below. Scored on a model that never saw this recording.",
   picture: "Input: how much each second's picture looks like an ad, from the image model (MobileCLIP2) and a classifier trained on the labels. One picture a second; brighter is more ad-like.",
   captions: "Input: captions on screen each second (filled), roll-up captions as live shows use them (taller), and a new cue starting (tick). Ads are captioned less, and pop on rather than roll up.",
@@ -431,7 +433,7 @@ tl.addEventListener("pointerleave", () => { hoverT = null; draw(); });
 
 // The selected label's kind, changeable on the timeline: a dropdown on the label itself.
 const kindMenu = $("kindmenu");
-for (const k of KINDS) kindMenu.add(new Option(k.replace("_", " "), k));
+for (const k of KINDS) kindMenu.add(new Option(KIND_NAME[k], k));
 kindMenu.onchange = () => {
   if (sel && sel.label) { S.labels.breaks[sel.i].kind = kindMenu.value; changed(); }
   kindMenu.blur();
@@ -480,12 +482,12 @@ function showInfo(name, y) {
   const pct = (x) => `${Math.round(100 * x)}%`;
   let html = `<h4>${esc(name)}</h4><span>${esc(ROW_INFO[name] || "A source of suggested breaks.")}</span>`;
   if (name === "labels") html += `<span class="detail">${S.labels.breaks.length} breaks${S.labels.notes ? " · " + esc(S.labels.notes) : ""}</span>`;
-  if (src && isStale(key)) html += `<span class="detail" style="display:block;color:var(--promo)">⚠︎ Stale: trained before the labels last changed. Run <code>uv run adbreak-ml refresh</code> in ml/ to retrain.</span>`;
-  else if (src && !src.trained_on && key === "model") html += `<span class="detail" style="display:block;color:var(--promo)">⚠︎ Trained before training was tracked: treat as stale.</span>`;
+  if (src && isStale(key)) html += `<span class="detail" style="display:block;color:var(--warn)">⚠︎ Stale: trained before the labels last changed. Run <code>uv run adbreak-ml refresh</code> in ml/ to retrain.</span>`;
+  else if (src && !src.trained_on && key === "model") html += `<span class="detail" style="display:block;color:var(--warn)">⚠︎ Trained before training was tracked: treat as stale.</span>`;
   if (src) {
     html += `<span class="detail" style="display:block">${src.breaks.length} breaks${src.detail ? " · " + esc(src.detail) : ""}</span>`;
     if (sc) html += `<table class="detail"><tr><td>on this recording</td><td>precision ${pct(sc.precision)}</td><td>recall ${pct(sc.recall)}</td><td>F1 ${pct(sc.f1)}</td></tr>`
-      + `<tr><td></td><td colspan="3">${sc.matched}/${sc.breaks} labelled breaks matched${sc.sponsor_seconds > 0 ? ` · skipped ${pct(sc.sponsor_skipped / sc.sponsor_seconds)} of sponsor time` : ""}</td></tr></table>`;
+      + `<tr><td></td><td colspan="3">${sc.matched}/${sc.breaks} labelled breaks matched${sc.double_box_seconds > 0 ? ` · marked ${pct(sc.double_box_marked / sc.double_box_seconds)} of double box` : ""}${sc.ad_read_seconds > 0 ? ` · marked ${pct(sc.ad_read_marked / sc.ad_read_seconds)} of ad reads` : ""}</td></tr></table>`;
     else if (!S.labels.reviewed.length) html += `<span class="detail" style="display:block">No labels reviewed yet, so no score.</span>`;
   }
   box.innerHTML = html; box.hidden = false;
@@ -637,7 +639,7 @@ function renderList() {
     }
     tr.insertCell().textContent = `${Math.round(b.end - b.start)} s`;
     const s = document.createElement("select");
-    for (const k of KINDS) s.add(new Option(k.replace("_", " "), k, false, (b.kind || "ad") === k));
+    for (const k of KINDS) s.add(new Option(KIND_NAME[k], k, false, (b.kind || "ad") === k));
     s.onchange = () => { b.kind = s.value; changed(); };
     tr.insertCell().append(s);
     const del = document.createElement("button"); del.textContent = "Delete"; del.onclick = () => { S.labels.breaks.splice(i, 1); sel = null; changed(); };
