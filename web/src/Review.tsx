@@ -7,13 +7,13 @@ import { Text, Heading } from "@astryxdesign/core/Text";
 import { Link } from "@astryxdesign/core/Link";
 import { Button } from "@astryxdesign/core/Button";
 import { Kbd } from "@astryxdesign/core/Kbd";
-import { Toolbar } from "@astryxdesign/core/Toolbar";
 import { ContextMenu } from "@astryxdesign/core/ContextMenu";
 import { DropdownMenu } from "@astryxdesign/core/DropdownMenu";
 import { Popover } from "@astryxdesign/core/Popover";
 import { SegmentedControl, SegmentedControlItem } from "@astryxdesign/core/SegmentedControl";
 import { createEngine } from "./editor/engine";
 import { Panel } from "./Panel";
+import { Shortcuts } from "./Shortcuts";
 
 export type Engine = ReturnType<typeof createEngine>;
 type Placement = "below" | "side" | "hidden";
@@ -36,19 +36,6 @@ const styles: Record<string, CSSProperties> = {
   fill: { minHeight: 0, overflow: "auto" },
 };
 
-const TOOLS: [string, string, string][] = [
-  ["Start", "I", "["],
-  ["End", "O", "]"],
-  ["Accept", "A", "a"],
-  ["Kind", "K", "k"],
-  ["Split", "S", "s"],
-  ["Delete", "⌫", "Backspace"],
-  ["◀ Edge", "P", "p"],
-  ["Edge ▶", "N", "n"],
-  ["Reviewed to here", "R", "r"],
-  ["Zoom out", "−", "-"],
-  ["Zoom in", "=", "="],
-];
 
 /** One recording: the video, the timeline, the toolbar and the panel of labels, notes and help. */
 export function Review({ id }: { id: string }) {
@@ -63,6 +50,7 @@ export function Review({ id }: { id: string }) {
   const [crumb, setCrumb] = useState("");
   const [tag, setTag] = useState<Tag | null>(null);
   const [menu, setMenu] = useState<object[]>([]);
+  const [keysOpen, setKeysOpen] = useState(false);
   const [placement, setPlacement] = useState<Placement>(() => (localStorage.getItem("adbreak.layout") as Placement) || "below");
   const placementRef = useRef(placement);
   placementRef.current = placement;
@@ -88,6 +76,7 @@ export function Review({ id }: { id: string }) {
       toggleLayout: () => place(placementRef.current === "hidden" ? ((localStorage.getItem("adbreak.shownLayout") as Placement) || "below") : "hidden"),
       kindTag: (t: Tag | null) => setTag((old) => (old && t && old.left === t.left && old.top === t.top && old.text === t.text && old.i === t.i) || old === t ? old : t),
       crumb: setCrumb,
+      shortcuts: () => setKeysOpen((o) => !o),
       active: () => true,
     });
     setEngine(e);
@@ -148,11 +137,18 @@ export function Review({ id }: { id: string }) {
               <Text color="secondary" type="supporting">{crumb}</Text>
               <Text type="supporting" color={status.err ? "accent" : "secondary"}>{status.msg}</Text>
             </Stack>
+            <Stack direction="horizontal" gap={2} align="center">
+            <Shortcuts isOpen={keysOpen} onOpenChange={setKeysOpen}>
+              <Button label="Keyboard shortcuts" size="sm" variant="ghost" tooltip="Keyboard shortcuts (?)">
+                <Stack direction="horizontal" gap={1} align="center">Shortcuts<Kbd keys="?" /></Stack>
+              </Button>
+            </Shortcuts>
             <SegmentedControl label="Panel" value={placement} onChange={(v) => place(v as Placement)} size="sm">
               <SegmentedControlItem label="Panel below" value="below" />
               <SegmentedControlItem label="At the side" value="side" />
               <SegmentedControlItem label="Hidden" value="hidden" />
             </SegmentedControl>
+            </Stack>
           </Stack>
         </LayoutHeader>
       }
@@ -165,24 +161,10 @@ export function Review({ id }: { id: string }) {
                   <video ref={video} style={styles.video} playsInline controls preload="auto" />
                   <Text ref={cap as never} style={styles.caption} size="lg">{""}</Text>
                 </Stack>
-                <Toolbar
-                  label="Labelling"
-                  size="sm"
-                  startContent={
-                    <Stack direction="horizontal" gap={1} wrap="wrap" align="center">
-                      <Text ref={time as never} type="code" style={styles.time}>0:00:00.0</Text>
-                      {TOOLS.map(([label, keys, k]) => (
-                        <Button key={label} label={label} size="sm" tooltip={`${label} (${keys})`} onClick={(e) => { engine?.key(k); (e.currentTarget as HTMLElement).blur(); }}>
-                          <Stack direction="horizontal" gap={1} align="center">{label}<Kbd keys={keys} /></Stack>
-                        </Button>
-                      ))}
-                      <Button label="Undo" size="sm" onClick={() => engine?.undo()}>
-                        <Stack direction="horizontal" gap={1} align="center">Undo<Kbd keys="⌘Z" /></Stack>
-                      </Button>
-                    </Stack>
-                  }
-                />
-                <Text ref={zoom as never} type="supporting" color="secondary">{""}</Text>
+                <Stack direction="horizontal" gap={3} align="center">
+                  <Text ref={time as never} type="code" style={styles.time}>0:00:00.0</Text>
+                  <Text ref={zoom as never} type="supporting" color="secondary">{""}</Text>
+                </Stack>
                 {timeline}
               </Stack>
             </StackItem>

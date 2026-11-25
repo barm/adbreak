@@ -499,6 +499,7 @@ export function createEngine(env) {
       case "=": case "+": zoomAt(0.5, t); break;
       case "-": case "_": zoomAt(2, t); break;
       case "\\": env.toggleLayout(); break;
+      case "?": env.shortcuts(); break;
       case "Escape": sel = null; pending = null; renderList(); draw(); break;
       default: return false;
     }
