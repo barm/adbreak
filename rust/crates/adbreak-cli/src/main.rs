@@ -218,7 +218,7 @@ fn eval(data: &Dataset, each: bool) -> Result<()> {
         bail!("no labelled recordings with suggestions in {}", data.root.display());
     }
     println!("{labelled} labelled recording(s)");
-    println!("  {:10} {:>9} {:>9} {:>9} {:>14} {:>9} {:>9}", "source", "precision", "recall", "F1", "breaks matched", "start err", "end err");
+    println!("  {:10} {:>9} {:>9} {:>9} {:>14} {:>9} {:>9} {:>9}", "source", "precision", "recall", "F1", "breaks matched", "start err", "end err", "sponsor");
     for (name, sc) in &totals {
         line(&format!("  {name}"), sc);
     }
@@ -228,13 +228,15 @@ fn eval(data: &Dataset, each: bool) -> Result<()> {
 fn line(name: &str, s: &Score) {
     let pct = |x: f64| format!("{:.0}%", 100.0 * x);
     println!(
-        "{:12} {:>9} {:>9} {:>9} {:>14} {:>8.1}s {:>8.1}s",
+        "{:12} {:>9} {:>9} {:>9} {:>14} {:>8.1}s {:>8.1}s {:>9}",
         name,
         pct(s.precision()),
         pct(s.recall()),
         pct(s.f1()),
         format!("{}/{} ({} found)", s.matched, s.breaks, s.found),
         s.mean_start_error(),
-        s.mean_end_error()
+        s.mean_end_error(),
+        // How much labelled sponsor time it skipped (not scored either way).
+        if s.sponsor_seconds > 0.0 { format!("{:.0}% of {:.0}s", 100.0 * s.sponsor_skipped / s.sponsor_seconds, s.sponsor_seconds) } else { "-".into() }
     );
 }

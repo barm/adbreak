@@ -18,23 +18,43 @@
   "breaks": [
     {
       "start": 750.9,
-      "end": 897.0,
+      "end": 872.5,
       "kind": "ad"
+    },
+    {
+      "start": 872.5,
+      "end": 897.0,
+      "kind": "sponsor"
     },
     {
       "start": 1330.8,
-      "end": 1466.0,
+      "end": 1434.5,
       "kind": "ad"
+    },
+    {
+      "start": 1434.5,
+      "end": 1466.0,
+      "kind": "sponsor"
     },
     {
       "start": 1643.3,
-      "end": 1793.0,
+      "end": 1778.0,
       "kind": "ad"
     },
     {
+      "start": 1778.0,
+      "end": 1793.0,
+      "kind": "sponsor"
+    },
+    {
       "start": 2330.0,
-      "end": 2487.5,
+      "end": 2465.5,
       "kind": "ad"
+    },
+    {
+      "start": 2465.5,
+      "end": 2487.5,
+      "kind": "sponsor"
     },
     {
       "start": 2658.8,
@@ -54,7 +74,7 @@
     {
       "start": 4464.0,
       "end": 4498.0,
-      "kind": "ad"
+      "kind": "sponsor"
     },
     {
       "start": 4683.3,
@@ -63,8 +83,13 @@
     },
     {
       "start": 5106.3,
-      "end": 5258.0,
+      "end": 5241.5,
       "kind": "ad"
+    },
+    {
+      "start": 5241.5,
+      "end": 5258.0,
+      "kind": "sponsor"
     },
     {
       "start": 5373.5,
@@ -93,8 +118,13 @@
     },
     {
       "start": 7604.7,
-      "end": 7759.0,
+      "end": 7740.0,
       "kind": "ad"
+    },
+    {
+      "start": 7740.0,
+      "end": 7759.0,
+      "kind": "sponsor"
     },
     {
       "start": 8288.3,
@@ -127,5 +157,5 @@
       "kind": "ad"
     }
   ],
-  "notes": "Labelled by Claude, 2026-11-24. Break starts are the black edge adbreak and Comskip agree on; ends checked in frames around both sources' ends (to a few seconds) and set at the first live coverage. Sponsored squeezebacks and promo banners over aerials count as ad; sponsored programme features (SNF Sights, halftime segments) count as programme. Only the first 24 min were skimmed in full: a break both sources missed could be absent. Not yet checked by a person."
+  "notes": "Labelled by Claude, 2026-11-24. Break starts are the black edge adbreak and Comskip agree on; ends checked in frames around both sources' ends (to a few seconds) and set at the first live coverage. Sponsored squeezebacks and promo banners over aerials count as ad; sponsored programme features (SNF Sights, halftime segments) count as programme. Only the first 24 min were skimmed in full: a break both sources missed could be absent. Not yet checked by a person. Revised 2026-11-24: advertising inside the game broadcast is labelled sponsor (not scored either way): the SNF tunnel billboard with sponsor logos, the Farmer's Dog squeeze-back beside the field, promo banners over aerial shots, and the US Bank squeeze-back at 1:14:24; the full-screen ads before them stay ad."
 }

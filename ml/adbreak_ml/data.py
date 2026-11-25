@@ -60,7 +60,7 @@ def recordings() -> list[Recording]:
 
 def second_labels(rec: Recording, times: np.ndarray) -> np.ndarray:
     """A class for each time: BREAK inside an ad or promo, PROGRAMME elsewhere in reviewed time, IGNORE for
-    unreviewed time, paid programming, and within EDGE_MARGIN of an edge."""
+    unreviewed time, paid programming, sponsor segments, and within EDGE_MARGIN of an edge."""
     y = np.full(len(times), IGNORE, dtype=np.int8)
     if not rec.labels:
         return y
@@ -68,7 +68,8 @@ def second_labels(rec: Recording, times: np.ndarray) -> np.ndarray:
         y[(times >= r["start"]) & (times < r["end"])] = PROGRAMME
     for b in rec.labels["breaks"]:
         inside = (times >= b["start"]) & (times < b["end"])
-        y[inside & (y != IGNORE)] = IGNORE if b.get("kind") == "paid_programming" else BREAK
+        # Paid programming and in-programme sponsor segments are neither break nor programme: left out.
+        y[inside & (y != IGNORE)] = IGNORE if b.get("kind") in ("paid_programming", "sponsor") else BREAK
     for b in rec.labels["breaks"]:
         for edge in (b["start"], b["end"]):
             y[np.abs(times - edge) < EDGE_MARGIN] = IGNORE
