@@ -175,6 +175,7 @@ async function showReview(id) {
     $("notes").value = d.labels.notes || "";
     await attach(`/files/${id}/index.m3u8`);
     loadCaptions(id);
+    api(`/api/recordings/${id}/inputs`).then((t) => { S.tracks = t; draw(); }).catch(() => {});
     status(sources.length ? "" : `no suggestions yet: run  adbreak suggest ${id}`);
     renderList(); draw();
   } catch (e) { status(e.message, true); }
@@ -216,24 +217,41 @@ function cueAt(t) {
 }
 
 // ---- timeline ----
-const ROW = 22, NAME = 124, TOP = 18;
+const ROW = 22, NAME = 136, TOP = 18;
 // What each timeline row is, for its ⓘ popover.
 const ROW_INFO = {
-  labels: "The ground truth: breaks marked by hand (red ad, orange promo, pink sponsor, purple paid programming). Every other row is scored against these.",
-  comskip: "Comskip, the established open-source detector (black frames, logo, scene changes, rules). Rarely marks programme as a break, but often ends breaks early and misses some.",
-  "logo-detector": "The first, non-ML detector: moments both black and silent, plus the network's corner logo learned from the recording. Fails without a corner logo (CBS) or when it can't learn one.",
-  recorder: "What the recorder itself detected while recording, the breaks its player skips. The old logo detector for recordings made before the model went in; the model after.",
-  captions: "Stretches where captions are mostly missing: programmes are captioned most of the time, ads much less. A hint, not a detector.",
-  "frames-lr": "Experiment: one picture a second through an image model (MobileCLIP2), then a linear classifier. Finds almost every break but also marks programme.",
-  "frames-zeroshot": "Experiment: the same pictures matched against text such as \"a TV commercial\", with no training. A baseline.",
-  fusion: "The fusion model in Python: picture scores, captions (timing and text) and black/silence over time, through boosted trees. Scored on a model that never saw this recording.",
-  model: "The shipped model, as the recorder runs it: Rust-computed inputs (picture embeddings, caption timing, black/silence), no caption text. Scored on a model that never saw this recording.",
-  captioned: "Each second with a caption on screen.",
+  labels: "The ground truth, and the row you edit: breaks marked by hand (red ad, orange promo, pink sponsor, purple paid programming). Everything else is scored against these.",
+  fusion: "The model's output: its break probability each second (the strip; brighter is more likely a break), and the breaks it finds from that (the bars), snapped to black-and-silent edges. The product of the input rows below. Scored on a model that never saw this recording.",
+  picture: "Input: how much each second's picture looks like an ad, from the image model (MobileCLIP2) and a classifier trained on the labels. One picture a second; brighter is more ad-like.",
+  captions: "Input: captions on screen each second (filled), roll-up captions as live shows use them (taller), and a new cue starting (tick). Ads are captioned less, and pop on rather than roll up.",
+  black: "Input: how much of each second the picture was black.",
+  silence: "Input: how much of each second the sound was silent.",
+  edges: "Input: moments both black and silent, which networks put between ads and around breaks. Break edges snap to these.",
+  comskip: "For comparison, not an input: Comskip, the established open-source detector. Rarely marks programme as a break, but often ends breaks early and misses some.",
+  "frames-zeroshot": "For comparison, not an input: pictures matched against text such as \"a TV commercial\", with no training. A baseline.",
+  "logo-detector": "For comparison, not an input: the first, non-ML detector (black-and-silent edges plus the network's corner logo).",
   reviewed: "The parts whose labels have been checked. Only reviewed time is scored.",
 };
+// The comparison sources shown (the others in suggestions.json are superseded or duplicates).
+const COMPARE = ["comskip", "frames-zeroshot", "logo-detector"];
+// The timeline's rows, top to bottom, each with its y and height: labels, the output, its inputs, comparisons.
 function rows() {
-  const r = [{ name: "labels", spans: S.labels.breaks, label: true }];
-  for (const s of S.sources) r.push({ name: s.name, spans: s.breaks, source: s.name });
+  const r = [{ name: "labels", type: "spans", spans: S.labels.breaks, label: true, h: ROW }];
+  const model = S.sources.find((x) => x.name === "model");
+  r.push({ group: "output" });
+  r.push({ name: "fusion", type: "output", spans: model ? model.breaks : [], source: model ? "model" : null, h: ROW });
+  r.push({ group: "inputs" });
+  r.push({ name: "picture", type: "heat", track: "picture", color: [229, 72, 77], h: 14 });
+  r.push({ name: "captions", type: "captions", h: 14 });
+  r.push({ name: "black", type: "heat", track: "black", color: [200, 200, 210], h: 12 });
+  r.push({ name: "silence", type: "heat", track: "silent", color: [62, 99, 221], h: 12 });
+  r.push({ name: "edges", type: "ticks", h: 12 });
+  const cmp = COMPARE.map((n) => S.sources.find((x) => x.name === n)).filter(Boolean);
+  if (cmp.length) r.push({ group: "for comparison" });
+  for (const x of cmp) r.push({ name: x.name, type: "spans", spans: x.breaks, source: x.name, h: 16, dim: true });
+  r.push({ name: "reviewed", type: "reviewed", h: 10 });
+  let y = TOP;
+  for (const row of r) { row.y = y; y += row.group ? 14 : row.h + 2; }
   return r;
 }
 function clampView() {
@@ -260,8 +278,8 @@ function zoomAt(factor, anchor) {
   draw();
 }
 function geometry() {
-  const w = tl.clientWidth, n = rows().length;
-  const h = TOP + n * ROW + 2 * 10 + 6;
+  const w = tl.clientWidth, all = rows(), last = all[all.length - 1];
+  const h = last.y + last.h + 6;
   return { w, h, x: (t, [a, b]) => NAME + (t - a) / (b - a) * (w - NAME - 6), t: (x, [a, b]) => a + (x - NAME) / (w - NAME - 6) * (b - a) };
 }
 
@@ -279,31 +297,56 @@ function draw() {
     const x = g.x(t, vw); c.beginPath(); c.moveTo(x, TOP - 4); c.lineTo(x, g.h); c.stroke();
     c.fillText(fmt(t).replace(/\.\d$/, ""), x + 3, 8);
   }
-  rows().forEach((r, i) => {
-    const y = TOP + i * ROW;
-    const stale = r.source && isStale(r.source);
-    c.fillStyle = cssVar("var(--dim)"); c.fillText(r.name + (stale ? " ⚠︎" : ""), 6, y + ROW / 2); c.fillText("ⓘ", NAME - 18, y + ROW / 2);
-    r.spans.forEach((s, j) => {
-      if (s.end < vw[0] || s.start > vw[1]) return;
-      const x0 = Math.max(NAME, g.x(s.start, vw)), x1 = Math.min(g.w - 6, g.x(s.end, vw));
-      c.fillStyle = r.label ? cssVar(KIND_COLOR[s.kind || "ad"]) : (SOURCE_COLOR[r.name] || "#888");
-      c.globalAlpha = r.label ? 0.9 : 0.6; c.fillRect(x0, y + 3, Math.max(2, x1 - x0), ROW - 6); c.globalAlpha = 1;
-      const isSel = sel && ((sel.label && r.label && sel.i === j) || (sel.source === r.source && sel.i === j && !r.label));
-      if (isSel) { c.strokeStyle = "#fff"; c.lineWidth = 2; c.strokeRect(x0, y + 2, Math.max(2, x1 - x0), ROW - 4); c.lineWidth = 1; }
-    });
-  });
-  // captions on screen, and what has been reviewed
-  const yc = TOP + rows().length * ROW + 2;
-  c.fillStyle = cssVar("var(--dim)"); c.fillText("captioned", 6, yc + 4); c.fillText("reviewed", 6, yc + 16);
-  c.fillText("ⓘ", NAME - 18, yc + 4); c.fillText("ⓘ", NAME - 18, yc + 16);
-  c.fillStyle = SOURCE_COLOR.captions;
   const px = (g.w - NAME - 6) / span;
-  for (let s = Math.max(0, Math.floor(vw[0])); s < Math.min(S.covered.length, vw[1]); s++)
-    if (S.covered[s]) c.fillRect(g.x(s, vw), yc, Math.max(1, px), 8);
-  c.fillStyle = "#30a46c";
-  for (const r of S.labels.reviewed) {
-    const x0 = Math.max(NAME, g.x(r.start, vw)), x1 = Math.min(g.w - 6, g.x(r.end, vw));
-    if (x1 > x0) c.fillRect(x0, yc + 12, x1 - x0, 8);
+  const secs = (fn) => { for (let t = Math.max(0, Math.floor(vw[0])); t < Math.min(S.dur, vw[1]); t++) fn(t, g.x(t, vw)); };
+  const T = S.tracks || {};
+  for (const r of rows()) {
+    if (r.group) {
+      c.fillStyle = cssVar("var(--dim)"); c.globalAlpha = 0.7; c.font = "10px -apple-system, system-ui, sans-serif";
+      c.fillText(r.group.toUpperCase(), 6, r.y + 8); c.font = "12px -apple-system, system-ui, sans-serif"; c.globalAlpha = 1;
+      c.strokeStyle = cssVar("var(--line)"); c.beginPath(); c.moveTo(NAME, r.y + 8); c.lineTo(g.w - 6, r.y + 8); c.stroke();
+      continue;
+    }
+    const y = r.y, mid = y + r.h / 2;
+    if (r.label || r.type === "output") { c.fillStyle = "rgba(255,255,255,0.05)"; c.fillRect(0, y - 1, g.w, r.h + 2); }
+    const stale = r.source && isStale(r.source);
+    c.fillStyle = r.dim ? cssVar("var(--dim)") : (r.label || r.type === "output" ? "#fff" : cssVar("var(--dim)"));
+    c.font = (r.label || r.type === "output" ? "600 " : "") + (r.h < 14 ? "11px" : "12px") + " -apple-system, system-ui, sans-serif";
+    c.fillText(r.name + (stale ? " ⚠︎" : ""), 6, mid); c.font = "12px -apple-system, system-ui, sans-serif";
+    c.fillStyle = cssVar("var(--dim)"); c.fillText("ⓘ", NAME - 18, mid);
+    if (r.type === "heat" || r.type === "output") {
+      const v = T[r.type === "output" ? "probability" : r.track], col = r.type === "output" ? [229, 72, 77] : r.color;
+      if (v) secs((t, x) => { const a = (v[t] || 0) / 100; if (a > 0.02) { c.fillStyle = `rgba(${col[0]},${col[1]},${col[2]},${a})`; c.fillRect(x, y + (r.type === "output" ? 1 : 0), Math.max(1, px), r.type === "output" ? 6 : r.h); } });
+      else if (r.type === "heat") { c.fillStyle = cssVar("var(--dim)"); c.fillText("run adbreak features / adbreak-ml evaluate", NAME + 6, mid); }
+    }
+    if (r.type === "captions") {
+      const vis = T.caption_visible, roll = T.caption_roll_up, nw = T.caption_new;
+      if (vis) secs((t, x) => {
+        if (vis[t]) { const tall = roll && roll[t]; c.fillStyle = SOURCE_COLOR.captions; c.fillRect(x, tall ? y : y + 4, Math.max(1, px), tall ? r.h : r.h - 8); }
+        if (nw && nw[t] && px > 2) { c.fillStyle = "#fff"; c.fillRect(x, y, 1, 3); }
+      });
+      else secs((t, x) => { if (S.covered[t]) { c.fillStyle = SOURCE_COLOR.captions; c.fillRect(x, y + 4, Math.max(1, px), r.h - 8); } });
+    }
+    if (r.type === "ticks" && T.edges) {
+      c.fillStyle = "#fff";
+      for (const e of T.edges) if (e >= vw[0] && e <= vw[1]) c.fillRect(g.x(e, vw) - 0.5, y, 1.5, r.h);
+    }
+    if (r.type === "reviewed") {
+      c.fillStyle = "#30a46c";
+      for (const rv of S.labels.reviewed) {
+        const x0 = Math.max(NAME, g.x(rv.start, vw)), x1 = Math.min(g.w - 6, g.x(rv.end, vw));
+        if (x1 > x0) c.fillRect(x0, y + 2, x1 - x0, r.h - 4);
+      }
+    }
+    if (r.spans) r.spans.forEach((sp, j) => {
+      if (sp.end < vw[0] || sp.start > vw[1]) return;
+      const x0 = Math.max(NAME, g.x(sp.start, vw)), x1 = Math.min(g.w - 6, g.x(sp.end, vw));
+      const top = r.type === "output" ? y + 8 : y + 3, hh = r.type === "output" ? r.h - 10 : r.h - 6;
+      c.fillStyle = r.label ? cssVar(KIND_COLOR[sp.kind || "ad"]) : r.type === "output" ? "#e5484d" : (SOURCE_COLOR[r.name] || "#888");
+      c.globalAlpha = r.label ? 0.9 : r.dim ? 0.4 : 0.75; c.fillRect(x0, top, Math.max(2, x1 - x0), hh); c.globalAlpha = 1;
+      const isSel = sel && ((sel.label && r.label && sel.i === j) || (sel.source && sel.source === r.source && sel.i === j && !r.label));
+      if (isSel) { c.strokeStyle = "#fff"; c.lineWidth = 2; c.strokeRect(x0, top - 1, Math.max(2, x1 - x0), hh + 2); c.lineWidth = 1; }
+    });
   }
   // pending start, playhead
   if (pending !== null) { c.strokeStyle = cssVar("var(--ad)"); c.setLineDash([4, 3]); const x = g.x(pending.t, vw); c.beginPath(); c.moveTo(x, TOP); c.lineTo(x, g.h); c.stroke(); c.setLineDash([]); }
@@ -322,9 +365,10 @@ function draw() {
 function hit(ev) {
   const g = geometry(), vw = view(), r = tl.getBoundingClientRect();
   const x = ev.clientX - r.left, y = ev.clientY - r.top;
-  const t = Math.min(S.dur, Math.max(0, g.t(x, vw))), row = Math.floor((y - TOP) / ROW), all = rows();
+  const t = Math.min(S.dur, Math.max(0, g.t(x, vw)));
+  const row = rows().find((r) => !r.group && y >= r.y && y < r.y + r.h + 2);
   const tol = 5 * (vw[1] - vw[0]) / (g.w - NAME);
-  return { t, x, row: all[row], tol };
+  return { t, x, row, tol };
 }
 
 // Pointer: drag a selected break's edge to move it; otherwise press and drag anywhere to scrub. Clicking a span
@@ -352,7 +396,7 @@ tl.addEventListener("pointerdown", (ev) => {
   tl.setPointerCapture(ev.pointerId);
   const e = edgeAt(h);
   if (e) { sel = { label: true, i: e.i }; drag = e.edge; renderList(); return; }
-  if (h.row) {
+  if (h.row && h.row.spans) {
     const j = h.row.spans.findIndex((s) => s.start <= h.t && h.t < s.end);
     if (j >= 0) sel = h.row.label ? { label: true, i: j } : { source: h.row.source, i: j };
     else if (h.row.label) sel = null;
@@ -424,22 +468,20 @@ function isStale(name) {
 // Row ⓘ popovers: hover over a row's name to see what it is; click to keep it open.
 let infoPinned = null;
 function rowAt(y) {
-  const n = rows().length, yc = TOP + n * ROW + 2;
-  if (y >= TOP && y < TOP + n * ROW) return rows()[Math.floor((y - TOP) / ROW)].name;
-  if (y >= yc - 2 && y < yc + 10) return "captioned";
-  if (y >= yc + 10 && y < yc + 22) return "reviewed";
-  return null;
+  const r = rows().find((r) => !r.group && y >= r.y && y < r.y + r.h + 2);
+  return r ? r.name : null;
 }
 function showInfo(name, y) {
   const box = $("info");
   if (!name) { box.hidden = true; return; }
   const esc = (x) => String(x).replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]);
-  const src = S.sources.find((s) => s.name === name), sc = S.scores && S.scores[name];
+  const key = name === "fusion" ? "model" : name;
+  const src = S.sources.find((s) => s.name === key), sc = S.scores && S.scores[key];
   const pct = (x) => `${Math.round(100 * x)}%`;
   let html = `<h4>${esc(name)}</h4><span>${esc(ROW_INFO[name] || "A source of suggested breaks.")}</span>`;
   if (name === "labels") html += `<span class="detail">${S.labels.breaks.length} breaks${S.labels.notes ? " · " + esc(S.labels.notes) : ""}</span>`;
-  if (src && isStale(name)) html += `<span class="detail" style="display:block;color:var(--promo)">⚠︎ Stale: trained before the labels last changed. Run <code>uv run adbreak-ml refresh</code> in ml/ to retrain.</span>`;
-  else if (src && !src.trained_on && ["frames-lr", "frames-zeroshot", "fusion", "model"].includes(name)) html += `<span class="detail" style="display:block;color:var(--promo)">⚠︎ Trained before training was tracked: treat as stale.</span>`;
+  if (src && isStale(key)) html += `<span class="detail" style="display:block;color:var(--promo)">⚠︎ Stale: trained before the labels last changed. Run <code>uv run adbreak-ml refresh</code> in ml/ to retrain.</span>`;
+  else if (src && !src.trained_on && key === "model") html += `<span class="detail" style="display:block;color:var(--promo)">⚠︎ Trained before training was tracked: treat as stale.</span>`;
   if (src) {
     html += `<span class="detail" style="display:block">${src.breaks.length} breaks${src.detail ? " · " + esc(src.detail) : ""}</span>`;
     if (sc) html += `<table class="detail"><tr><td>on this recording</td><td>precision ${pct(sc.precision)}</td><td>recall ${pct(sc.recall)}</td><td>F1 ${pct(sc.f1)}</td></tr>`
@@ -501,7 +543,8 @@ function addBreak(start, end, kind) {
 }
 function edges() {
   const e = [];
-  for (const r of rows()) for (const s of r.spans) e.push(s.start, s.end);
+  for (const r of rows()) for (const s of r.spans || []) e.push(s.start, s.end);
+  for (const x of (S.tracks && S.tracks.edges) || []) e.push(x);
   return e.sort((a, b) => a - b);
 }
 function changed() {

@@ -173,20 +173,32 @@ def export(recs: list[Recording], out: Path, vector_secs: int = 600) -> None:
 
 
 def evaluate(recs: list[Recording]) -> None:
-    """Leave-one-recording-out, as exported: each labelled recording's breaks from frame and tree models trained
-    on the others only, written as the "model" suggestion (score with `adbreak eval`)."""
+    """The shipped model's results for every recording, written as the "model" suggestion (score with `adbreak
+    eval`) and, per second, as `features/model-out.json` (the picture score and the final probability, for the
+    labelling page). Labelled recordings: leave-one-recording-out, from frame and tree models trained on the others
+    only. Unlabelled ones: from models trained on every labelled recording (a first draft to label against)."""
     from .baseline import save_source
+    from .data import labels_fingerprint
 
     data = [Data(r) for r in recs if r.features(RUST).with_suffix(".json").exists()]
     labelled = [d for d in data if (d.y != IGNORE).any()]
-    for d in labelled:
-        others = [o for o in labelled if o is not d]
-        # Out-of-fold frame probabilities for the others, from frame models that saw neither them nor d.
-        oof = {o.rec.id: frame_model([q for q in others if q is not o]).predict_proba(o.x)[:, 1] for o in others}
-        trees = fit_trees(others, oof)
-        p_frame = frame_model(others).predict_proba(d.x)[:, 1]
+    fp = labels_fingerprint()
+
+    def write(d: Data, train: list[Data], how: str) -> None:
+        oof = {o.rec.id: frame_model([q for q in train if q is not o]).predict_proba(o.x)[:, 1] for o in train}
+        trees = fit_trees(train, oof)
+        p_frame = frame_model(train).predict_proba(d.x)[:, 1]
         prob = trees.predict_proba(table(d, p_frame))[:, 1]
         edges = [float(e) for e in d.edges if e > -1e8]
         breaks = [{"start": a, "end": b} for a, b in to_breaks(prob, edges)]
-        save_source(d.rec, "model", f"adbreak-model inputs (rust-v1), leave-one-recording-out over {len(labelled)}", breaks)
+        save_source(d.rec, "model", f"adbreak-model inputs (rust-v1), {how}", breaks)
+        out = d.rec.features(RUST).parent / "model-out.json"
+        out.write_text(json.dumps({"trained_on": fp, "how": how, "picture": [round(float(v), 3) for v in p_frame],
+                                   "probability": [round(float(v), 3) for v in prob]}))
         print(f"  {d.rec.id}: {len(breaks)} breaks")
+
+    for d in labelled:
+        write(d, [o for o in labelled if o is not d], f"leave-one-recording-out over {len(labelled)}")
+    for d in data:
+        if d not in labelled:
+            write(d, labelled, f"trained on all {len(labelled)} labelled recordings")

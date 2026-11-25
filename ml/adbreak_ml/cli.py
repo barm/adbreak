@@ -52,11 +52,11 @@ def main() -> None:
         ready = [r for r in recs if all(r.features(n).exists() for n in (embed.NAME, captions.NAME, av.NAME))]
         fusion.run(ready, embed.NAME)
         print("model")
-        export.evaluate(labelled)
+        export.evaluate(recs)
     elif a.command == "evaluate":
         from . import export
 
-        export.evaluate([r for r in recs if r.labels])
+        export.evaluate(recs)
     elif a.command == "baseline":
         baseline.run([r for r in recs if r.features(embed.NAME).exists() and r.labels])
     else:
