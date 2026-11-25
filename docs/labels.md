@@ -1,6 +1,6 @@
 # Labels
 
-What the labels in `dataset/<id>/labels.json` mean, and how to place them. The labelling page (`adbreak label`)
+What the labels (in the adbreak database; `dataset/<id>/labels.json` in a snapshot) mean, and how to place them. The labelling page (`adbreak label`)
 writes them; `adbreak eval` and the model's training read them.
 
 ## Principle

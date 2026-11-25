@@ -9,7 +9,7 @@ import numpy as np
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score
 
-from .data import BREAK, DATASET, IGNORE, Recording, load_features, second_labels
+from .data import BREAK, IGNORE, Recording, load_features, second_labels
 from .embed import NAME
 
 AD_PROMPTS = ["a TV commercial", "an advertisement for a product", "a car commercial", "a lawyer advertisement on TV",
@@ -61,14 +61,9 @@ def to_breaks(t: np.ndarray, p: np.ndarray, smooth: int = 15, threshold: float =
 
 def save_source(rec: Recording, name: str, detail: str, breaks: list[dict]) -> None:
     """Writes a learned source's breaks, with the labels fingerprint it was trained against (see labels_fingerprint)."""
-    from .data import labels_fingerprint
+    from . import data
 
-    path = DATASET / rec.id / "suggestions.json"
-    s = json.loads(path.read_text()) if path.exists() else {"format": 1, "recording": rec.meta, "sources": []}
-    new = {"name": name, "detail": detail, "breaks": breaks, "trained_on": labels_fingerprint()}
-    s["sources"] = sorted([x for x in s["sources"] if x["name"] != name] + [new], key=lambda x: x["name"])
-    path.write_text(json.dumps(s, indent=2) + "\n")
-
+    data.save_source(rec.id, {"name": name, "detail": detail, "breaks": breaks, "trained_on": data.labels_fingerprint()})
 
 def run(recs: list[Recording]) -> None:
     data = {}

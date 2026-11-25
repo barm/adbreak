@@ -1,7 +1,8 @@
 # ml
 
-Python for training. Reads `../dataset/` (labels, suggestions) and the media store (`ADBREAK_MEDIA`, default
-`~/Movies/adbreak`); features live there too (`<id>/features/`), never in git.
+Python for training. Reads the adbreak database (`ADBREAK_DB`, default
+`~/Library/Application Support/adbreak/adbreak.db`: recordings, labels, suggestions; it writes its sources there) and
+the media store (`ADBREAK_MEDIA`, default `~/Movies/adbreak`); features live there too (`<id>/features/`), never in git.
 
 The shipped model trains on the inputs `adbreak features` computes in Rust (`rust-v1`), the same code a recorder
 runs, and exports for `rust/crates/adbreak-model`:

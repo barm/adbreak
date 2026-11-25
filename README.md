@@ -63,9 +63,13 @@ decoding, which a recorder does anyway.
 - `ml/`: Python for training and export (see `ml/README.md`).
 - `web/`: the Adbreak app (labelling, and the Model page), a React app on the Astryx design system. Optional and separate from the Rust code:
   build it with `cd web && npm ci && npm run build`, and `adbreak label` serves `web/dist` (or `--web <dir>`).
-- `dataset/`: one directory per recording: `recording.json`, `labels.json` (a person's, or an assistant's to be
-  checked) and `suggestions.json` (what each automatic source said). No media: recordings live in the media store
-  (`ADBREAK_MEDIA`, default `~/Movies/adbreak`), outside the repository, because broadcasts can't be redistributed.
+- The dataset lives in a SQLite database (`ADBREAK_DB`, default `~/Library/Application Support/adbreak/adbreak.db`;
+  the `adbreak-db` crate): each recording's metadata, its labels (every save kept) and what each automatic source
+  said. The app saves labels there as you go and training reads and writes the same database. `dataset/` in this
+  repository is a **snapshot**: `adbreak dataset export` writes one (one directory per recording: `recording.json`,
+  `labels.json`, `suggestions.json`) to commit or publish; `adbreak dataset import` reads one into the database. No
+  media: recordings live in the media store (`ADBREAK_MEDIA`, default `~/Movies/adbreak`), outside the repository,
+  because broadcasts can't be redistributed.
 
 Decoding and the small copies use [barm/avkit](https://github.com/barm/avkit) (VideoToolbox, AudioToolbox, Core
 ML), so the tools run on macOS.
@@ -104,8 +108,8 @@ adbreak eval --each
 
 An import directory holds `recording.json` (`adbreak_labels::Recording`), `media.mp4` (a fragmented MP4 with HEVC
 video and AAC sound), and optionally `captions.vtt`, `suggestions.json` (sources the recorder already has, such as
-its own break scan) and `labels.json`. Recordings are named by their dataset id or any unique part of it. Run the
-commands from the repository root so `dataset/` is this repository's (or pass `--dataset`).
+its own break scan) and `labels.json`. Recordings are named by their dataset id or any unique part of it. Every command uses
+the database (`--db`, `ADBREAK_DB`); start one from the snapshot with `adbreak dataset import dataset`.
 
 On the labelling page, `[` and `]` mark a break's start and end, `A` accepts a selected suggestion, `N`/`P` jump
 between the sources' edges and `R` marks everything up to the playhead as reviewed: only reviewed time is scored,
