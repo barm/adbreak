@@ -1,4 +1,4 @@
-//! `adbreak features`: the model's per-second inputs from a recording's copy, through the same code the DVR uses
+//! `adbreak features`: the model's per-second inputs from a recording's copy, through the same code a recorder uses to detect breaks
 //! (avkit's decoder, adbreak-features), written for training: `features/rust-v1.f32` (rows of the embedding then
 //! has_captions, visible, roll_up, new_cue, black, silent; little-endian f32) and `rust-v1.json` (shape, edges).
 

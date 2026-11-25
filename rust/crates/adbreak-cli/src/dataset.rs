@@ -39,7 +39,7 @@ impl Dataset {
         ids
     }
 
-    /// The recording `name` refers to: its full id, or a unique part of one (such as the DVR job number).
+    /// The recording `name` refers to: its full id, or a unique part of one (such as the recorder's job number).
     pub fn resolve(&self, name: &str) -> Result<String> {
         let ids = self.ids();
         if ids.iter().any(|i| i == name) {
@@ -121,7 +121,7 @@ mod tests {
         let root = std::env::temp_dir().join(format!("adbreak-ds-{}", std::process::id()));
         let d = Dataset::new(root.join("dataset"), root.join("media"));
         let rec =
-            Recording { source: "dvr".into(), job: 32, channel: "2.1".into(), start: "2026-11-24T07:06:41Z".into(), duration: 60.0, ..Default::default() };
+            Recording { source: "recorder".into(), job: 32, channel: "2.1".into(), start: "2026-11-24T07:06:41Z".into(), duration: 60.0, ..Default::default() };
         let id = d.save_recording(&rec).unwrap();
         assert_eq!(id, "2026-11-24_2.1_32");
         assert_eq!(d.resolve("32").unwrap(), id);
@@ -129,11 +129,11 @@ mod tests {
         assert!(d.resolve("3").is_err() || d.resolve("3").unwrap() == id);
         assert!(d.resolve("99").is_err());
         let src = |name: &str, n: usize| Source { name: name.into(), detail: String::new(), breaks: vec![adbreak_labels::Span::new(0.0, 1.0); n] };
-        d.save_sources(&id, &rec, vec![src("dvr", 1), src("captions", 2)]).unwrap();
+        d.save_sources(&id, &rec, vec![src("recorder", 1), src("captions", 2)]).unwrap();
         d.save_sources(&id, &rec, vec![src("captions", 3)]).unwrap();
         let e = d.entry(&id).unwrap();
         let s = e.suggestions.unwrap();
-        assert_eq!(s.sources.iter().map(|s| (s.name.as_str(), s.breaks.len())).collect::<Vec<_>>(), vec![("captions", 3), ("dvr", 1)]);
+        assert_eq!(s.sources.iter().map(|s| (s.name.as_str(), s.breaks.len())).collect::<Vec<_>>(), vec![("captions", 3), ("recorder", 1)]);
         std::fs::remove_dir_all(root).unwrap();
     }
 }

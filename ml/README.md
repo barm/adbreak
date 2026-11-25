@@ -1,7 +1,20 @@
 # ml
 
 Python for training. Reads `../dataset/` (labels, suggestions) and the media store (`ADBREAK_MEDIA`, default
-`~/Movies/adbreak`); caches features there too (`<id>/features/*.npz`), never in git.
+`~/Movies/adbreak`); features live there too (`<id>/features/`), never in git.
+
+The shipped model trains on the inputs `adbreak features` computes in Rust (`rust-v1`), the same code a recorder
+runs, and exports for `rust/crates/adbreak-model`:
+
+```sh
+adbreak features <ids...>            # from the repository root: per-second inputs, Rust (avkit, Core ML)
+cd ml && uv sync
+uv run adbreak-ml evaluate           # leave-one-recording-out; written as the "model" suggestion
+uv run adbreak-ml export DIR         # model.json and test_vector.json (the image encoder's .mlpackage goes beside it)
+cd .. && adbreak eval --each         # scores every source
+```
+
+The commands below are the experiments that led there, on features Python computes itself (ffmpeg decoding).
 
 ```sh
 cd ml
@@ -17,8 +30,6 @@ cd .. && adbreak eval --each # scores them next to Comskip
   edge). See `adbreak_ml/data.py`.
 - Every score is leave-one-recording-out: a recording's predictions come from a model that never saw it. With one
   recording per network so far, that is also a test on an unseen network.
-
-Decoding is ffmpeg (Homebrew) for now; it should move to avkit so training sees the same pictures the DVR will.
 
 ## Fusion
 

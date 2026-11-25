@@ -1,7 +1,7 @@
 {
   "format": 1,
   "recording": {
-    "source": "dvr",
+    "source": "recorder",
     "job": 11,
     "channel": "11.1",
     "network": "KNTV HD",

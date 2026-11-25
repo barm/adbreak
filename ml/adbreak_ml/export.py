@@ -24,7 +24,7 @@ RUST = "rust-v1"
 
 
 class Data:
-    """A recording's per-second inputs as `adbreak features` computes them (the DVR's code), and its labels."""
+    """A recording's per-second inputs as `adbreak features` computes them (the code a recorder runs), and its labels."""
 
     def __init__(self, rec: Recording, _name: str = RUST):
         self.rec = rec

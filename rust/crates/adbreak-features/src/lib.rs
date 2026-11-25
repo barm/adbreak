@@ -1,9 +1,9 @@
 //! Per-second inputs for [`adbreak_model`] from a recording, computed the same way for training (`adbreak
-//! features`) and for detection (the DVR).
+//! features`) and for detection (a recorder scanning as it records).
 //!
 //! Feed an [`Extractor`] what a decoder produces, in presentation order and on the recording's clock:
 //! - small grey pictures and mono sound ([`Extractor::push_frame`], [`Extractor::push_audio`]), about 10 a second
-//!   at 480×270 (as the DVR scans), for black, silence and the black-and-silent edges (the adbreak detector);
+//!   at 480×270, for black, silence and the black-and-silent edges (the adbreak detector);
 //! - one colour picture a second ([`Extractor::push_color`]), the whole picture squashed to the embedder's size,
 //!   planar RGB 0–1, for the picture embedding.
 //!

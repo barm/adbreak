@@ -35,7 +35,7 @@ struct Cli {
 #[derive(Subcommand)]
 enum Cmd {
     /// Add a recording from an import directory: `recording.json` (adbreak_labels::Recording), `media.mp4` (a
-    /// fragmented MP4, HEVC and AAC, as barm/dvr records), and optionally `captions.vtt`, `suggestions.json` and
+    /// fragmented MP4, HEVC and AAC), and optionally `captions.vtt`, `suggestions.json` and
     /// `labels.json`.
     Import {
         dirs: Vec<PathBuf>,
@@ -56,7 +56,7 @@ enum Cmd {
         quick: bool,
     },
     /// Compute the per-second model inputs from a recording's copy (picture embeddings, captions, black and
-    /// silence), as the DVR computes them, for training: `features/rust-v1.f32` and `.json` in the media store.
+    /// silence), as a recorder computes them, for training: `features/rust-v1.f32` and `.json` in the media store.
     Features {
         #[arg(required = true)]
         ids: Vec<String>,
