@@ -17,7 +17,7 @@ from .data import load_features, recordings
 def main() -> None:
     warnings.filterwarnings("ignore")
     ap = argparse.ArgumentParser(prog="adbreak-ml")
-    ap.add_argument("command", choices=["features", "baseline", "fusion", "export"])
+    ap.add_argument("command", choices=["features", "baseline", "fusion", "export", "evaluate"])
     ap.add_argument("out", nargs="?", default="model")
     a = ap.parse_args()
     recs = [r for r in recordings() if r.media.is_file()]
@@ -39,8 +39,11 @@ def main() -> None:
 
         from . import export
 
-        ready = [r for r in recs if all(r.features(n).exists() for n in (embed.NAME, captions.NAME, av.NAME)) and r.labels]
-        export.export(ready, Path(a.out))
+        export.export([r for r in recs if r.labels], Path(a.out))
+    elif a.command == "evaluate":
+        from . import export
+
+        export.evaluate([r for r in recs if r.labels])
     elif a.command == "baseline":
         baseline.run([r for r in recs if r.features(embed.NAME).exists() and r.labels])
     else:

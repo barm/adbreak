@@ -13,13 +13,16 @@ path = "src/main.rs"
 [dependencies]
 adbreak = { path = "../adbreak" }
 adbreak-captions = { path = "../adbreak-captions" }
+adbreak-features = { path = "../adbreak-features", features = ["coreml"] }
+adbreak-model = { path = "../adbreak-model" }
 adbreak-labels = { path = "../adbreak-labels" }
 anyhow = "1"
 axum = "0.8"
 clap = { version = "4", features = ["derive", "env"] }
 # Hardware decoding and the small copy (macOS). Bump the rev to take changes.
-fmp4-scan = { git = "https://github.com/barm/avkit", rev = "0ad3764d3396372ae7dd0dc712d2dc5cae22d5b7" }
-fmp4-shrink = { git = "https://github.com/barm/avkit", rev = "0ad3764d3396372ae7dd0dc712d2dc5cae22d5b7" }
+fmp4 = { git = "https://github.com/barm/avkit", rev = "936b263bae47ae165b9b5078065cbdbb2baf144d" }
+fmp4-scan = { git = "https://github.com/barm/avkit", rev = "936b263bae47ae165b9b5078065cbdbb2baf144d" }
+fmp4-shrink = { git = "https://github.com/barm/avkit", rev = "936b263bae47ae165b9b5078065cbdbb2baf144d" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "fs", "net"] }

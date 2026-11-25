@@ -1,0 +1,17 @@
+[package]
+name = "adbreak-features"
+version = "0.1.0"
+edition = "2024"
+description = "Per-second inputs for adbreak-model from a recording's decoded pictures, sound and captions: black, silence and their edges (the adbreak detector), caption timing, and picture embeddings (Core ML, on macOS, with the coreml feature)."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/barm/adbreak"
+
+[features]
+coreml = ["dep:apple-coreml"]
+
+[dependencies]
+adbreak = { path = "../adbreak" }
+adbreak-captions = { path = "../adbreak-captions" }
+adbreak-model = { path = "../adbreak-model" }
+anyhow = "1"
+apple-coreml = { git = "https://github.com/barm/avkit", rev = "936b263bae47ae165b9b5078065cbdbb2baf144d", optional = true }

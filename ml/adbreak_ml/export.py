@@ -17,7 +17,31 @@ from sklearn.linear_model import LogisticRegression
 
 from .data import BREAK, IGNORE, Recording
 from .embed import NAME as EMBED, MODEL as IMAGE_MODEL
-from .fusion import WINDOWS, Data, window_mean
+from .data import second_labels
+from .fusion import WINDOWS, window_mean
+
+RUST = "rust-v1"
+
+
+class Data:
+    """A recording's per-second inputs as `adbreak features` computes them (the DVR's code), and its labels."""
+
+    def __init__(self, rec: Recording, _name: str = RUST):
+        self.rec = rec
+        d = rec.features(RUST).parent
+        meta = json.loads((d / f"{RUST}.json").read_text())
+        raw = np.fromfile(d / f"{RUST}.f32", np.float32).reshape(meta["rows"], meta["dim"] + 6)
+        x = raw[:, : meta["dim"]].copy()
+        # Seconds without a picture: the previous second's (adbreak-model carries the previous probability).
+        for i in range(len(x)):
+            if np.isnan(x[i, 0]):
+                x[i] = x[i - 1] if i else 0.0
+        self.x = x
+        self.t = np.arange(meta["rows"], dtype=np.float64)
+        self.y = second_labels(rec, self.t)
+        self.cap = raw[:, meta["dim"] : meta["dim"] + 4].astype(np.float64)
+        self.av = raw[:, meta["dim"] + 4 :].astype(np.float64)
+        self.edges = np.array(meta["edges"]) if meta["edges"] else np.array([-1e9])
 
 FORMAT = 1
 EDGE_CAP = 120.0
@@ -117,7 +141,7 @@ def to_breaks(p: np.ndarray, edges: list[float]) -> list[tuple[float, float]]:
 
 
 def export(recs: list[Recording], out: Path, vector_secs: int = 600) -> None:
-    data = [Data(r, EMBED) for r in recs]
+    data = [Data(r) for r in recs if r.features(RUST).with_suffix(".json").exists()]
     labelled = [d for d in data if (d.y != IGNORE).any()]
     oof = {d.rec.id: frame_model([o for o in labelled if o is not d]).predict_proba(d.x)[:, 1] for d in labelled}
     trees = fit_trees(labelled, oof)
@@ -146,3 +170,23 @@ def export(recs: list[Recording], out: Path, vector_secs: int = 600) -> None:
     (out / "test_vector.json").write_text(json.dumps(vec))
     print(f"exported to {out}: {len(tj)} trees, trained on {len(labelled)} recordings; test vector {d.rec.id} "
           f"({n} s, {len(vec['breaks'])} breaks)")
+
+
+def evaluate(recs: list[Recording]) -> None:
+    """Leave-one-recording-out, as exported: each labelled recording's breaks from frame and tree models trained
+    on the others only, written as the "model" suggestion (score with `adbreak eval`)."""
+    from .baseline import save_source
+
+    data = [Data(r) for r in recs if r.features(RUST).with_suffix(".json").exists()]
+    labelled = [d for d in data if (d.y != IGNORE).any()]
+    for d in labelled:
+        others = [o for o in labelled if o is not d]
+        # Out-of-fold frame probabilities for the others, from frame models that saw neither them nor d.
+        oof = {o.rec.id: frame_model([q for q in others if q is not o]).predict_proba(o.x)[:, 1] for o in others}
+        trees = fit_trees(others, oof)
+        p_frame = frame_model(others).predict_proba(d.x)[:, 1]
+        prob = trees.predict_proba(table(d, p_frame))[:, 1]
+        edges = [float(e) for e in d.edges if e > -1e8]
+        breaks = [{"start": a, "end": b} for a, b in to_breaks(prob, edges)]
+        save_source(d.rec, "model", f"adbreak-model inputs (rust-v1), leave-one-recording-out over {len(labelled)}", breaks)
+        print(f"  {d.rec.id}: {len(breaks)} breaks")
