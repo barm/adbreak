@@ -54,7 +54,8 @@ export function createEngine(env) {
   // What each timeline row is, for its ⓘ popover.
   const ROW_INFO = {
     labels: "The ground truth, and the row you edit, marking what is on screen: red commercial break (the programme is gone), blue double box (the programme shrunk beside an ad), amber ad read (advertising over the full-screen programme), purple paid programming. Unlabelled reviewed time is programme. Detectors are scored on commercial breaks.",
-    fusion: "The model's output: its commercial-break probability each second (the strip; brighter is more likely a break), and what it finds (the bars, coloured by kind like the labels: commercial breaks snapped to black-and-silent edges, and double boxes and ad reads from their own outputs below). The product of the input rows below. Scored on a model that never saw this recording.",
+    fusion: "The model's output: what it finds (the bars, coloured by kind like the labels: commercial breaks snapped to black-and-silent edges, and double boxes and ad reads from their own outputs below). The product of the input rows below. Scored on a model that never saw this recording.",
+    break: "Output: how likely each second is a commercial break (brighter is more likely), from every input: the picture, captions, black, silence and edges. Its runs, snapped to black-and-silent edges, are the commercial breaks on the fusion row.",
     "double box": "Output: how likely each second is a double box (the programme shrunk beside an ad), from the picture alone averaged over ±5 s. Its runs show on the fusion row in blue. Weak until more double boxes are labelled.",
     "ad read": "Output: how likely each second is an ad read (advertising over the full-screen programme), from the picture alone averaged over ±5 s. Its runs show on the fusion row in amber. Weak until more ad reads are labelled.",
     picture: "Input: how much each second's picture looks like an ad, from the image model (MobileCLIP2) and a classifier trained on the labels. One picture a second; brighter is more ad-like.",
@@ -75,6 +76,8 @@ export function createEngine(env) {
     const model = S.sources.find((x) => x.name === "model");
     r.push({ group: "output" });
     r.push({ name: "fusion", type: "output", spans: model ? model.breaks : [], source: model ? "model" : null, h: ROW });
+    // Its outputs, each second: commercial break, then the other kinds.
+    r.push({ name: "break", type: "heat", track: "probability", color: [229, 72, 77], h: 10 });
     // The other kinds' outputs, when the model has them: their probability, each second.
     for (const k of ["double_box", "ad_read"]) if (S.tracks && S.tracks.kinds && S.tracks.kinds[k]) r.push({ name: KIND_NAME[k], type: "heat", kindTrack: k, color: KIND_RGB[k], h: 10 });
     r.push({ group: "inputs" });
@@ -151,8 +154,8 @@ export function createEngine(env) {
       c.font = (r.label || r.type === "output" ? "600 " : "") + (r.h < 14 ? "11px" : "12px") + " -apple-system, system-ui, sans-serif";
       c.fillText(r.name + (stale ? " ⚠︎" : ""), 6, mid); c.font = "12px -apple-system, system-ui, sans-serif";
     
-      if (r.type === "heat" || r.type === "output") {
-        const v = r.kindTrack ? T.kinds[r.kindTrack] : T[r.type === "output" ? "probability" : r.track], col = r.type === "output" ? [229, 72, 77] : r.color;
+      if (r.type === "heat") {
+        const v = r.kindTrack ? T.kinds[r.kindTrack] : T[r.track], col = r.color;
         if (v) secs((t, x) => { const a = (v[t] || 0) / 100; if (a > 0.02) { c.fillStyle = `rgba(${col[0]},${col[1]},${col[2]},${a})`; c.fillRect(x, y + (r.type === "output" ? 1 : 0), Math.max(1, px), r.type === "output" ? 6 : r.h); } });
         else if (r.type === "heat") { c.fillStyle = cssVar("var(--dim)"); c.fillText("run adbreak features / adbreak-ml evaluate", NAME + 6, mid); }
       }
@@ -190,7 +193,7 @@ export function createEngine(env) {
       if (r.spans) r.spans.forEach((sp, j) => {
         if (sp.end < vw[0] || sp.start > vw[1]) return;
         const x0 = Math.max(NAME, g.x(sp.start, vw)), x1 = Math.min(g.w - 6, g.x(sp.end, vw));
-        const top = r.type === "output" ? y + 8 : y + 3, hh = r.type === "output" ? r.h - 10 : r.h - 6;
+        const top = y + 3, hh = r.h - 6;
         c.fillStyle = r.label || r.type === "output" ? cssVar(KIND_COLOR[sp.kind || "ad"]) : (SOURCE_COLOR[r.name] || "#888");
         c.globalAlpha = r.label ? 0.9 : r.dim ? 0.4 : 0.75; c.fillRect(x0, top, Math.max(2, x1 - x0), hh); c.globalAlpha = 1;
         if (r.label) {
