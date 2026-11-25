@@ -29,7 +29,7 @@ fn unbuilt(web: &std::path::Path) -> String {
 }
 
 /// Serves the labelling page (the web app's build in `web`, from `web/`: `npm run build`) and its API.
-pub async fn serve(data: Dataset, bind: &str, web: &std::path::Path) -> Result<()> {
+pub async fn serve(data: Dataset, bind: &str, web: &std::path::Path, model_dir: &std::path::Path, ml: &std::path::Path) -> Result<()> {
     let root = std::fs::canonicalize(&data.root).unwrap_or_else(|_| data.root.clone());
     let web = std::fs::canonicalize(web).unwrap_or_else(|_| web.to_path_buf());
     let page = if web.join("index.html").is_file() {
@@ -39,6 +39,7 @@ pub async fn serve(data: Dataset, bind: &str, web: &std::path::Path) -> Result<(
         tower_http::services::ServeDir::new(&web)
     };
     let missing = unbuilt(&web);
+    let data = Arc::new(data);
     let router = Router::new()
         .route(
             "/",
@@ -58,8 +59,9 @@ pub async fn serve(data: Dataset, bind: &str, web: &std::path::Path) -> Result<(
         .route("/api/recordings/{id}/labels", axum::routing::put(save))
         .route("/api/recordings/{id}/inputs", get(inputs))
         .route("/files/{id}/{file}", get(file))
-        .fallback_service(page)
-        .with_state(Arc::new(data));
+        .with_state(data.clone())
+        .merge(crate::model::router(Arc::new(crate::model::Model::new(data, model_dir.to_path_buf(), ml.to_path_buf()))))
+        .fallback_service(page);
     let listener = tokio::net::TcpListener::bind(bind).await?;
     eprintln!("labelling on http://{}  (dataset {})", listener.local_addr()?, root.display());
     axum::serve(listener, router).await?;
@@ -133,7 +135,7 @@ struct Detail {
 }
 
 /// FNV-1a 64 over every recording's labels.json, in id order; `adbreak_ml.data.labels_fingerprint` computes the same.
-fn fingerprint(data: &Dataset) -> String {
+pub(crate) fn fingerprint(data: &Dataset) -> String {
     let mut h = 0xcbf2_9ce4_8422_2325u64;
     for id in data.ids() {
         if let Ok(bytes) = std::fs::read(data.root.join(&id).join("labels.json")) {

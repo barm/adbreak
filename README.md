@@ -61,7 +61,7 @@ decoding, which a recorder does anyway.
   - `crates/adbreak-labels`: the dataset format (recordings, labels, suggestions) and scoring.
   - `crates/adbreak-cli`: the `adbreak` command, below.
 - `ml/`: Python for training and export (see `ml/README.md`).
-- `web/`: the labelling page, a React app on the Astryx design system. Optional and separate from the Rust code:
+- `web/`: the Adbreak app (labelling, and the Model page), a React app on the Astryx design system. Optional and separate from the Rust code:
   build it with `cd web && npm ci && npm run build`, and `adbreak label` serves `web/dist` (or `--web <dir>`).
 - `dataset/`: one directory per recording: `recording.json`, `labels.json` (a person's, or an assistant's to be
   checked) and `suggestions.json` (what each automatic source said). No media: recordings live in the media store

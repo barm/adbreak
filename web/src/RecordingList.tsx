@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { Layout, LayoutContent, LayoutHeader } from "@astryxdesign/core/Layout";
+import { Layout, LayoutContent } from "@astryxdesign/core/Layout";
 import { Table } from "@astryxdesign/core/Table";
-import { Heading, Text } from "@astryxdesign/core/Text";
+import { Text } from "@astryxdesign/core/Text";
 import { Link } from "@astryxdesign/core/Link";
 import { EmptyState } from "@astryxdesign/core/EmptyState";
 import { Stack } from "@astryxdesign/core/Stack";
 import { fmt } from "./editor/engine";
+import { AppHeader } from "./AppHeader";
 
 type Row = {
   id: string;
@@ -20,56 +21,53 @@ type Row = {
   sources: string[];
   media: boolean;
 };
+type Score = { id: string; model?: { f1: number } };
 
 const clock = (t: number) => fmt(t).replace(/\.\d$/, "");
+const when = (s: string) => new Date(s).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+const pct = (x: number) => `${Math.round(100 * x)}%`;
 
 /** Every imported recording, newest first. */
 export function RecordingList() {
   const [rows, setRows] = useState<Row[] | null>(null);
+  const [f1, setF1] = useState<Record<string, number>>({});
   const [error, setError] = useState("");
   useEffect(() => {
     fetch("/api/recordings")
       .then(async (r) => (r.ok ? r.json() : Promise.reject(new Error((await r.text()) || r.statusText))))
       .then(setRows, (e) => setError(e.message));
+    fetch("/api/model")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((m) => m && setF1(Object.fromEntries((m.recordings as Score[]).filter((r) => r.model).map((r) => [r.id, r.model!.f1]))))
+      .catch(() => {});
   }, []);
   const columns = [
     {
-      key: "id",
+      key: "title",
       header: "Recording",
-      renderCell: (r: Row) => (r.media ? <Link href={`#/${encodeURIComponent(r.id)}`}>{r.id}</Link> : <Text color="secondary">{r.id}</Text>),
+      width: { type: "proportional" as const, value: 3, minWidth: 260 },
+      renderCell: (r: Row) =>
+        r.media ? <Link href={`#/${encodeURIComponent(r.id)}`}>{r.title}</Link> : <Text color="secondary">{r.title} (no media)</Text>,
     },
-    { key: "title", header: "Title" },
     { key: "channel", header: "Channel", renderCell: (r: Row) => `${r.channel} ${r.network}` },
-    { key: "start", header: "Recorded", renderCell: (r: Row) => new Date(r.start).toLocaleString() },
+    { key: "start", header: "Recorded", renderCell: (r: Row) => when(r.start) },
     { key: "duration", header: "Length", align: "end" as const, renderCell: (r: Row) => clock(r.duration) },
     {
       key: "reviewed",
       header: "Reviewed",
       align: "end" as const,
       // Of what there is to review: excluded parts (bad reception) don't count.
-      renderCell: (r: Row) => {
-        const pct = r.usable ? Math.min(100, Math.round((100 * r.reviewed) / r.usable)) : 0;
-        return pct ? `${pct}%` : "";
-      },
+      renderCell: (r: Row) => (r.usable && r.reviewed ? pct(Math.min(1, r.reviewed / r.usable)) : ""),
     },
     { key: "breaks", header: "Labels", align: "end" as const, renderCell: (r: Row) => r.breaks || "" },
-    {
-      key: "sources",
-      header: "Suggestions",
-      renderCell: (r: Row) =>
-        r.media ? r.sources.join(", ") || `none: run adbreak suggest ${r.id}` : <Text color="secondary">no media: import it again</Text>,
-    },
+    { key: "f1", header: "Model F1", align: "end" as const, renderCell: (r: Row) => (r.id in f1 ? pct(f1[r.id]) : "") },
+    { key: "id", header: "ID", renderCell: (r: Row) => <Text type="supporting" color="secondary">{r.id}</Text> },
   ];
   return (
     <Layout
-      height="auto"
-      header={
-        <LayoutHeader padding={3}>
-          <Heading level={1}>adbreak labelling</Heading>
-        </LayoutHeader>
-      }
+      header={<AppHeader section="recordings" />}
       content={
-        <LayoutContent padding={3}>
+        <LayoutContent padding={2}>
           <Stack gap={2}>
             {error && <Text color="accent">{error}</Text>}
             {rows && (
@@ -79,6 +77,7 @@ export function RecordingList() {
                 idKey="id"
                 hasHover
                 density="compact"
+                textOverflow="truncate"
                 emptyState={<EmptyState title="Nothing imported yet" description="adbreak import <dir>" isCompact />}
               />
             )}

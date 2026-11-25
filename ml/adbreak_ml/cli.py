@@ -20,6 +20,7 @@ def main() -> None:
     ap = argparse.ArgumentParser(prog="adbreak-ml")
     ap.add_argument("command", choices=["features", "baseline", "fusion", "export", "evaluate", "refresh"])
     ap.add_argument("out", nargs="?", default="model")
+    ap.add_argument("--only", action="append", default=[], help="evaluate: just these recordings (repeatable)")
     a = ap.parse_args()
     recs = [r for r in recordings() if r.media.is_file()]
     if a.command == "features":
@@ -56,7 +57,7 @@ def main() -> None:
     elif a.command == "evaluate":
         from . import export
 
-        export.evaluate(recs)
+        export.evaluate(recs, only=set(a.only) or None)
     elif a.command == "baseline":
         baseline.run([r for r in recs if r.features(embed.NAME).exists() and r.labels])
     else:
