@@ -13,6 +13,7 @@ import { AppHeader } from "./AppHeader";
 import { LearningCurve, type Curve } from "./LearningCurve";
 import { HowItWorks } from "./HowItWorks";
 import { TrainingRole } from "./TrainingRole";
+import { RowLinks } from "./RowLinks";
 
 type Scored = { precision: number; recall: number; f1: number; breaks: number; found: number; matched: number; start_error: number; end_error: number };
 type Total = Scored & { source: string; kind: string };
@@ -194,6 +195,7 @@ export function ModelPage() {
             {m && (
               <Stack gap={2}>
                 <Heading level={3}>By recording</Heading>
+                <RowLinks ids={m.recordings.map((r) => r.id)}>
                 <Table
                   data={m.recordings}
                   idKey="id"
@@ -216,6 +218,7 @@ export function ModelPage() {
                     },
                   ]}
                 />
+                </RowLinks>
               </Stack>
             )}
           </Stack>
