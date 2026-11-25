@@ -31,6 +31,21 @@
   kbd { font: 12px ui-monospace, monospace; color: var(--dim); }
   canvas { width: 100%; display: block; background: var(--panel); border-radius: 6px; cursor: crosshair; touch-action: none; user-select: none; }
   .cols { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; margin-top: 12px; }
+  /* Layouts: the panel (label table, notes, help) below the video and timeline, or in a column beside them. */
+  #review[hidden] { display: none !important; }
+  #review.side { display: grid; grid-template-columns: minmax(0, 1fr) 6px var(--panel-w, 420px); gap: 0 10px;
+                 height: calc(100vh - 44px); padding-bottom: 0; }
+  #review.side .workspace { min-height: 0; overflow: auto; }
+  #review.side video { max-height: 52vh; }
+  #review.side #panel { overflow: auto; min-height: 0; padding-bottom: 12px; }
+  #review.side .cols { grid-template-columns: 1fr; margin-top: 0; }
+  #resizer { display: none; cursor: col-resize; border-radius: 3px; }
+  #review.side #resizer { display: block; }
+  #resizer:hover, #resizer.on { background: var(--line); }
+  .jump { color: var(--text); background: none; border: 0; padding: 0; font: inherit; cursor: pointer;
+          text-decoration: underline dotted var(--dim); text-underline-offset: 3px; }
+  .jump:hover { color: #fff; text-decoration-color: #fff; }
+  header select { margin-left: 12px; }
   .help { color: var(--dim); }
   .help td { padding: 2px 6px; border: 0; white-space: normal; vertical-align: top; }
   .pill { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; }
@@ -39,9 +54,11 @@
 </style>
 </head>
 <body>
-<header><a href="#">adbreak labelling</a><span id="crumb" class="dim"></span><span id="status"></span></header>
+<header><a href="#">adbreak labelling</a><span id="crumb" class="dim"></span><span id="status"></span>
+  <label class="dim">Panel <select id="layout"><option value="below">below</option><option value="side">at the side</option></select></label></header>
 <main id="list"></main>
 <main id="review" hidden>
+  <section class="workspace">
   <div class="stage"><video id="v" playsinline controls preload="auto"></video><div id="cap"></div></div>
   <div class="bar">
     <span class="time" id="time">0:00:00.0</span>
@@ -58,6 +75,9 @@
     <span id="zoom" class="dim"></span>
   </div>
   <canvas id="tl"></canvas>
+  </section>
+  <span id="resizer" title="Drag to resize the panel"></span>
+  <aside id="panel">
   <div class="cols">
     <section>
       <table id="breaks"></table>
@@ -75,9 +95,10 @@
         <tr><td><kbd>R</kbd></td><td>mark reviewed up to here (only reviewed parts are scored)</td></tr>
         <tr><td><kbd>Esc</kbd></td><td>clear the selection</td></tr>
       </table>
-      <p>Drag anywhere on the timeline to scrub; click a span to select it; drag a selected break's edge to move it. Pinch (or <kbd>⌥</kbd>-scroll) to zoom around the pointer, swipe sideways to pan. Changes save as you go.</p>
+      <p>Click a break's start or end time in the table to jump there. Drag anywhere on the timeline to scrub; click a span to select it; drag a selected break's edge to move it. Pinch (or <kbd>⌥</kbd>-scroll) to zoom around the pointer, swipe sideways to pan. Changes save as you go.</p>
     </section>
   </div>
+  </aside>
 </main>
 <script>
 "use strict";
@@ -425,7 +446,14 @@ function renderList() {
   S.labels.breaks.forEach((b, i) => {
     const tr = t.insertRow(); tr.className = "click" + (sel && sel.label && sel.i === i ? " sel" : "");
     tr.onclick = (ev) => { if (ev.target.tagName === "SELECT" || ev.target.tagName === "BUTTON") return; sel = { label: true, i }; seek(b.start); renderList(); };
-    tr.insertCell().textContent = fmt(b.start); tr.insertCell().textContent = fmt(b.end); tr.insertCell().textContent = `${Math.round(b.end - b.start)} s`;
+    // Start and end jump to that edge (and select the break).
+    for (const edge of ["start", "end"]) {
+      const a = document.createElement("button"); a.className = "jump"; a.textContent = fmt(b[edge]);
+      a.title = `Jump to the ${edge}`;
+      a.onclick = () => { sel = { label: true, i }; seek(b[edge]); renderList(); };
+      tr.insertCell().append(a);
+    }
+    tr.insertCell().textContent = `${Math.round(b.end - b.start)} s`;
     const s = document.createElement("select");
     for (const k of KINDS) s.add(new Option(k.replace("_", " "), k, false, (b.kind || "ad") === k));
     s.onchange = () => { b.kind = s.value; changed(); };
@@ -449,6 +477,28 @@ function tick() {
 }
 requestAnimationFrame(tick);
 addEventListener("resize", draw);
+
+// Layout: remembered between visits.
+function setLayout(name) {
+  $("review").classList.toggle("side", name === "side");
+  $("layout").value = name;
+  localStorage.setItem("adbreak.layout", name);
+  draw();
+}
+$("layout").onchange = () => setLayout($("layout").value);
+setLayout(localStorage.getItem("adbreak.layout") || "below");
+const savedW = localStorage.getItem("adbreak.panelWidth");
+if (savedW) $("review").style.setProperty("--panel-w", savedW + "px");
+$("resizer").addEventListener("pointerdown", (ev) => {
+  ev.preventDefault();
+  const r = $("resizer"); r.setPointerCapture(ev.pointerId); r.classList.add("on");
+  const move = (e) => {
+    const w = Math.min(Math.max(innerWidth - e.clientX - 16, 260), innerWidth * 0.7);
+    $("review").style.setProperty("--panel-w", w + "px"); localStorage.setItem("adbreak.panelWidth", Math.round(w)); draw();
+  };
+  const up = () => { r.classList.remove("on"); r.removeEventListener("pointermove", move); r.removeEventListener("pointerup", up); };
+  r.addEventListener("pointermove", move); r.addEventListener("pointerup", up);
+});
 
 function route() { const m = location.hash.match(/^#\/(.+)/); m ? showReview(decodeURIComponent(m[1])) : showList(); }
 addEventListener("hashchange", route);
