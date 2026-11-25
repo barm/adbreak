@@ -1,0 +1,106 @@
+{
+  "format": 1,
+  "recording": {
+    "source": "recorder",
+    "job": 44,
+    "channel": "2.1",
+    "network": "KTVU-HD",
+    "title": "dataset FOX primetime",
+    "start": "2026-11-25T03:56:09+00:00",
+    "duration": 8997.321677777829
+  },
+  "reviewed": [
+    {
+      "start": 0.0,
+      "end": 8997.321677777829
+    }
+  ],
+  "breaks": [
+    {
+      "start": 0.0,
+      "end": 31.5,
+      "kind": "ad"
+    },
+    {
+      "start": 84.5,
+      "end": 236.0,
+      "kind": "ad"
+    },
+    {
+      "start": 1134.5,
+      "end": 1270.5,
+      "kind": "ad"
+    },
+    {
+      "start": 1648.0,
+      "end": 1886.0,
+      "kind": "ad"
+    },
+    {
+      "start": 2277.0,
+      "end": 2488.0,
+      "kind": "ad"
+    },
+    {
+      "start": 2816.0,
+      "end": 3030.0,
+      "kind": "ad"
+    },
+    {
+      "start": 3379.0,
+      "end": 3542.0,
+      "kind": "ad"
+    },
+    {
+      "start": 3801.0,
+      "end": 3832.0,
+      "kind": "double_box"
+    },
+    {
+      "start": 4445.0,
+      "end": 4596.0,
+      "kind": "ad"
+    },
+    {
+      "start": 4929.0,
+      "end": 5177.0,
+      "kind": "ad"
+    },
+    {
+      "start": 5464.0,
+      "end": 5690.0,
+      "kind": "ad"
+    },
+    {
+      "start": 6037.0,
+      "end": 6240.0,
+      "kind": "ad"
+    },
+    {
+      "start": 6558.0,
+      "end": 6712.0,
+      "kind": "ad"
+    },
+    {
+      "start": 7388.0,
+      "end": 7418.0,
+      "kind": "double_box"
+    },
+    {
+      "start": 7425.0,
+      "end": 7458.0,
+      "kind": "ad"
+    },
+    {
+      "start": 8358.0,
+      "end": 8460.0,
+      "kind": "ad"
+    },
+    {
+      "start": 8810.0,
+      "end": 8933.0,
+      "kind": "ad"
+    }
+  ],
+  "notes": "Labelled by Claude from frames, 2026-11-25, to docs/labels.md. End of TMZ Live, two FOX dramas, then KTVU's 10 o'clock news. Double boxes: each drama's credits squeezed beside promos. Production-company logos after the credits are programme. Small promo snipes in the corner during the dramas count as corner bugs (programme). News 'coming up' teases are programme; the station's One Warm Coat spot starts a break. Every edge checked in frames 2 s apart. Not yet checked by a person."
+}
