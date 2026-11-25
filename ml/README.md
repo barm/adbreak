@@ -11,7 +11,11 @@ runs, and exports for `rust/crates/adbreak-model`:
 adbreak features <ids...>            # from the repository root: per-second inputs, Rust (avkit, Core ML)
 cd ml && uv sync
 uv run adbreak-ml evaluate           # leave-one-recording-out ("model"), and leave-one-network-out ("model-new-network")
-uv run adbreak-ml export DIR         # model.json and test_vector.json (the image encoder's .mlpackage goes beside it)
+uv run adbreak-ml export [DIR]       # model.json and test_vector.json (the image encoder's .mlpackage goes beside it);
+                                     # DIR: ADBREAK_MODEL_DIR, default ~/Library/Application Support/adbreak/model.
+                                     # The model it replaces is kept in DIR/history/ (the last 10).
+uv run adbreak-ml history            # the kept models
+uv run adbreak-ml install --version V  # put a kept model back (recorders pick it up on their own)
 cd .. && adbreak eval --each         # scores every source
 ```
 

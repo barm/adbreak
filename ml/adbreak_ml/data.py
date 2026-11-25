@@ -20,6 +20,8 @@ import sqlite3
 REPO = Path(__file__).resolve().parents[2]
 DB = Path(os.environ.get("ADBREAK_DB", Path.home() / "Library" / "Application Support" / "adbreak" / "adbreak.db"))
 MEDIA = Path(os.environ.get("ADBREAK_MEDIA", Path.home() / "Movies" / "adbreak"))
+# The installed model (what a recorder loads), beside the database by default.
+MODEL = Path(os.environ.get("ADBREAK_MODEL_DIR", Path.home() / "Library" / "Application Support" / "adbreak" / "model"))
 
 # Per-second classes. IGNORE is left out of training and scoring.
 PROGRAMME, BREAK, IGNORE = 0, 1, -1

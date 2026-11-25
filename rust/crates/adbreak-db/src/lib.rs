@@ -59,6 +59,12 @@ pub fn default_path() -> PathBuf {
     home.join("Library/Application Support/adbreak/adbreak.db")
 }
 
+/// Where the installed model lives by default (what `adbreak-ml export` writes and a recorder loads): `model/`
+/// beside the default database.
+pub fn default_model_dir() -> PathBuf {
+    default_path().with_file_name("model")
+}
+
 impl Db {
     /// Opens (creating if needed) the database at `path`.
     pub fn open(path: &Path) -> Result<Self> {

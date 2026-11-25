@@ -61,7 +61,7 @@ enum Cmd {
         #[arg(long, env = "ADBREAK_COMSKIP")]
         comskip: Option<PathBuf>,
         /// Directory with the image model.
-        #[arg(long, env = "ADBREAK_MODEL_DIR", default_value_os_t = home().join("Movies/adbreak/model"))]
+        #[arg(long, env = "ADBREAK_MODEL_DIR", default_value_os_t = adbreak_db::default_model_dir())]
         model_dir: PathBuf,
         /// The ML project (`ml/`), for the model's draft.
         #[arg(long, env = "ADBREAK_ML", default_value = "ml")]
@@ -88,7 +88,7 @@ enum Cmd {
         #[arg(required = true)]
         ids: Vec<String>,
         /// Directory with the image model (`mobileclip2-s0-image.mlpackage`).
-        #[arg(long, env = "ADBREAK_MODEL_DIR", default_value_os_t = home().join("Movies/adbreak/model"))]
+        #[arg(long, env = "ADBREAK_MODEL_DIR", default_value_os_t = adbreak_db::default_model_dir())]
         model_dir: PathBuf,
         /// Compute again even if the files exist.
         #[arg(long)]
@@ -105,8 +105,8 @@ enum Cmd {
         #[arg(long, env = "ADBREAK_WEB", default_value = "web/dist")]
         web: PathBuf,
         /// The installed model, for the Model page (what `adbreak-ml export` writes and a recorder loads).
-        #[arg(long, env = "ADBREAK_MODEL_DIR", default_value = "~/Movies/adbreak/model")]
-        model: String,
+        #[arg(long, env = "ADBREAK_MODEL_DIR", default_value_os_t = adbreak_db::default_model_dir())]
+        model: PathBuf,
         /// The ML project (`ml/`), run through uv by the Model page's actions. Optional: without it they're off.
         #[arg(long, env = "ADBREAK_ML", default_value = "ml")]
         ml: PathBuf,
@@ -193,10 +193,6 @@ async fn main() -> Result<()> {
             }
         }
         Cmd::Label { bind, web, model, ml, inbox } => {
-            let model = match model.strip_prefix("~/") {
-                Some(rest) => PathBuf::from(std::env::var("HOME").unwrap_or_default()).join(rest),
-                None => PathBuf::from(model),
-            };
             let inbox = inbox.unwrap_or_else(|| data.db.path.with_file_name("inbox"));
             label::serve(data, &bind, &web, &model, &ml, inbox).await?
         }

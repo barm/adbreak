@@ -9,6 +9,7 @@
 """
 
 import argparse
+import json
 import warnings
 
 from . import av, baseline, captions, embed, fusion
@@ -18,10 +19,30 @@ from .data import load_features, recordings
 def main() -> None:
     warnings.filterwarnings("ignore")
     ap = argparse.ArgumentParser(prog="adbreak-ml")
-    ap.add_argument("command", choices=["features", "baseline", "fusion", "export", "evaluate", "refresh", "learning-curve"])
-    ap.add_argument("out", nargs="?", default="model")
+    ap.add_argument("command", choices=["features", "baseline", "fusion", "export", "evaluate", "refresh", "learning-curve", "history", "install"])
+    ap.add_argument("out", nargs="?", default=None, help="the model directory (default: ADBREAK_MODEL_DIR, or model/ beside the database)")
+    ap.add_argument("--version", help="install: which kept model (see history)")
     ap.add_argument("--only", action="append", default=[], help="evaluate: just these recordings (repeatable)")
     a = ap.parse_args()
+    from .data import MODEL
+
+    a.out = a.out or str(MODEL)
+    if a.command in ("history", "install"):
+        from pathlib import Path
+
+        from . import history
+
+        out = Path(a.out)
+        if a.command == "install":
+            if not a.version:
+                raise SystemExit("install needs --version (see adbreak-ml history)")
+            history.install(out, a.version)
+        else:
+            installed = json.loads((out / "model-info.json").read_text()).get("version") if (out / "model-info.json").is_file() else None
+            for i in history.entries(out):
+                print(f"{i['version']}  {i.get('exported_at', '')}  {len(i.get('trained_on', []))} recordings")
+            print(f"installed: {installed}")
+        return
     recs = [r for r in recordings() if r.media.is_file()]
     if a.command == "features":
         import open_clip
