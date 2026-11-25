@@ -297,98 +297,131 @@
       "breaks": [
         {
           "start": 0.0,
-          "end": 31.0
+          "end": 31.0,
+          "kind": "ad"
         },
         {
-          "start": 87.0,
-          "end": 259.0
+          "start": 86.0,
+          "end": 259.0,
+          "kind": "ad"
         },
         {
-          "start": 771.0,
-          "end": 817.0
+          "start": 767.0,
+          "end": 806.0,
+          "kind": "ad"
         },
         {
           "start": 1134.02,
-          "end": 1284.0
+          "end": 1299.0,
+          "kind": "ad"
         },
         {
-          "start": 1597.0,
-          "end": 1928.0
+          "start": 1598.0,
+          "end": 1927.0,
+          "kind": "ad"
         },
         {
           "start": 2115.0,
-          "end": 2191.0
+          "end": 2198.0,
+          "kind": "ad"
         },
         {
           "start": 2277.31,
-          "end": 2503.0
+          "end": 2503.0,
+          "kind": "ad"
         },
         {
-          "start": 2816.21,
-          "end": 3125.0
+          "start": 2789.0,
+          "end": 3124.0,
+          "kind": "ad"
         },
         {
           "start": 3378.71,
-          "end": 3547.0
+          "end": 3547.0,
+          "kind": "ad"
         },
         {
-          "start": 3693.0,
-          "end": 3923.0
+          "start": 3690.0,
+          "end": 3889.0,
+          "kind": "ad"
         },
         {
-          "start": 4189.0,
-          "end": 4253.0
+          "start": 4190.0,
+          "end": 4250.0,
+          "kind": "ad"
         },
         {
-          "start": 4359.0,
-          "end": 4595.81
+          "start": 4356.0,
+          "end": 4595.81,
+          "kind": "ad"
         },
         {
           "start": 4673.0,
-          "end": 4838.0
+          "end": 4839.0,
+          "kind": "ad"
         },
         {
           "start": 4929.16,
-          "end": 5189.0
+          "end": 5162.21,
+          "kind": "ad"
         },
         {
-          "start": 5209.0,
-          "end": 5303.0
+          "start": 5196.0,
+          "end": 5292.0,
+          "kind": "ad"
         },
         {
           "start": 5324.0,
-          "end": 5843.0
+          "end": 5832.0,
+          "kind": "ad"
         },
         {
-          "start": 5859.0,
-          "end": 6256.0
+          "start": 5863.0,
+          "end": 6219.66,
+          "kind": "ad"
         },
         {
-          "start": 6296.0,
-          "end": 6710.7
+          "start": 6293.0,
+          "end": 6710.7,
+          "kind": "ad"
         },
         {
-          "start": 6760.0,
-          "end": 6936.0
+          "start": 6749.0,
+          "end": 6839.0,
+          "kind": "ad"
         },
         {
-          "start": 7012.0,
-          "end": 7051.0
+          "start": 6855.0,
+          "end": 6936.0,
+          "kind": "ad"
         },
         {
-          "start": 7374.0,
-          "end": 7455.01
+          "start": 7009.0,
+          "end": 7056.0,
+          "kind": "ad"
+        },
+        {
+          "start": 7371.0,
+          "end": 7455.01,
+          "kind": "ad"
+        },
+        {
+          "start": 8165.0,
+          "end": 8169.0,
+          "kind": "ad_read"
         },
         {
           "start": 8357.71,
-          "end": 8459.55
+          "end": 8459.55,
+          "kind": "ad"
         },
         {
           "start": 8810.35,
-          "end": 8932.06
+          "end": 8932.06,
+          "kind": "ad"
         }
       ],
-      "trained_on": "49024da6cb19028b"
+      "trained_on": "08f596f8a3f99b0e"
     },
     {
       "name": "recorder",

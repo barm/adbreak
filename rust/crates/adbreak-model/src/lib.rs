@@ -81,6 +81,15 @@ struct Post {
     snap: f64,
 }
 
+/// Another kind's output (`double_box`, `ad_read`): the picture alone, averaged over ±`smooth` seconds.
+#[derive(Deserialize)]
+struct KindHead {
+    frame_coef: Vec<f32>,
+    frame_intercept: f64,
+    smooth: usize,
+    post: Post,
+}
+
 #[derive(Deserialize)]
 struct Json {
     format: u32,
@@ -94,6 +103,17 @@ struct Json {
     baseline: f64,
     trees: Vec<Vec<Node>>,
     post: Post,
+    /// The other kinds' outputs, by kind name (absent from models that find commercial breaks only).
+    #[serde(default)]
+    kinds: std::collections::BTreeMap<String, KindHead>,
+}
+
+/// A stretch of one kind: `ad` (a commercial break), `double_box` or `ad_read`.
+#[derive(Clone, Debug, PartialEq)]
+pub struct KindBreak {
+    pub start: f64,
+    pub end: f64,
+    pub kind: String,
 }
 
 /// A trained model.
@@ -136,7 +156,7 @@ impl Model {
         if m.format != FORMAT {
             return Err(format!("model file format {} (this code reads {FORMAT})", m.format));
         }
-        if m.frame_coef.len() != m.embedding_dim {
+        if m.frame_coef.len() != m.embedding_dim || m.kinds.values().any(|h| h.frame_coef.len() != m.embedding_dim) {
             return Err("frame weights don't match the embedding size".into());
         }
         if m.features != feature_names(&m.windows) {
@@ -156,17 +176,59 @@ impl Model {
 
     /// Break probability of each second from its picture alone.
     pub fn frame_probabilities(&self, rows: &[Row]) -> Vec<f64> {
+        self.linear(rows, &self.m.frame_coef, self.m.frame_intercept)
+    }
+
+    /// A logistic model of the picture embedding, each second; a second without a picture repeats the last.
+    fn linear(&self, rows: &[Row], coef: &[f32], intercept: f64) -> Vec<f64> {
         let mut last = 0.5;
         rows.iter()
             .map(|r| {
                 if r.embedding.len() == self.m.embedding_dim {
                     // In f64, as the training code computes it: a second right on a tree threshold must go the same way.
-                    let z: f64 = r.embedding.iter().zip(&self.m.frame_coef).map(|(a, b)| f64::from(*a) * f64::from(*b)).sum::<f64>() + self.m.frame_intercept;
+                    let z: f64 = r.embedding.iter().zip(coef).map(|(a, b)| f64::from(*a) * f64::from(*b)).sum::<f64>() + intercept;
                     last = sigmoid(z);
                 }
                 last
             })
             .collect()
+    }
+
+    /// The other kinds this model finds besides commercial breaks (`double_box`, `ad_read`).
+    pub fn kinds(&self) -> Vec<&str> {
+        self.m.kinds.keys().map(String::as_str).collect()
+    }
+
+    /// Probability of each second being of `kind` (one of [`Model::kinds`]).
+    pub fn kind_probabilities(&self, kind: &str, rows: &[Row]) -> Option<Vec<f64>> {
+        let h = self.m.kinds.get(kind)?;
+        Some(window_mean(&self.linear(rows, &h.frame_coef, h.frame_intercept), h.smooth))
+    }
+
+    /// Commercial breaks and the other kinds as one list, in time order. A double box takes its time from a
+    /// commercial break it overlaps (it is often the break's tail); an ad read loses any part inside a commercial
+    /// break or a double box; pieces shorter than their kind's `min_len` are dropped.
+    pub fn kind_breaks(&self, inputs: &Inputs) -> Vec<KindBreak> {
+        let spans = |b: Vec<Break>| -> Vec<(f64, f64)> { b.into_iter().map(|b| (b.start, b.end)).collect() };
+        let ad = spans(self.breaks(inputs));
+        let runs = |kind: &str| -> (Vec<(f64, f64)>, f64) {
+            match (self.m.kinds.get(kind), self.kind_probabilities(kind, &inputs.rows)) {
+                (Some(h), Some(p)) => (spans(to_breaks(&p, &inputs.edges, h.post.threshold, h.post.min_len, h.post.max_gap, h.post.snap)), h.post.min_len),
+                _ => (vec![], 0.0),
+            }
+        };
+        let (db, db_min) = runs("double_box");
+        let (reads, read_min) = runs("ad_read");
+        let db: Vec<(f64, f64)> = db.into_iter().filter(|(s, e)| e - s >= db_min).collect();
+        let ads: Vec<(f64, f64)> = subtract(ad, &db).into_iter().filter(|(s, e)| e - s >= self.m.post.min_len).collect();
+        let cuts: Vec<(f64, f64)> = ads.iter().chain(&db).copied().collect();
+        let reads: Vec<(f64, f64)> = subtract(reads, &cuts).into_iter().filter(|(s, e)| e - s >= read_min).collect();
+        let mut out: Vec<KindBreak> = [(ads, "ad"), (db, "double_box"), (reads, "ad_read")]
+            .into_iter()
+            .flat_map(|(v, k)| v.into_iter().map(move |(start, end)| KindBreak { start, end, kind: k.into() }))
+            .collect();
+        out.sort_by(|a, b| a.start.total_cmp(&b.start).then(a.end.total_cmp(&b.end)).then(a.kind.cmp(&b.kind)));
+        out
     }
 
     /// The trees' input table: one row per second, columns as [`feature_names`].
@@ -232,6 +294,14 @@ impl Model {
     }
 }
 
+/// `spans` with every part inside `cuts` taken out.
+fn subtract(mut spans: Vec<(f64, f64)>, cuts: &[(f64, f64)]) -> Vec<(f64, f64)> {
+    for &(x, y) in cuts {
+        spans = spans.into_iter().flat_map(|(s, e)| [(s, e.min(x)), (s.max(y), e)]).filter(|(s, e)| e > s).collect();
+    }
+    spans
+}
+
 /// Per-second probabilities to breaks: runs at or above `threshold`, gaps up to `max_gap` closed, each end snapped
 /// to the nearest edge within `snap` seconds, runs shorter than `min_len` dropped.
 /// A model.json's version: FNV-1a 64 of its bytes, in hex. Recorders keep it with the breaks a model found.
@@ -256,6 +326,11 @@ pub struct TestVector {
     edges: Vec<f64>,
     probabilities: Vec<f64>,
     breaks: Vec<(f64, f64)>,
+    /// The other kinds' probabilities, and every kind's breaks as [`Model::kind_breaks`] gives them.
+    #[serde(default)]
+    kind_probabilities: std::collections::BTreeMap<String, Vec<f64>>,
+    #[serde(default)]
+    kind_breaks: Vec<(f64, f64, String)>,
 }
 
 impl TestVector {
@@ -294,6 +369,19 @@ impl Model {
         let b: Vec<(f64, f64)> = self.breaks(&inputs).iter().map(|b| (b.start, b.end)).collect();
         if b != tv.breaks {
             return Err(format!("breaks {b:?}, the test vector has {:?}", tv.breaks));
+        }
+        for (kind, want) in &tv.kind_probabilities {
+            let p = self.kind_probabilities(kind, &inputs.rows).ok_or_else(|| format!("no {kind} output, the test vector has one"))?;
+            let worst = p.iter().zip(want).map(|(a, b)| (a - b).abs()).fold(0.0, f64::max);
+            if p.len() != want.len() || worst >= 1e-4 {
+                return Err(format!("{kind} probabilities differ from the test vector's by up to {worst}"));
+            }
+        }
+        if !tv.kind_probabilities.is_empty() {
+            let kb: Vec<(f64, f64, String)> = self.kind_breaks(&inputs).into_iter().map(|b| (b.start, b.end, b.kind)).collect();
+            if kb != tv.kind_breaks {
+                return Err(format!("kind breaks {kb:?}, the test vector has {:?}", tv.kind_breaks));
+            }
         }
         Ok(())
     }

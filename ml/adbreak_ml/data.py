@@ -92,6 +92,33 @@ def second_labels(rec: Recording, times: np.ndarray) -> np.ndarray:
     return y
 
 
+# The kinds besides commercial breaks that the model also finds, each with an output of its own.
+MINOR_KINDS = ("double_box", "ad_read")
+
+
+def kind_labels(rec: Recording, times: np.ndarray, kind: str) -> np.ndarray:
+    """For one of MINOR_KINDS: BREAK (1) inside a label of that kind, PROGRAMME (0) elsewhere in reviewed time
+    (commercial breaks and the other kinds included), IGNORE for unreviewed time, paid programming, and within
+    EDGE_MARGIN of that kind's edges."""
+    y = np.full(len(times), IGNORE, dtype=np.int8)
+    if not rec.labels:
+        return y
+    for r in rec.labels["reviewed"]:
+        y[(times >= r["start"]) & (times < r["end"])] = PROGRAMME
+    for b in rec.labels["breaks"]:
+        inside = (times >= b["start"]) & (times < b["end"]) & (y != IGNORE)
+        k = b.get("kind", "ad")
+        if k == kind:
+            y[inside] = BREAK
+        elif k == "paid_programming":
+            y[inside] = IGNORE
+    for b in rec.labels["breaks"]:
+        if b.get("kind", "ad") == kind:
+            for edge in (b["start"], b["end"]):
+                y[np.abs(times - edge) < EDGE_MARGIN] = IGNORE
+    return y
+
+
 def frames(rec: Recording, fps: float = 1.0, size: int = 256):
     """Yields (time, RGB uint8 array size×size) from the recording's copy, the whole picture squashed to a square
     (no crop: the network logo is in a corner). Decoded by ffmpeg for now."""

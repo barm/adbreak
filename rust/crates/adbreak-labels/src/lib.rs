@@ -91,6 +91,25 @@ pub struct Break {
     pub kind: Kind,
 }
 
+impl From<Span> for Break {
+    /// A commercial break over `s`.
+    fn from(s: Span) -> Self {
+        Break { start: s.start, end: s.end, kind: Kind::Ad }
+    }
+}
+
+impl Source {
+    /// What it found of one kind.
+    pub fn spans(&self, kind: Kind) -> Vec<Span> {
+        self.breaks.iter().filter(|b| b.kind == kind).map(Break::span).collect()
+    }
+
+    /// Whether it finds kinds besides commercial breaks.
+    pub fn kinds(&self) -> Vec<Kind> {
+        Kind::ALL.into_iter().filter(|&k| k != Kind::Ad && self.breaks.iter().any(|b| b.kind == k)).collect()
+    }
+}
+
 impl Break {
     pub fn span(&self) -> Span {
         Span::new(self.start, self.end)
@@ -196,7 +215,8 @@ pub struct Source {
     /// Version or settings, so results from different runs can be told apart.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub detail: String,
-    pub breaks: Vec<Span>,
+    /// What it found. A detector that tells the kinds apart marks each; others find commercial breaks (`ad`).
+    pub breaks: Vec<Break>,
     /// For a learned source: the labels it was trained against (`Dataset` fingerprint). Empty for rule-based ones.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub trained_on: String,
@@ -293,12 +313,21 @@ fn outside(x: f64, lo: f64, hi: f64) -> f64 {
 
 /// Scores `found` breaks against `labels`: only the reviewed parts, leaving out double box and paid programming.
 pub fn score(labels: &Labels, found: &[Span]) -> Score {
+    score_kind(labels, Kind::Ad, found)
+}
+
+/// Scores `found` spans of one kind against the labels of that kind, within the reviewed parts. For commercial
+/// breaks ([`score`]) double box and paid programming are left out, and an edge anywhere across an adjacent double
+/// box counts as right; for the other kinds only paid programming is left out.
+pub fn score_kind(labels: &Labels, kind: Kind, found: &[Span]) -> Score {
     const STEP: f64 = 0.1;
     let reviewed = merge(&labels.reviewed);
-    let truth: Vec<Span> = labels.breaks.iter().filter(|b| b.kind.scored()).map(Break::span).collect();
-    let ignored: Vec<Span> = labels.breaks.iter().filter(|b| b.kind.ignored()).map(Break::span).collect();
     let of = |k: Kind| -> Vec<Span> { labels.breaks.iter().filter(|b| b.kind == k).map(Break::span).collect() };
+    let truth = of(kind);
+    let ignored: Vec<Span> =
+        labels.breaks.iter().filter(|b| if kind == Kind::Ad { b.kind.ignored() } else { b.kind == Kind::PaidProgramming }).map(Break::span).collect();
     let (double_box, ad_read) = (of(Kind::DoubleBox), of(Kind::AdRead));
+    let tolerance = if kind == Kind::Ad { double_box.clone() } else { vec![] };
     let mut s = Score::default();
     let within = |t: f64, v: &[Span]| v.iter().any(|x| x.contains(t));
     for r in &reviewed {
@@ -351,8 +380,8 @@ pub fn score(labels: &Labels, found: &[Span]) -> Score {
             fj[j] = true;
             s.matched += 1;
             // An edge anywhere across a double box next to it is right: it is neither break nor programme.
-            let (lo, _) = stretch(truth[i].start, &double_box, -1.0);
-            let (_, hi) = stretch(truth[i].end, &double_box, 1.0);
+            let (lo, _) = stretch(truth[i].start, &tolerance, -1.0);
+            let (_, hi) = stretch(truth[i].end, &tolerance, 1.0);
             s.start_error += outside(found[j].start, lo, truth[i].start);
             s.end_error += outside(found[j].end, truth[i].end, hi);
         }

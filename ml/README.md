@@ -28,6 +28,10 @@ cd .. && adbreak eval --each # scores them next to Comskip
 - Frames are the whole picture squashed to 256×256, not centre-cropped: the network logo is in a corner.
 - Per-second labels: break (commercial break), programme (ad reads included), or ignored (unreviewed, double box,
   paid programming, within 1 s of an edge). See `adbreak_ml/data.py` and `docs/labels.md`.
+- The shipped model also has an output for each of the other kinds (double box, ad read): a logistic model of the
+  picture embedding, class-weighted and averaged over ±5 s. With minutes of examples, trees on the other inputs
+  learned the examples rather than the kind (leave-one-out AUC 0.64 against 0.82 for ad reads, 0.76 against 0.94
+  for double boxes). `combine` in `export.py` (and `Model::kind_breaks` in Rust) merges them with the breaks.
 - Every score is leave-one-recording-out: a recording's predictions come from a model that never saw it. With one
   recording per network so far, that is also a test on an unseen network.
 
