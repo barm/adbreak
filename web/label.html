@@ -484,6 +484,13 @@ function placeKindMenu(g, vw) {
   kindTag.style.top = `${TOP + 3}px`;
 }
 kindTag.addEventListener("pointerdown", (ev) => ev.stopPropagation());
+// The tag sits on the label (and covers most of a short one): right-clicking it is right-clicking the label.
+kindTag.addEventListener("contextmenu", (ev) => {
+  if (!sel || !sel.label) return;
+  ev.preventDefault();
+  const w = $("tlwrap").getBoundingClientRect();
+  openMenu(sel.i, hit(ev).t, ev.clientX - w.left, ev.clientY - w.top);
+});
 kindTag.addEventListener("click", (ev) => {
   ev.stopPropagation();
   if (!ctx.hidden) return closeMenu();
