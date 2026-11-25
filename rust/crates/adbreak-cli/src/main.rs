@@ -220,7 +220,7 @@ fn eval(data: &Dataset, each: bool) -> Result<()> {
     }
     println!("{labelled} labelled recording(s)");
     println!(
-        "  {:10} {:>9} {:>9} {:>9} {:>14} {:>9} {:>9} {:>12} {:>12}",
+        "  {:15} {:>9} {:>9} {:>9} {:>20} {:>9} {:>9} {:>12} {:>12}",
         "source", "precision", "recall", "F1", "breaks matched", "start err", "end err", "double box", "ad read"
     );
     for (name, sc) in &totals {
@@ -237,7 +237,7 @@ fn marked(marked: f64, seconds: f64) -> String {
 fn line(name: &str, s: &Score) {
     let pct = |x: f64| format!("{:.0}%", 100.0 * x);
     println!(
-        "{:12} {:>9} {:>9} {:>9} {:>14} {:>8.1}s {:>8.1}s {:>12} {:>12}",
+        "{:17} {:>9} {:>9} {:>9} {:>20} {:>8.1}s {:>8.1}s {:>12} {:>12}",
         name,
         pct(s.precision()),
         pct(s.recall()),

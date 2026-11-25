@@ -24,16 +24,30 @@ Everything in reviewed time that isn't labelled is **programme**.
 
 Ask, for each moment: **is the programme on screen, and how much of it?**
 
-1. Not at all, and it's advertising: **commercial break**. A promo for another show, or a sponsor's billboard, is
-   a commercial break when it fills the screen.
+1. Not at all, and it's advertising: **commercial break**. A promo for another show is a commercial break when it
+   fills the screen, and so is an ad that keeps only the programme's ticker or a sponsor bar below it.
 2. Shrunk to share the screen with an ad: **double box**.
 3. Full screen, with advertising over it (graphic, banner or voice): **ad read**. A promo shown or read over the
    programme is an ad read, and so is a sponsor's logo or a "presented by" bug over it, even over a bumper shot
-   of the venue or city.
-4. Full screen, nothing advertised: **programme**. Content a sponsor paid for but that is programme itself (a
-   "presented by" feature, the sponsor's name only in a segment title) is programme; the read or graphic naming the
-   sponsor is an ad read.
+   of the venue or city. A tease for the network's own show presented as a segment ("happening tonight") is an ad
+   read too.
+4. Full screen, nothing advertised: **programme**. That includes:
+   - a small sponsor logo that stays on screen through a segment (in a news ticker, a score bug, a sponsored
+     segment's title or set): an ad read is a moment of advertising, not a standing credit;
+   - a segment in which the hosts present products to buy (a shopping segment);
+   - content a sponsor paid for that is programme itself (a "presented by" feature). The read or graphic naming
+     the sponsor is an ad read.
 5. The whole programme is an advertisement: **paid programming**.
+
+Sponsor billboards ("coverage presented by …", a sponsor's logo filling the screen) go with what they're next to:
+part of the commercial break when one is beside them (even across the programme's own sting), an **ad read**
+inside the programme otherwise, such as between a show's title and its first shot.
+
+Two things that look like advertising but are programme:
+
+- the programme teasing its own next segment ("coming up: …");
+- small corner bugs during play (an app logo, a show's name, a replay's sponsor logo). A panel, banner or lower
+  third that carries a message is an ad read.
 
 ## Placing edges
 

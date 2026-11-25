@@ -57,6 +57,11 @@
       "kind": "ad"
     },
     {
+      "start": 4736.0,
+      "end": 4774.0,
+      "kind": "ad_read"
+    },
+    {
       "start": 4794.0,
       "end": 4920.1,
       "kind": "ad"
