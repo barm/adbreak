@@ -15,9 +15,9 @@ import { HowItWorks } from "./HowItWorks";
 import { TrainingRole } from "./TrainingRole";
 import { RowLinks } from "./RowLinks";
 
-type Scored = { precision: number; recall: number; f1: number; breaks: number; found: number; matched: number; start_error: number; end_error: number };
+type Scored = { precision: number; recall: number; f1: number; breaks: number; found: number; matched: number; start_error: number; end_error: number ; wrongly_skipped_per_hour: number; missed_per_hour: number };
 type Total = Scored & { source: string; kind: string };
-type Rec = { id: string; title: string; model?: Scored; comskip?: Scored; log_loss?: number; auc?: number; how: string; stale: boolean };
+type Rec = { id: string; title: string; model?: Scored; new_network?: Scored; comskip?: Scored; log_loss?: number; auc?: number; how: string; stale: boolean };
 type Info = {
   version: string;
   exported_at: string;
@@ -174,7 +174,7 @@ export function ModelPage() {
               <Stack gap={2}>
                 <Heading level={3}>Scores, leave-one-out</Heading>
                 <Text type="supporting" color="secondary">
-                  Each recording scored by a model trained on the others, over its reviewed time: the honest test of how it does on a recording it hasn't seen.
+                  Each recording scored by a model trained on the others, over its reviewed time. The model-new-network row trains only on other networks, which share none of its promos, graphics or ads: the closer test of a channel it hasn't seen. Show cut: programme skipped by mistake; ads left: break time not skipped; both per hour watched.
                 </Text>
                 <Table
                   data={m.totals.map((t, i) => ({ ...t, i }))}
@@ -188,6 +188,8 @@ export function ModelPage() {
                     { key: "recall", header: "Recall", align: "end" as const, renderCell: (t: Total) => pct(t.recall) },
                     { key: "matched", header: "Found", align: "end" as const, renderCell: (t: Total) => `${t.matched} of ${t.breaks}` },
                     { key: "start_error", header: "Start / end error", align: "end" as const, renderCell: (t: Total) => (t.matched ? `${secs(t.start_error)} / ${secs(t.end_error)}` : "") },
+                    { key: "wrongly_skipped_per_hour", header: "Show cut / h", align: "end" as const, renderCell: (t: Total) => (t.kind === "commercial break" ? `${Math.round(t.wrongly_skipped_per_hour)} s` : "") },
+                    { key: "missed_per_hour", header: "Ads left / h", align: "end" as const, renderCell: (t: Total) => (t.kind === "commercial break" ? `${Math.round(t.missed_per_hour)} s` : "") },
                   ]}
                 />
               </Stack>
@@ -205,6 +207,7 @@ export function ModelPage() {
                   columns={[
                     { key: "title", header: "Recording", width: { type: "proportional" as const, value: 3, minWidth: 240 }, renderCell: (r: Rec) => <Link href={`#/${encodeURIComponent(r.id)}`}>{r.title}</Link> },
                     { key: "f1", header: "Model F1", align: "end" as const, renderCell: (r: Rec) => (r.model ? pct(r.model.f1) : "") },
+                    { key: "new_network", header: "New network F1", align: "end" as const, renderCell: (r: Rec) => (r.new_network ? pct(r.new_network.f1) : "") },
                     { key: "found", header: "Found", align: "end" as const, renderCell: (r: Rec) => (r.model ? `${r.model.matched} of ${r.model.breaks}` : "") },
                     { key: "edges", header: "Start / end error", align: "end" as const, renderCell: (r: Rec) => (r.model?.matched ? `${secs(r.model.start_error)} / ${secs(r.model.end_error)}` : "") },
                     { key: "log_loss", header: "Log loss", align: "end" as const, renderCell: (r: Rec) => (r.log_loss != null ? r.log_loss.toFixed(3) : "") },
