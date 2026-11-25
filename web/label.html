@@ -42,6 +42,7 @@
   #resizer { display: none; cursor: col-resize; border-radius: 3px; }
   #review.side #resizer { display: block; }
   #resizer:hover, #resizer.on { background: var(--line); }
+  #review.nopanel #panel, #review.nopanel #resizer { display: none; }
   #tlwrap { position: relative; }
   /* The selected label's kind, written on it, with a caret that opens its menu. */
   #kindtag { position: absolute; z-index: 4; font-size: 12px; line-height: 16px; color: #fff; cursor: pointer;
@@ -73,7 +74,7 @@
 </head>
 <body>
 <header><a href="#">adbreak labelling</a><span id="crumb" class="dim"></span><span id="status"></span>
-  <label class="dim">Panel <select id="layout"><option value="below">below</option><option value="side">at the side</option></select></label></header>
+  <label class="dim">Panel <select id="layout"><option value="below">below</option><option value="side">at the side</option><option value="hidden">hidden</option></select></label></header>
 <main id="list"></main>
 <main id="review" hidden>
   <section class="workspace">
@@ -114,6 +115,7 @@
         <tr><td><kbd>N P</kbd></td><td>next / previous edge from any source</td></tr>
         <tr><td><kbd>R</kbd></td><td>mark reviewed up to here (only reviewed parts are scored)</td></tr>
         <tr><td><kbd>⌘Z</kbd> <kbd>⌘⇧Z</kbd></td><td>undo, redo</td></tr>
+        <tr><td><kbd>\\</kbd></td><td>hide or show the panel (label list, notes, this help)</td></tr>
         <tr><td><kbd>Esc</kbd></td><td>clear the selection</td></tr>
       </table>
       <p>Click a break in the table to frame it on the timeline, or its start or end time to close in on that edge. Drag anywhere on the timeline to scrub; click a span to select it; drag any label's start or end (in the labels row) to move it; where two labels touch, the shared edge moves both (hold <kbd>⌥</kbd> to move just one). Pinch (or <kbd>⌥</kbd>-scroll) to zoom around the pointer, swipe sideways to pan. Changes save as you go.</p>
@@ -712,6 +714,7 @@ function key(k, shift, alt) {
     }
     case "=": case "+": zoomAt(0.5, t); break;
     case "-": case "_": zoomAt(2, t); break;
+    case "\\": setLayout($("layout").value === "hidden" ? localStorage.getItem("adbreak.shownLayout") || "below" : "hidden"); break;
     case "Escape": sel = null; pending = null; renderList(); draw(); break;
     default: return false;
   }
@@ -769,6 +772,8 @@ addEventListener("resize", draw);
 // Layout: remembered between visits.
 function setLayout(name) {
   $("review").classList.toggle("side", name === "side");
+  $("review").classList.toggle("nopanel", name === "hidden");
+  if (name !== "hidden") localStorage.setItem("adbreak.shownLayout", name);
   $("layout").value = name;
   localStorage.setItem("adbreak.layout", name);
   draw();
