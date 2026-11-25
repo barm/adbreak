@@ -10,6 +10,9 @@ import { Badge } from "@astryxdesign/core/Badge";
 import { CodeBlock } from "@astryxdesign/core/CodeBlock";
 import { MetadataList, MetadataListItem } from "@astryxdesign/core/MetadataList";
 import { AppHeader } from "./AppHeader";
+import { LearningCurve, type Curve } from "./LearningCurve";
+import { HowItWorks } from "./HowItWorks";
+import { TrainingRole } from "./TrainingRole";
 
 type Scored = { precision: number; recall: number; f1: number; breaks: number; found: number; matched: number; start_error: number; end_error: number };
 type Total = Scored & { source: string; kind: string };
@@ -32,6 +35,7 @@ type Overview = {
   image_model_bytes: number;
   image_model: string;
   kinds: string[];
+  learning_curve: Curve | null;
   totals: Total[];
   recordings: Rec[];
   can_run: boolean;
@@ -65,7 +69,7 @@ export function ModelPage() {
     }, 2000);
     return () => clearInterval(t);
   }, [job?.running, load]);
-  const run = async (action: "evaluate" | "retrain", only?: string) => {
+  const run = async (action: "evaluate" | "retrain" | "learning-curve", only?: string) => {
     const r = await fetch("/api/model/run", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action, only }) });
     if (!r.ok) setError(await r.text());
     else { setError(""); setJob(await r.json()); }
@@ -99,7 +103,7 @@ export function ModelPage() {
                 <Stack gap={2}>
                   <Stack direction="horizontal" gap={2} align="center">
                     <Badge label={job.running ? "running" : job.ok ? "done" : "failed"} variant={job.running ? "info" : job.ok ? "success" : "error"} />
-                    <Text type="label">{job.action === "retrain" ? "Retrain and install" : job.only ? `Rerun on ${job.only}` : "Rerun on all recordings"}</Text>
+                    <Text type="label">{job.action === "retrain" ? "Retrain and install" : job.action === "learning-curve" ? "Learning curve" : job.only ? `Rerun on ${job.only}` : "Rerun on all recordings"}</Text>
                   </Stack>
                   <CodeBlock code={job.log.slice(-12).join("\n") || "…"} size="sm" hasCopyButton={false} />
                 </Stack>
@@ -143,6 +147,30 @@ export function ModelPage() {
             )}
             {m && (
               <Stack gap={2}>
+                <Heading level={3}>How this works</Heading>
+                <HowItWorks ids={m.recordings.map((r) => r.id)} titles={Object.fromEntries(m.recordings.map((r) => [r.id, r.title]))} />
+              </Stack>
+            )}
+            {m && (
+              <Stack gap={2}>
+                <Stack direction="horizontal" gap={2} align="center" justify="between">
+                  <Heading level={3}>Learning curve</Heading>
+                  <Button label={m.learning_curve ? "Recompute" : "Compute"} size="sm" variant="secondary" isDisabled={busy} tooltip="Train on 1, 2, … recordings and score on one held out (a few minutes)" onClick={() => run("learning-curve")} />
+                </Stack>
+                {m.learning_curve ? (
+                  <>
+                    <Text type="supporting" color="secondary">
+                      {`The commercial-break model trained on k labelled recordings, scored on one it never saw: every recording held out in turn, up to ${m.learning_curve.repeats} random training sets per k. Line: median; band: the middle half of runs. Computed ${new Date(m.learning_curve.computed_at).toLocaleString()} over ${m.learning_curve.recordings} recordings.`}
+                    </Text>
+                    <LearningCurve curve={m.learning_curve} />
+                  </>
+                ) : (
+                  <Text type="supporting" color="secondary">Not computed yet.</Text>
+                )}
+              </Stack>
+            )}
+            {m && (
+              <Stack gap={2}>
                 <Heading level={3}>Scores, leave-one-out</Heading>
                 <Text type="supporting" color="secondary">
                   Each recording scored by a model trained on the others, over its reviewed time: the honest test of how it does on a recording it hasn't seen.
@@ -180,6 +208,7 @@ export function ModelPage() {
                     { key: "log_loss", header: "Log loss", align: "end" as const, renderCell: (r: Rec) => (r.log_loss != null ? r.log_loss.toFixed(3) : "") },
                     { key: "auc", header: "AUC", align: "end" as const, renderCell: (r: Rec) => (r.auc != null ? r.auc.toFixed(3) : "") },
                     { key: "comskip", header: "Comskip F1", align: "end" as const, renderCell: (r: Rec) => (r.comskip ? pct(r.comskip.f1) : "") },
+                    { key: "role", header: "Installed model", renderCell: (r: Rec) => <TrainingRole inTraining={!!info?.trained_on.includes(r.id)} /> },
                     { key: "stale", header: "", renderCell: (r: Rec) => (r.stale ? <Badge label="stale" variant="warning" /> : null) },
                     {
                       key: "run", header: "",

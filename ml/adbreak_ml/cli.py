@@ -18,7 +18,7 @@ from .data import load_features, recordings
 def main() -> None:
     warnings.filterwarnings("ignore")
     ap = argparse.ArgumentParser(prog="adbreak-ml")
-    ap.add_argument("command", choices=["features", "baseline", "fusion", "export", "evaluate", "refresh"])
+    ap.add_argument("command", choices=["features", "baseline", "fusion", "export", "evaluate", "refresh", "learning-curve"])
     ap.add_argument("out", nargs="?", default="model")
     ap.add_argument("--only", action="append", default=[], help="evaluate: just these recordings (repeatable)")
     a = ap.parse_args()
@@ -58,6 +58,12 @@ def main() -> None:
         from . import export
 
         export.evaluate(recs, only=set(a.only) or None)
+    elif a.command == "learning-curve":
+        from pathlib import Path
+
+        from . import learning_curve
+
+        learning_curve.run([r for r in recs if r.labels], Path(a.out))
     elif a.command == "baseline":
         baseline.run([r for r in recs if r.features(embed.NAME).exists() and r.labels])
     else:
