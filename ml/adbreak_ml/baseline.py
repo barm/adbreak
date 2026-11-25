@@ -60,10 +60,13 @@ def to_breaks(t: np.ndarray, p: np.ndarray, smooth: int = 15, threshold: float =
 
 
 def save_source(rec: Recording, name: str, detail: str, breaks: list[dict]) -> None:
+    """Writes a learned source's breaks, with the labels fingerprint it was trained against (see labels_fingerprint)."""
+    from .data import labels_fingerprint
+
     path = DATASET / rec.id / "suggestions.json"
     s = json.loads(path.read_text()) if path.exists() else {"format": 1, "recording": rec.meta, "sources": []}
-    s["sources"] = sorted([x for x in s["sources"] if x["name"] != name] + [{"name": name, "detail": detail, "breaks": breaks}],
-                          key=lambda x: x["name"])
+    new = {"name": name, "detail": detail, "breaks": breaks, "trained_on": labels_fingerprint()}
+    s["sources"] = sorted([x for x in s["sources"] if x["name"] != name] + [new], key=lambda x: x["name"])
     path.write_text(json.dumps(s, indent=2) + "\n")
 
 

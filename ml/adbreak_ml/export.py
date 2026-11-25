@@ -45,7 +45,7 @@ class Data:
 
 FORMAT = 1
 EDGE_CAP = 120.0
-POST = {"threshold": 0.35, "min_len": 30.0, "max_gap": 25.0, "snap": 20.0}
+POST = {"threshold": 0.5, "min_len": 30.0, "max_gap": 15.0, "snap": 20.0}
 
 
 def feature_names() -> list[str]:

@@ -189,6 +189,9 @@ pub struct Source {
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub detail: String,
     pub breaks: Vec<Span>,
+    /// For a learned source: the labels it was trained against (`Dataset` fingerprint). Empty for rule-based ones.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub trained_on: String,
 }
 
 /// How a detector did against labels, within the reviewed parts.

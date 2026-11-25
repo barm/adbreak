@@ -92,6 +92,21 @@ struct Detail {
     scores: std::collections::BTreeMap<String, RowScore>,
     /// The labels file's version; a save must name it (see `save`).
     version: String,
+    /// The whole dataset's labels fingerprint: learned sources trained on a different one are stale.
+    fingerprint: String,
+}
+
+/// FNV-1a 64 over every recording's labels.json, in id order; `adbreak_ml.data.labels_fingerprint` computes the same.
+fn fingerprint(data: &Dataset) -> String {
+    let mut h = 0xcbf2_9ce4_8422_2325u64;
+    for id in data.ids() {
+        if let Ok(bytes) = std::fs::read(data.root.join(&id).join("labels.json")) {
+            for b in bytes {
+                h = (h ^ u64::from(b)).wrapping_mul(0x0100_0000_01b3);
+            }
+        }
+    }
+    format!("{h:016x}")
 }
 
 /// A version for a labels file: a hash of its bytes ("" when there is none yet).
@@ -138,7 +153,7 @@ async fn show(State(data): State<Shared>, Path(id): Path<String>) -> Result<Json
             );
         }
     }
-    Ok(Json(Detail { labels, suggestions: e.suggestions, scores, version: version(&data, &id) }))
+    Ok(Json(Detail { labels, suggestions: e.suggestions, scores, version: version(&data, &id), fingerprint: fingerprint(&data) }))
 }
 
 /// Saves labels, if they are an edit of the current file: the page sends the version it loaded (`If-Match`), and a

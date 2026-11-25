@@ -2,6 +2,7 @@
 
     uv run adbreak-ml features     # frame embeddings, caption and black/silence features (cached in the media store)
     uv run adbreak-ml baseline     # frame-only baselines, leave-one-recording-out; written as suggestions
+    uv run adbreak-ml refresh      # retrain every learned source against the current labels (after labelling)
     uv run adbreak-ml export DIR   # the model for Rust (adbreak-model): model.json and a test vector
     uv run adbreak-ml fusion       # the fusion model: scored leave-one-recording-out on labelled recordings,
                                    # and a first draft for unlabelled ones; written as the "fusion" suggestion
@@ -17,7 +18,7 @@ from .data import load_features, recordings
 def main() -> None:
     warnings.filterwarnings("ignore")
     ap = argparse.ArgumentParser(prog="adbreak-ml")
-    ap.add_argument("command", choices=["features", "baseline", "fusion", "export", "evaluate"])
+    ap.add_argument("command", choices=["features", "baseline", "fusion", "export", "evaluate", "refresh"])
     ap.add_argument("out", nargs="?", default="model")
     a = ap.parse_args()
     recs = [r for r in recordings() if r.media.is_file()]
@@ -40,6 +41,18 @@ def main() -> None:
         from . import export
 
         export.export([r for r in recs if r.labels], Path(a.out))
+    elif a.command == "refresh":
+        # Every learned source, retrained leave-one-out against the current labels: after labelling or adding a recording.
+        from . import export
+
+        labelled = [r for r in recs if r.labels]
+        print("baseline (frames-lr, frames-zeroshot)")
+        baseline.run([r for r in labelled if r.features(embed.NAME).exists()])
+        print("fusion")
+        ready = [r for r in recs if all(r.features(n).exists() for n in (embed.NAME, captions.NAME, av.NAME))]
+        fusion.run(ready, embed.NAME)
+        print("model")
+        export.evaluate(labelled)
     elif a.command == "evaluate":
         from . import export
 
