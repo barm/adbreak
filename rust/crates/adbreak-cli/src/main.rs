@@ -13,7 +13,7 @@ mod features;
 mod label;
 mod tools;
 
-use adbreak_labels::{Labels, Recording, Score, Source, Span, Suggestions, score};
+use adbreak_labels::{Kind, Labels, Recording, Score, Source, Span, Suggestions, score};
 use anyhow::{Context, Result, bail};
 use clap::{Parser, Subcommand};
 use dataset::Dataset;
@@ -157,7 +157,7 @@ fn suggest(data: &Dataset, id: &str, comskip: Option<PathBuf>, detector: bool) -
     if let Ok(vtt) = std::fs::read_to_string(dir.join("captions.vtt")) {
         let secs = adbreak_captions::seconds(&adbreak_captions::parse_vtt(&vtt), rec.duration);
         let q = adbreak_captions::Quiet::default();
-        let breaks = adbreak_captions::uncaptioned(&secs, &q).into_iter().map(|(a, b)| Span::new(a, b)).collect();
+        let breaks = adbreak_captions::uncaptioned(&secs, &q).into_iter().map(|(a, b)| Span::new(a, b).into()).collect();
         let detail = format!("uncaptioned: window {} s, coverage < {}, at least {} s", q.window, q.max_coverage, q.min_secs);
         sources.push(Source { name: "captions".into(), detail, breaks, trained_on: String::new() });
     }
@@ -174,14 +174,14 @@ fn suggest(data: &Dataset, id: &str, comskip: Option<PathBuf>, detector: bool) -
         let det = detector.then(|| std::thread::spawn(move || tools::detect(&media)));
         if let Some(t) = cs {
             let (breaks, version) = t.join().expect("comskip thread")?;
-            sources.push(Source { name: "comskip".into(), detail: version, breaks, trained_on: String::new() });
+            sources.push(Source { name: "comskip".into(), detail: version, breaks: breaks.into_iter().map(Into::into).collect(), trained_on: String::new() });
         }
         if let Some(t) = det {
             let breaks = t.join().expect("detector thread")?;
             sources.push(Source {
                 name: "logo-detector".into(),
                 detail: format!("logo detector (crates/adbreak) {}, defaults", env!("CARGO_PKG_VERSION")),
-                breaks,
+                breaks: breaks.into_iter().map(Into::into).collect(),
                 trained_on: String::new(),
             });
         }
@@ -189,7 +189,7 @@ fn suggest(data: &Dataset, id: &str, comskip: Option<PathBuf>, detector: bool) -
         std::fs::remove_dir_all(&work)?;
     }
     for s in &sources {
-        eprintln!("  {:9} {:3} breaks, {:5.0} s", s.name, s.breaks.len(), s.breaks.iter().map(Span::len).fold(0.0, |a, b| a + b));
+        eprintln!("  {:9} {:3} breaks, {:5.0} s", s.name, s.breaks.len(), s.breaks.iter().map(|b| b.span().len()).fold(0.0, |a, b| a + b));
     }
     data.save_sources(id, rec, sources)?;
     Ok(())
@@ -198,7 +198,11 @@ fn suggest(data: &Dataset, id: &str, comskip: Option<PathBuf>, detector: bool) -
 fn eval(data: &Dataset, each: bool) -> Result<()> {
     let mut totals: std::collections::BTreeMap<String, Score> = Default::default();
     let mut labelled = 0;
-    for e in data.all()? {
+    // Sources that tell the kinds apart somewhere: each kind is scored on every recording for them, found or not.
+    let entries = data.all()?;
+    let kinded: std::collections::BTreeSet<String> =
+        entries.iter().flat_map(|e| e.suggestions.iter().flat_map(|s| &s.sources)).filter(|s| !s.kinds().is_empty()).map(|s| s.name.clone()).collect();
+    for e in entries {
         let (Some(labels), Some(sugg)) = (&e.labels, &e.suggestions) else { continue };
         if labels.reviewed.is_empty() {
             continue;
@@ -208,11 +212,21 @@ fn eval(data: &Dataset, each: bool) -> Result<()> {
             println!("{}  ({} labelled breaks)", e.id, labels.breaks.len());
         }
         for s in &sugg.sources {
-            let sc = score(labels, &s.breaks);
+            let sc = score(labels, &s.spans(Kind::Ad));
             if each {
                 line(&format!("  {}", s.name), &sc);
             }
             totals.entry(s.name.clone()).or_default().add(&sc);
+            // A source that tells the kinds apart: each kind scored as its own row.
+            let kinds: &[Kind] = if kinded.contains(&s.name) { &[Kind::DoubleBox, Kind::AdRead] } else { &[] };
+            for &k in kinds {
+                let sc = adbreak_labels::score_kind(labels, k, &s.spans(k));
+                let name = format!("{} · {}", s.name, kind_name(k));
+                if each {
+                    line(&format!("  {name}"), &sc);
+                }
+                totals.entry(name).or_default().add(&sc);
+            }
         }
     }
     if labelled == 0 {
@@ -227,6 +241,15 @@ fn eval(data: &Dataset, each: bool) -> Result<()> {
         line(&format!("  {name}"), sc);
     }
     Ok(())
+}
+
+fn kind_name(k: Kind) -> &'static str {
+    match k {
+        Kind::Ad => "break",
+        Kind::DoubleBox => "double box",
+        Kind::AdRead => "ad read",
+        Kind::PaidProgramming => "paid",
+    }
 }
 
 /// "40% of 120s": how much of some labelled time was marked as break.

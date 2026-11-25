@@ -131,7 +131,7 @@ mod tests {
         let src = |name: &str, n: usize| Source {
             name: name.into(),
             detail: String::new(),
-            breaks: vec![adbreak_labels::Span::new(0.0, 1.0); n],
+            breaks: vec![adbreak_labels::Span::new(0.0, 1.0).into(); n],
             trained_on: String::new(),
         };
         d.save_sources(&id, &rec, vec![src("recorder", 1), src("captions", 2)]).unwrap();

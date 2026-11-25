@@ -140,22 +140,26 @@ async fn show(State(data): State<Shared>, Path(id): Path<String>) -> Result<Json
     let mut scores = std::collections::BTreeMap::new();
     if !labels.reviewed.is_empty() {
         for src in e.suggestions.iter().flat_map(|s| &s.sources) {
-            let sc = adbreak_labels::score(&labels, &src.breaks);
-            scores.insert(
-                src.name.clone(),
-                RowScore {
-                    precision: sc.precision(),
-                    recall: sc.recall(),
-                    f1: sc.f1(),
-                    matched: sc.matched,
-                    breaks: sc.breaks,
-                    found: sc.found,
-                    double_box_seconds: sc.double_box_seconds,
-                    double_box_marked: sc.double_box_marked,
-                    ad_read_seconds: sc.ad_read_seconds,
-                    ad_read_marked: sc.ad_read_marked,
-                },
-            );
+            let mut kinds = vec![(adbreak_labels::Kind::Ad, src.name.clone())];
+            kinds.extend(src.kinds().into_iter().map(|k| (k, format!("{}/{}", src.name, serde_json::to_value(k).unwrap().as_str().unwrap_or_default()))));
+            for (k, name) in kinds {
+                let sc = adbreak_labels::score_kind(&labels, k, &src.spans(k));
+                scores.insert(
+                    name,
+                    RowScore {
+                        precision: sc.precision(),
+                        recall: sc.recall(),
+                        f1: sc.f1(),
+                        matched: sc.matched,
+                        breaks: sc.breaks,
+                        found: sc.found,
+                        double_box_seconds: sc.double_box_seconds,
+                        double_box_marked: sc.double_box_marked,
+                        ad_read_seconds: sc.ad_read_seconds,
+                        ad_read_marked: sc.ad_read_marked,
+                    },
+                );
+            }
         }
     }
     Ok(Json(Detail { labels, suggestions: e.suggestions, scores, version: version(&data, &id), fingerprint: fingerprint(&data) }))
@@ -198,6 +202,8 @@ struct Tracks {
     /// 0–100 per second, and which labels they were trained against.
     picture: Vec<u8>,
     probability: Vec<u8>,
+    /// The other kinds' outputs (`double_box`, `ad_read`), 0–100 per second.
+    kinds: std::collections::BTreeMap<String, Vec<u8>>,
     trained_on: String,
 }
 
@@ -222,11 +228,14 @@ async fn inputs(State(data): State<Shared>, Path(id): Path<String>) -> Result<Js
     }
     if let Ok(text) = std::fs::read_to_string(dir.join("model-out.json")) {
         let m: serde_json::Value = serde_json::from_str(&text)?;
-        let pct = |k: &str| -> Vec<u8> {
-            m[k].as_array().map(|a| a.iter().map(|v| (v.as_f64().unwrap_or(0.0).clamp(0.0, 1.0) * 100.0).round() as u8).collect()).unwrap_or_default()
+        let pct = |v: &serde_json::Value| -> Vec<u8> {
+            v.as_array().map(|a| a.iter().map(|v| (v.as_f64().unwrap_or(0.0).clamp(0.0, 1.0) * 100.0).round() as u8).collect()).unwrap_or_default()
         };
-        t.picture = pct("picture");
-        t.probability = pct("probability");
+        t.picture = pct(&m["picture"]);
+        t.probability = pct(&m["probability"]);
+        if let Some(k) = m["kinds"].as_object() {
+            t.kinds = k.iter().map(|(name, v)| (name.clone(), pct(v))).collect();
+        }
         t.trained_on = m["trained_on"].as_str().unwrap_or_default().to_string();
     }
     Ok(Json(t))

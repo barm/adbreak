@@ -53,6 +53,9 @@ Two things that look like advertising but are programme:
 
 - An edge goes at the cut, to the picture. Where black or silence separates programme from advertising, put the
   edge in that gap.
+- An ad read starts where the advertising segment starts, not where the sponsor is first named: b-roll or a
+  graphic that leads into the read (a few seconds of venue shots before "brought to you by…", say) is part of it,
+  and so is any tag after it until the programme resumes.
 - Kinds can touch: a break often ends straight into a double box or an ad read. Label each separately, edge to
   edge, rather than stretching one over the other.
 - Mark what you've checked as **reviewed** (`R` on the labelling page). Only reviewed time is scored or trained
@@ -60,14 +63,15 @@ Two things that look like advertising but are programme:
 
 ## How each kind is used
 
-| Kind | Break score (`adbreak eval`) | Model training |
+| Kind | Break score (`adbreak eval`) | Model |
 |---|---|---|
-| Commercial break | What a detector must find | Break |
-| Double box | Left out; a break's edge anywhere across an adjacent double box counts as right. `eval` reports how much of it each source marked | Left out, for now |
-| Ad read | Programme: marking it as break is a false positive. `eval` reports how much of it each source marked | Programme, for now |
+| Commercial break | What a detector must find | Its main output: picture, captions, black, silence and edges |
+| Double box | Left out; a break's edge anywhere across an adjacent double box counts as right | An output of its own (scored as `model · double box`), from the picture alone |
+| Ad read | Programme: marking it as break is a false positive | An output of its own (`model · ad read`), from the picture alone |
 | Paid programming | Left out | Left out |
 
-Double box and ad read are planned as outputs of their own, once there are enough labelled.
+The double box and ad read outputs learn from far fewer examples than commercial breaks (minutes, against hours),
+so they are weak until more are labelled; every labelled one helps.
 
 ## Format
 

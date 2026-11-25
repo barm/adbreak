@@ -15,7 +15,7 @@ import numpy as np
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression
 
-from .data import BREAK, IGNORE, Recording
+from .data import BREAK, IGNORE, MINOR_KINDS, Recording, kind_labels
 from .embed import NAME as EMBED, MODEL as IMAGE_MODEL
 from .data import second_labels
 from .fusion import WINDOWS, window_mean
@@ -39,6 +39,7 @@ class Data:
         self.x = x
         self.t = np.arange(meta["rows"], dtype=np.float64)
         self.y = second_labels(rec, self.t)
+        self.ys = {k: kind_labels(rec, self.t, k) for k in MINOR_KINDS}
         self.cap = raw[:, meta["dim"] : meta["dim"] + 4].astype(np.float64)
         self.av = raw[:, meta["dim"] + 4 :].astype(np.float64)
         self.edges = np.array(meta["edges"]) if meta["edges"] else np.array([-1e9])
@@ -46,6 +47,18 @@ class Data:
 FORMAT = 1
 EDGE_CAP = 120.0
 POST = {"threshold": 0.5, "min_len": 30.0, "max_gap": 15.0, "snap": 20.0}
+# The other kinds come from the picture alone, averaged over ±KIND_SMOOTH s: with minutes of examples, trees on the
+# other inputs learn the examples rather than the kind (leave-one-out AUC 0.64 against 0.82 for ad reads, 0.76
+# against 0.94 for double boxes). Their runs are short (an ad read is often under 10 s): shorter runs kept, smaller
+# gaps closed, nearer edges; thresholds from leave-one-out.
+KIND_SMOOTH = 5
+KIND_POST = {"double_box": {"threshold": 0.5, "min_len": 4.0, "max_gap": 3.0, "snap": 3.0},
+             "ad_read": {"threshold": 0.4, "min_len": 4.0, "max_gap": 3.0, "snap": 3.0}}
+
+
+def target(d: "Data", kind: str) -> np.ndarray:
+    """Per-second BREAK / PROGRAMME / IGNORE for an output: "ad" (commercial breaks) or one of MINOR_KINDS."""
+    return d.y if kind == "ad" else d.ys[kind]
 
 
 def feature_names() -> list[str]:
@@ -82,18 +95,69 @@ def table(d: Data, p: np.ndarray, drop_captions: bool = False) -> np.ndarray:
     return np.stack([np.asarray(c, np.float64) for c in cols], 1).astype(np.float32).astype(np.float64)
 
 
-def frame_model(train: list[Data]) -> LogisticRegression:
-    X = np.concatenate([d.x[d.y != IGNORE] for d in train])
-    Y = np.concatenate([d.y[d.y != IGNORE] == BREAK for d in train])
-    return LogisticRegression(C=1.0, max_iter=3000).fit(X, Y)
+class Never:
+    """A frame model for a kind its training recordings have no examples of: probability 0."""
+
+    coef_ = None
+
+    def predict_proba(self, x: np.ndarray) -> np.ndarray:
+        return np.stack([np.ones(len(x)), np.zeros(len(x))], 1)
 
 
-def fit_trees(train: list[Data], oof: dict) -> HistGradientBoostingClassifier:
+def frame_model(train: list[Data], kind: str = "ad"):
+    X = np.concatenate([d.x[target(d, kind) != IGNORE] for d in train])
+    Y = np.concatenate([target(d, kind)[target(d, kind) != IGNORE] == BREAK for d in train])
+    if not Y.any():
+        return Never()
+    # The other kinds are rare (minutes in hours): weighted so they count as much as everything else.
+    return LogisticRegression(C=1.0, max_iter=3000, class_weight=None if kind == "ad" else "balanced").fit(X, Y)
+
+
+def fit_trees(train: list[Data], oof: dict, kind: str = "ad") -> HistGradientBoostingClassifier:
     views = [(o, False) for o in train] + [(o, True) for o in train if o.cap[:, 0].any()]
-    X = np.concatenate([table(o, oof[o.rec.id], drop)[o.y != IGNORE] for o, drop in views])
-    Y = np.concatenate([o.y[o.y != IGNORE] == BREAK for o, _ in views])
+    X = np.concatenate([table(o, oof[o.rec.id], drop)[target(o, kind) != IGNORE] for o, drop in views])
+    Y = np.concatenate([target(o, kind)[target(o, kind) != IGNORE] == BREAK for o, _ in views])
     return HistGradientBoostingClassifier(max_iter=300, learning_rate=0.05, max_leaf_nodes=15, l2_regularization=1.0,
-                                          random_state=0).fit(X, Y)
+                                          class_weight=None if kind == "ad" else "balanced", random_state=0).fit(X, Y)
+
+
+def train_head(train: list[Data], kind: str):
+    """One output. Commercial breaks: a frame model and trees on its out-of-fold frame probabilities. The other
+    kinds: a frame model alone (see KIND_SMOOTH)."""
+    if kind != "ad":
+        return frame_model(train, kind), None
+    oof = {o.rec.id: frame_model([q for q in train if q is not o], kind).predict_proba(o.x)[:, 1] for o in train}
+    return frame_model(train, kind), fit_trees(train, oof, kind)
+
+
+def predict_head(head, d: Data) -> tuple[np.ndarray, np.ndarray]:
+    frame, trees = head
+    p = frame.predict_proba(d.x)[:, 1]
+    if trees is None:
+        return p, window_mean(p, KIND_SMOOTH)
+    return p, trees.predict_proba(table(d, p))[:, 1]
+
+
+def has_kind(train: list[Data], kind: str) -> bool:
+    return any((target(d, kind) == BREAK).any() for d in train)
+
+
+def subtract(spans: list, cuts: list) -> list:
+    """`spans` with every part inside `cuts` taken out."""
+    for x, y in cuts:
+        spans = [q for (s, e) in spans for q in ((s, min(e, x)), (max(s, y), e)) if q[1] > q[0]]
+    return spans
+
+
+def combine(ad: list, minor: dict, probs: dict) -> list[tuple[float, float, str]]:
+    """Commercial breaks and the other kinds' runs as one list, as adbreak_model::Model::kind_breaks. A double box
+    takes its time from a commercial break it overlaps (it is often the break's tail, which the break output also
+    covers); an ad read loses any part inside a commercial break or a double box. Pieces shorter than their kind's
+    min_len are dropped, and commercial breaks shorter than POST's min_len."""
+    db = [(s, e) for s, e in minor.get("double_box", []) if e - s >= KIND_POST["double_box"]["min_len"]]
+    ads = [(s, e) for s, e in subtract(list(ad), db) if e - s >= POST["min_len"]]
+    reads = [(s, e) for s, e in subtract(minor.get("ad_read", []), ads + db) if e - s >= KIND_POST["ad_read"]["min_len"]]
+    return sorted([(s, e, "ad") for s, e in ads] + [(s, e, "double_box") for s, e in db] + [(s, e, "ad_read") for s, e in reads])
 
 
 def trees_json(clf: HistGradientBoostingClassifier) -> tuple[float, list]:
@@ -108,8 +172,9 @@ def trees_json(clf: HistGradientBoostingClassifier) -> tuple[float, list]:
     return float(np.ravel(clf._baseline_prediction)[0]), out
 
 
-def to_breaks(p: np.ndarray, edges: list[float]) -> list[tuple[float, float]]:
+def to_breaks(p: np.ndarray, edges: list[float], post: dict | None = None) -> list[tuple[float, float]]:
     """As adbreak_model::to_breaks."""
+    POST = post or globals()["POST"]
     spans, start = [], None
     for i, v in enumerate(p):
         if v >= POST["threshold"] and start is None:
@@ -159,6 +224,13 @@ def export(recs: list[Recording], out: Path, vector_secs: int = 600) -> None:
              "frame_coef": [float(c) for c in frame.coef_[0]], "frame_intercept": float(frame.intercept_[0]),
              "windows": WINDOWS, "edge_cap": EDGE_CAP, "features": feature_names(), "baseline": baseline, "trees": tj,
              "post": POST, "trained_on": [d.rec.id for d in labelled], "image_model_source": f"open_clip {IMAGE_MODEL}"}
+    # The other kinds' outputs (see KIND_SMOOTH), for those with examples to learn from.
+    model["kinds"] = {}
+    for k in MINOR_KINDS:
+        f = frame_model(labelled, k)
+        if f.coef_ is not None:
+            model["kinds"][k] = {"frame_coef": [float(c) for c in f.coef_[0]], "frame_intercept": float(f.intercept_[0]),
+                                 "smooth": KIND_SMOOTH, "post": KIND_POST[k]}
     text = json.dumps(model)
     # A test vector: the first `vector_secs` seconds of a captioned recording, the exported model's outputs on it.
     d = next(d for d in labelled if d.cap[:, 0].any())
@@ -171,9 +243,17 @@ def export(recs: list[Recording], out: Path, vector_secs: int = 600) -> None:
     sub = type("Sub", (), {})()
     sub.cap, sub.av, sub.edges = d.cap[:n], d.av[:n], np.array(edges) if edges else np.array([-1e9])
     prob = trees.predict_proba(table(sub, p))[:, 1]
+
+    def head_p(h: dict) -> np.ndarray:
+        z = x.astype(np.float64) @ np.asarray(h["frame_coef"], np.float32).astype(np.float64) + h["frame_intercept"]
+        return window_mean(1 / (1 + np.exp(-z)), h["smooth"])
+
+    kp = {k: head_p(h) for k, h in model["kinds"].items()}
+    kinds = combine(to_breaks(prob, edges), {k: to_breaks(v, edges, KIND_POST[k]) for k, v in kp.items()}, kp)
     vec = {"model": model_version(text), "recording": d.rec.id, "rows": [[x[i].tolist(), bool(has[i]), bool(vis[i]), bool(roll[i]), bool(new[i]),
                                              float(black[i]), float(silent[i])] for i in range(n)],
-           "edges": edges, "probabilities": prob.tolist(), "breaks": to_breaks(prob, edges)}
+           "edges": edges, "probabilities": prob.tolist(), "breaks": to_breaks(prob, edges),
+           "kind_probabilities": {k: v.tolist() for k, v in kp.items()}, "kind_breaks": [list(b) for b in kinds]}
     # Installed atomically, the test vector first: a recorder watching model.json reloads when it changes, and
     # checks the model against the test vector made for it (its "model" is model.json's version).
     out.mkdir(parents=True, exist_ok=True)
@@ -198,17 +278,19 @@ def evaluate(recs: list[Recording]) -> None:
     fp = labels_fingerprint()
 
     def write(d: Data, train: list[Data], how: str) -> None:
-        oof = {o.rec.id: frame_model([q for q in train if q is not o]).predict_proba(o.x)[:, 1] for o in train}
-        trees = fit_trees(train, oof)
-        p_frame = frame_model(train).predict_proba(d.x)[:, 1]
-        prob = trees.predict_proba(table(d, p_frame))[:, 1]
+        p_frame, prob = predict_head(train_head(train, "ad"), d)
         edges = [float(e) for e in d.edges if e > -1e8]
-        breaks = [{"start": a, "end": b} for a, b in to_breaks(prob, edges)]
+        probs = {k: predict_head(train_head(train, k), d)[1] for k in MINOR_KINDS if has_kind(train, k)}
+        minor = {k: to_breaks(p, edges, KIND_POST[k]) for k, p in probs.items()}
+        found = combine(to_breaks(prob, edges), minor, probs)
+        breaks = [{"start": a, "end": b, "kind": k} for a, b, k in found]
         save_source(d.rec, "model", f"adbreak-model inputs (rust-v1), {how}", breaks)
         out = d.rec.features(RUST).parent / "model-out.json"
         out.write_text(json.dumps({"trained_on": fp, "how": how, "picture": [round(float(v), 3) for v in p_frame],
-                                   "probability": [round(float(v), 3) for v in prob]}))
-        print(f"  {d.rec.id}: {len(breaks)} breaks")
+                                   "probability": [round(float(v), 3) for v in prob],
+                                   "kinds": {k: [round(float(v), 3) for v in p] for k, p in probs.items()}}))
+        n = {k: sum(1 for *_, kk in found if kk == k) for k in ("ad", *MINOR_KINDS)}
+        print(f"  {d.rec.id}: " + ", ".join(f"{v} {k}" for k, v in n.items()))
 
     for d in labelled:
         write(d, [o for o in labelled if o is not d], f"leave-one-recording-out over {len(labelled)}")
