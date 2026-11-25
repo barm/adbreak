@@ -70,10 +70,6 @@ def labels_fingerprint() -> str:
     return f"{h:016x}"
 
 
-# Kinds that were renamed: old label files still read.
-KIND_ALIASES = {"promo": "ad", "sponsor": "double_box"}
-
-
 def second_labels(rec: Recording, times: np.ndarray) -> np.ndarray:
     """A class for each time: BREAK inside a commercial break, PROGRAMME elsewhere in reviewed time (ad reads
     included: the programme is on screen), IGNORE for unreviewed time, double box, paid programming, and within
@@ -85,7 +81,7 @@ def second_labels(rec: Recording, times: np.ndarray) -> np.ndarray:
         y[(times >= r["start"]) & (times < r["end"])] = PROGRAMME
     for b in rec.labels["breaks"]:
         inside = (times >= b["start"]) & (times < b["end"])
-        kind = KIND_ALIASES.get(b.get("kind", "ad"), b.get("kind", "ad"))
+        kind = b.get("kind", "ad")
         if kind == "ad_read":
             continue
         # Double box and paid programming are neither break nor programme: left out.
