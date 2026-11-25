@@ -7,7 +7,7 @@
 <link rel="icon" href="data:,">
 <style>
   :root { color-scheme: dark; --bg: #111113; --panel: #1b1b1f; --line: #2e2e35; --text: #ededef; --dim: #9b9ba4;
-          --ad: #e5484d; --warn: #f5a524; --paid: #8e4ec6; --double: #e93d82; --adread: #f5a524; --accent: #3e63dd; }
+          --ad: #e5484d; --warn: #f5a524; --paid: #8e4ec6; --double: #4cb1f5; --adread: #f5a524; --accent: #3e63dd; }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.4 -apple-system, system-ui, sans-serif; }
   header { display: flex; gap: 12px; align-items: baseline; padding: 10px 16px; border-bottom: 1px solid var(--line); }
@@ -233,7 +233,7 @@ function cueAt(t) {
 const ROW = 22, NAME = 136, TOP = 18;
 // What each timeline row is, for its ⓘ popover.
 const ROW_INFO = {
-  labels: "The ground truth, and the row you edit, marking what is on screen: red commercial break (the programme is gone), pink double box (the programme shrunk beside an ad), amber ad read (advertising over the full-screen programme), purple paid programming. Unlabelled reviewed time is programme. Detectors are scored on commercial breaks.",
+  labels: "The ground truth, and the row you edit, marking what is on screen: red commercial break (the programme is gone), blue double box (the programme shrunk beside an ad), amber ad read (advertising over the full-screen programme), purple paid programming. Unlabelled reviewed time is programme. Detectors are scored on commercial breaks.",
   fusion: "The model's output: its break probability each second (the strip; brighter is more likely a break), and the breaks it finds from that (the bars), snapped to black-and-silent edges. The product of the input rows below. Scored on a model that never saw this recording.",
   picture: "Input: how much each second's picture looks like an ad, from the image model (MobileCLIP2) and a classifier trained on the labels. One picture a second; brighter is more ad-like.",
   captions: "Input: captions on screen each second (filled), roll-up captions as live shows use them (taller), and a new cue starting (tick). Ads are captioned less, and pop on rather than roll up.",
@@ -357,6 +357,16 @@ function draw() {
       const top = r.type === "output" ? y + 8 : y + 3, hh = r.type === "output" ? r.h - 10 : r.h - 6;
       c.fillStyle = r.label ? cssVar(KIND_COLOR[sp.kind || "ad"]) : r.type === "output" ? "#e5484d" : (SOURCE_COLOR[r.name] || "#888");
       c.globalAlpha = r.label ? 0.9 : r.dim ? 0.4 : 0.75; c.fillRect(x0, top, Math.max(2, x1 - x0), hh); c.globalAlpha = 1;
+      if (r.label) {
+        // Labels that touch: a dark gap at the join, so two kinds side by side read as two labels.
+        if (j > 0 && Math.abs(r.spans[j - 1].end - sp.start) < 0.05 && x0 > NAME) { c.fillStyle = "#111114"; c.fillRect(x0 - 1, top, 2, hh); }
+        // Its kind written on it, where it fits (the selected one shows its kind with a menu caret instead).
+        const name = KIND_NAME[sp.kind || "ad"], tw = c.measureText(name).width;
+        if (!(sel && sel.label && sel.i === j) && x1 - x0 > tw + 12) {
+          c.fillStyle = "rgba(0,0,0,0.75)"; c.font = "11px -apple-system, system-ui, sans-serif";
+          c.fillText(name, x0 + 6, top + hh / 2 + 0.5); c.font = "12px -apple-system, system-ui, sans-serif";
+        }
+      }
       const isSel = sel && ((sel.label && r.label && sel.i === j) || (sel.source && sel.source === r.source && sel.i === j && !r.label));
       if (isSel) { c.strokeStyle = "#fff"; c.lineWidth = 2; c.strokeRect(x0, top - 1, Math.max(2, x1 - x0), hh + 2); c.lineWidth = 1; }
     });
