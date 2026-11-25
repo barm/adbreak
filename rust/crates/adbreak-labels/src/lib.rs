@@ -150,13 +150,34 @@ pub struct Labels {
     /// The parts checked completely: every break in them is listed. Scoring is limited to these.
     pub reviewed: Vec<Span>,
     pub breaks: Vec<Break>,
+    /// Parts left out entirely (bad reception, say): never scored or trained on, and not counted as left to review.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub excluded: Vec<Span>,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub notes: String,
 }
 
 impl Labels {
     pub fn new(recording: Recording) -> Self {
-        Labels { format: FORMAT, recording, reviewed: vec![], breaks: vec![], notes: String::new() }
+        Labels { format: FORMAT, recording, reviewed: vec![], breaks: vec![], excluded: vec![], notes: String::new() }
+    }
+
+    /// The reviewed parts, less any excluded: what is scored and trained on.
+    pub fn usable_reviewed(&self) -> Vec<Span> {
+        let mut out = merge(&self.reviewed);
+        for x in &self.excluded {
+            out = out
+                .into_iter()
+                .flat_map(|r| [Span::new(r.start, r.end.min(x.start)), Span::new(r.start.max(x.end), r.end)])
+                .filter(|r| r.end > r.start)
+                .collect();
+        }
+        out
+    }
+
+    /// Seconds of the recording not excluded: what there is to review.
+    pub fn usable_seconds(&self) -> f64 {
+        (self.recording.duration - merge(&self.excluded).iter().map(Span::len).sum::<f64>()).max(0.0)
     }
 
     /// Sorts breaks and merges reviewed spans; errors on a break that is empty, outside the media or overlapping
@@ -321,7 +342,7 @@ pub fn score(labels: &Labels, found: &[Span]) -> Score {
 /// box counts as right; for the other kinds only paid programming is left out.
 pub fn score_kind(labels: &Labels, kind: Kind, found: &[Span]) -> Score {
     const STEP: f64 = 0.1;
-    let reviewed = merge(&labels.reviewed);
+    let reviewed = labels.usable_reviewed();
     let of = |k: Kind| -> Vec<Span> { labels.breaks.iter().filter(|b| b.kind == k).map(Break::span).collect() };
     let truth = of(kind);
     let ignored: Vec<Span> =

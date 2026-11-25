@@ -167,7 +167,8 @@ async function showList() {
     for (const r of rows) {
       const tr = t.insertRow(); tr.className = r.media ? "click" : "dim";
       if (r.media) tr.onclick = () => location.hash = `#/${r.id}`;
-      const pct = r.duration ? Math.round(100 * r.reviewed / r.duration) : 0;
+      // Of what there is to review: excluded parts (bad reception) don't count.
+      const pct = r.usable ? Math.min(100, Math.round(100 * r.reviewed / r.usable)) : 0;
       for (const c of [r.id, r.title, `${r.channel} ${r.network}`, new Date(r.start).toLocaleString(), fmt(r.duration).replace(/\.\d$/, ""), pct ? pct + "%" : "", r.breaks || "", r.media ? (r.sources.join(", ") || "none: run adbreak suggest " + r.id) : "no media: import it again"])
         tr.insertCell().textContent = c;
     }
@@ -185,7 +186,7 @@ async function showReview(id) {
   try {
     const d = await api(`/api/recordings/${id}`);
     const sources = (d.suggestions ? d.suggestions.sources : []);
-    undoStack = []; redoStack = []; last = JSON.stringify({ breaks: d.labels.breaks, reviewed: d.labels.reviewed });
+    undoStack = []; redoStack = []; last = JSON.stringify({ breaks: d.labels.breaks, reviewed: d.labels.reviewed, excluded: d.labels.excluded || [] });
     S = { id, labels: d.labels, sources, scores: d.scores || {}, version: d.version || "", fingerprint: d.fingerprint || "", cues: [], covered: new Uint8Array(0), dur: d.labels.recording.duration };
     vs = 0; vspan = Math.max(S.dur, 1);
     const r = d.labels.recording;
@@ -250,7 +251,7 @@ const ROW_INFO = {
   comskip: "For comparison, not an input: Comskip, the established open-source detector. Rarely marks programme as a break, but often ends breaks early and misses some.",
   "frames-zeroshot": "For comparison, not an input: pictures matched against text such as \"a TV commercial\", with no training. A baseline.",
   "logo-detector": "For comparison, not an input: the first, non-ML detector (black-and-silent edges plus the network's corner logo).",
-  reviewed: "The parts whose labels have been checked. Only reviewed time is scored.",
+  reviewed: "The parts whose labels have been checked (green). Only reviewed time is scored. Hatched parts are excluded (bad reception, say): never scored or trained on, and not counted as left to review. Right-click this row to exclude everything before or after the playhead, or to clear exclusions.",
 };
 // The comparison sources shown (the others in suggestions.json are superseded or duplicates).
 const COMPARE = ["comskip", "frames-zeroshot", "logo-detector"];
@@ -358,6 +359,18 @@ function draw() {
       for (const rv of S.labels.reviewed) {
         const x0 = Math.max(NAME, g.x(rv.start, vw)), x1 = Math.min(g.w - 6, g.x(rv.end, vw));
         if (x1 > x0) c.fillRect(x0, y + 2, x1 - x0, r.h - 4);
+      }
+      // Excluded parts: hatched grey over the whole timeline height, so it's clear nothing there counts.
+      for (const x of S.labels.excluded || []) {
+        const x0 = Math.max(NAME, g.x(x.start, vw)), x1 = Math.min(g.w - 6, g.x(x.end, vw));
+        if (x1 <= x0) continue;
+        c.fillStyle = "rgba(20,20,24,0.55)"; c.fillRect(x0, TOP, x1 - x0, y + r.h - TOP);
+        c.strokeStyle = "rgba(255,255,255,0.12)"; c.beginPath();
+        for (let hx = x0 - (y + r.h); hx < x1; hx += 8) { c.moveTo(Math.max(hx, x0), TOP + Math.max(0, x0 - hx)); c.lineTo(Math.min(hx + (y + r.h - TOP), x1), TOP + Math.min(y + r.h - TOP, x1 - hx)); }
+        c.stroke();
+        c.fillStyle = cssVar("var(--dim)"); c.font = "11px -apple-system, system-ui, sans-serif";
+        if (x1 - x0 > 90) c.fillText("excluded", x0 + 6, y + r.h / 2);
+        c.font = "12px -apple-system, system-ui, sans-serif";
       }
     }
     if (r.spans) r.spans.forEach((sp, j) => {
@@ -535,6 +548,24 @@ function openMenu(i, at, x, y) {
   ctx.style.left = `${Math.max(0, Math.min(x, w - ctx.offsetWidth - 4))}px`;
   ctx.style.top = `${y}px`;
 }
+// The reviewed row's menu: leave out everything before or after the playhead (bad reception, say), or undo that.
+function excludeMenu(x, y) {
+  const t = v.currentTime || 0, ex = S.labels.excluded || [];
+  const set = (spans) => { S.labels.excluded = spans; changed(); };
+  const items = [
+    [`Exclude everything before ${fmt(t)}`, () => set([...ex.filter((e) => e.start >= t), { start: 0, end: t }].sort((a, b) => a.start - b.start))],
+    [`Exclude everything after ${fmt(t)}`, () => set([...ex.filter((e) => e.end <= t), { start: t, end: S.dur }].sort((a, b) => a.start - b.start))],
+  ];
+  if (ex.length) items.push(["Clear exclusions", () => set([])]);
+  ctx.replaceChildren(...items.map(([label, fn]) => {
+    const btn = document.createElement("button"); btn.textContent = label;
+    btn.onclick = (ev) => { ev.stopPropagation(); closeMenu(); fn(); };
+    return btn;
+  }));
+  ctx.hidden = false;
+  ctx.style.left = `${Math.max(0, Math.min(x, $("tlwrap").clientWidth - ctx.offsetWidth - 4))}px`;
+  ctx.style.top = `${y}px`;
+}
 ctx.addEventListener("pointerdown", (ev) => ev.stopPropagation());
 ctx.addEventListener("keydown", (ev) => { ev.stopPropagation(); if (ev.key === "Escape") closeMenu(); });
 document.addEventListener("pointerdown", () => { if (!ctx.hidden) closeMenu(); });
@@ -542,6 +573,7 @@ document.addEventListener("pointerdown", () => { if (!ctx.hidden) closeMenu(); }
 tl.addEventListener("contextmenu", (ev) => {
   if (!S) return;
   const h = hit(ev);
+  if (h.row && h.row.type === "reviewed") { ev.preventDefault(); const w = $("tlwrap").getBoundingClientRect(); excludeMenu(ev.clientX - w.left, ev.clientY - w.top); return; }
   if (!h.row || !h.row.label) return;
   const j = S.labels.breaks.findIndex((b) => b.start <= h.t && h.t < b.end);
   if (j < 0) return;
@@ -652,13 +684,13 @@ function edges() {
 }
 // Undo: the labels (breaks and reviewed parts) after each change, to step back and forth through.
 let undoStack = [], redoStack = [];
-function snapshot() { return JSON.stringify({ breaks: S.labels.breaks, reviewed: S.labels.reviewed }); }
+function snapshot() { return JSON.stringify({ breaks: S.labels.breaks, reviewed: S.labels.reviewed, excluded: S.labels.excluded || [] }); }
 function undo(redo) {
   const from = redo ? redoStack : undoStack, to = redo ? undoStack : redoStack;
   if (!from.length) return status(redo ? "nothing to redo" : "nothing to undo");
   to.push(snapshot());
   const s = JSON.parse(from.pop());
-  S.labels.breaks = s.breaks; S.labels.reviewed = s.reviewed;
+  S.labels.breaks = s.breaks; S.labels.reviewed = s.reviewed; S.labels.excluded = s.excluded;
   sel = null; pending = null; closeMenu();
   last = snapshot();
   renderList(); draw();
@@ -776,8 +808,9 @@ function renderList() {
     tr.insertCell().append(del);
   });
   const reviewed = S.labels.reviewed.reduce((a, r) => a + r.end - r.start, 0);
+  const excluded = (S.labels.excluded || []).reduce((a, r) => a + r.end - r.start, 0);
   const cap = t.createCaption(); cap.style.textAlign = "left"; cap.className = "dim";
-  cap.textContent = `${S.labels.breaks.length} breaks · reviewed ${fmt(reviewed).replace(/\.\d$/, "")} of ${fmt(S.dur).replace(/\.\d$/, "")}`;
+  cap.textContent = `${S.labels.breaks.length} breaks · reviewed ${fmt(reviewed).replace(/\.\d$/, "")} of ${fmt(S.dur - excluded).replace(/\.\d$/, "")}` + (excluded ? ` (${fmt(excluded).replace(/\.\d$/, "")} excluded)` : "");
 }
 
 function tick() {

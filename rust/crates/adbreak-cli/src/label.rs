@@ -56,8 +56,10 @@ struct Row {
     network: String,
     start: String,
     duration: f64,
-    /// Seconds reviewed, and labelled breaks.
+    /// Seconds reviewed (less any excluded), seconds there are to review (the length less any excluded), and
+    /// labelled breaks.
     reviewed: f64,
+    usable: f64,
     breaks: usize,
     sources: Vec<String>,
     /// Whether the media store has its copy.
@@ -75,8 +77,9 @@ async fn list(State(data): State<Shared>) -> Result<Json<Vec<Row>>, Error> {
             channel: r.channel,
             network: r.network,
             start: r.start,
+            usable: e.labels.as_ref().map_or(r.duration, Labels::usable_seconds),
             duration: r.duration,
-            reviewed: e.labels.as_ref().map_or(0.0, |l| l.reviewed.iter().map(|s| s.len()).fold(0.0, |a, b| a + b)),
+            reviewed: e.labels.as_ref().map_or(0.0, |l| l.usable_reviewed().iter().map(|s| s.len()).sum()),
             breaks: e.labels.as_ref().map_or(0, |l| l.breaks.len()),
             sources: e.suggestions.map(|s| s.sources.into_iter().map(|s| s.name).collect()).unwrap_or_default(),
         });
