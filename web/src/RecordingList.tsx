@@ -7,6 +7,7 @@ import { EmptyState } from "@astryxdesign/core/EmptyState";
 import { Stack } from "@astryxdesign/core/Stack";
 import { fmt } from "./editor/engine";
 import { AppHeader } from "./AppHeader";
+import { TrainingRole } from "./TrainingRole";
 
 type Row = {
   id: string;
@@ -31,6 +32,7 @@ const pct = (x: number) => `${Math.round(100 * x)}%`;
 export function RecordingList() {
   const [rows, setRows] = useState<Row[] | null>(null);
   const [f1, setF1] = useState<Record<string, number>>({});
+  const [trainedOn, setTrainedOn] = useState<Set<string> | null>(null);
   const [error, setError] = useState("");
   useEffect(() => {
     fetch("/api/recordings")
@@ -38,7 +40,11 @@ export function RecordingList() {
       .then(setRows, (e) => setError(e.message));
     fetch("/api/model")
       .then((r) => (r.ok ? r.json() : null))
-      .then((m) => m && setF1(Object.fromEntries((m.recordings as Score[]).filter((r) => r.model).map((r) => [r.id, r.model!.f1]))))
+      .then((m) => {
+        if (!m) return;
+        setF1(Object.fromEntries((m.recordings as Score[]).filter((r) => r.model).map((r) => [r.id, r.model!.f1])));
+        setTrainedOn(new Set(m.info?.trained_on ?? []));
+      })
       .catch(() => {});
   }, []);
   const columns = [
@@ -61,6 +67,7 @@ export function RecordingList() {
     },
     { key: "breaks", header: "Labels", align: "end" as const, renderCell: (r: Row) => r.breaks || "" },
     { key: "f1", header: "Model F1", align: "end" as const, renderCell: (r: Row) => (r.id in f1 ? pct(f1[r.id]) : "") },
+    { key: "role", header: "Model", renderCell: (r: Row) => (trainedOn ? <TrainingRole inTraining={trainedOn.has(r.id)} /> : null) },
     { key: "id", header: "ID", renderCell: (r: Row) => <Text type="supporting" color="secondary">{r.id}</Text> },
   ];
   return (

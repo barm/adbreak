@@ -107,6 +107,8 @@ struct Overview {
     image_model_bytes: u64,
     image_model: String,
     kinds: Vec<String>,
+    /// `learning-curve.json` beside the model (`adbreak-ml learning-curve`), less its individual runs.
+    learning_curve: Option<serde_json::Value>,
     totals: Vec<KindScore>,
     recordings: Vec<RecordingScore>,
     can_run: bool,
@@ -189,6 +191,14 @@ fn overview(m: &Model) -> anyhow::Result<Overview> {
         image_model_bytes: du(&image),
         image_model,
         kinds,
+        learning_curve: std::fs::read_to_string(m.dir.join("learning-curve.json")).ok().and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok()).map(
+            |mut v| {
+                if let Some(o) = v.as_object_mut() {
+                    o.remove("runs");
+                }
+                v
+            },
+        ),
         totals: totals.into_iter().map(|(source, _, kind, s)| KindScore { source, kind, score: (&s).into() }).collect(),
         recordings,
         can_run: m.ml.join("pyproject.toml").is_file(),
@@ -201,15 +211,16 @@ async fn job(State(m): State<Arc<Model>>) -> Json<Job> {
 
 #[derive(Deserialize)]
 struct Run {
-    /// "evaluate" (suggestions again, leave-one-out) or "retrain" (evaluate, then export and install the model).
+    /// "evaluate" (suggestions again, leave-one-out), "retrain" (evaluate, then export and install the model), or
+    /// "learning-curve" (`adbreak-ml learning-curve` into the model's directory).
     action: String,
     /// Just this recording (evaluate only).
     only: Option<String>,
 }
 
 async fn run(State(m): State<Arc<Model>>, Json(r): Json<Run>) -> Response {
-    if !matches!(r.action.as_str(), "evaluate" | "retrain") {
-        return (StatusCode::BAD_REQUEST, "action is evaluate or retrain").into_response();
+    if !matches!(r.action.as_str(), "evaluate" | "retrain" | "learning-curve") {
+        return (StatusCode::BAD_REQUEST, "action is evaluate, retrain or learning-curve").into_response();
     }
     if !m.ml.join("pyproject.toml").is_file() {
         return (StatusCode::CONFLICT, format!("no ML project at {} (adbreak label --ml)", m.ml.display())).into_response();
@@ -222,11 +233,16 @@ async fn run(State(m): State<Arc<Model>>, Json(r): Json<Run>) -> Response {
         *j = Job { running: true, action: r.action.clone(), only: r.only.clone(), started: now(), ..Default::default() };
     }
     let mut steps: Vec<Vec<String>> = vec![];
+    if r.action == "learning-curve" {
+        steps.push(vec!["run".into(), "-q".into(), "adbreak-ml".into(), "learning-curve".into(), m.dir.display().to_string()]);
+    }
     let mut evaluate = vec!["run".to_string(), "-q".into(), "adbreak-ml".into(), "evaluate".into()];
     if let Some(id) = &r.only {
         evaluate.extend(["--only".into(), id.clone()]);
     }
-    steps.push(evaluate);
+    if r.action != "learning-curve" {
+        steps.push(evaluate);
+    }
     if r.action == "retrain" {
         steps.push(vec!["run".into(), "-q".into(), "adbreak-ml".into(), "export".into(), m.dir.display().to_string()]);
     }
