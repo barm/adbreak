@@ -118,7 +118,7 @@
         <tr><td><kbd>\</kbd></td><td>hide or show the panel (label list, notes, this help)</td></tr>
         <tr><td><kbd>Esc</kbd></td><td>clear the selection</td></tr>
       </table>
-      <p>Click a break in the table to frame it on the timeline, or its start or end time to close in on that edge. Drag anywhere on the timeline to scrub; click a span to select it; drag any label's start or end (in the labels row) to move it; where two labels touch, the shared edge moves both (hold <kbd>⌥</kbd> to move just one). Pinch (or <kbd>⌥</kbd>-scroll) to zoom around the pointer, swipe sideways to pan. Changes save as you go.</p>
+      <p>Click a break in the table to frame it on the timeline, or its start or end time to close in on that edge. Drag anywhere on the timeline to scrub; click a span to select it; drag any label's start or end (in the labels row) to move it; where two labels touch, the shared edge moves both (hold <kbd>⌥</kbd> to move just one). Pinch (or <kbd>⌥</kbd>-scroll) on the timeline to zoom around the pointer, or anywhere else on the page to zoom around the playhead, swipe sideways to pan. Changes save as you go.</p>
     </section>
   </div>
   </aside>
@@ -611,11 +611,22 @@ tl.addEventListener("wheel", (ev) => {
     vs += ev.deltaX * vspan / (g.w - NAME); clampView(); draw();
   }
 }, { passive: false });
-// Safari sends pinches as gesture events.
+// A pinch anywhere else on the page zooms the timeline too (not the page), around the playhead.
+addEventListener("wheel", (ev) => {
+  if (!S || $("review").hidden || !ev.ctrlKey || tl.contains(ev.target)) return;
+  ev.preventDefault();
+  zoomAt(Math.exp(ev.deltaY * 0.01), v.currentTime || 0);
+}, { passive: false });
+// Safari sends pinches as gesture events: around the pointer over the timeline, else the playhead.
 let gestureSpan = null, gestureAnchor = 0;
-tl.addEventListener("gesturestart", (ev) => { ev.preventDefault(); gestureSpan = vspan; const h = hit(ev); gestureAnchor = h.x >= NAME ? h.t : vs + vspan / 2; });
-tl.addEventListener("gesturechange", (ev) => { ev.preventDefault(); if (gestureSpan) zoomAt((gestureSpan / ev.scale) / vspan, gestureAnchor); });
-tl.addEventListener("gestureend", (ev) => { ev.preventDefault(); gestureSpan = null; });
+addEventListener("gesturestart", (ev) => {
+  if (!S || $("review").hidden) return;
+  ev.preventDefault(); gestureSpan = vspan;
+  const h = tl.contains(ev.target) ? hit(ev) : null;
+  gestureAnchor = h && h.x >= NAME ? h.t : v.currentTime || 0;
+});
+addEventListener("gesturechange", (ev) => { if (gestureSpan) { ev.preventDefault(); zoomAt((gestureSpan / ev.scale) / vspan, gestureAnchor); } });
+addEventListener("gestureend", (ev) => { if (gestureSpan) { ev.preventDefault(); gestureSpan = null; } });
 
 // ---- editing ----
 // `quick`: while scrubbing, seek to the nearest keyframe if the browser can (much faster); the exact frame on release.
