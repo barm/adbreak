@@ -94,14 +94,14 @@
         <tr><td><kbd>Space</kbd></td><td>play / pause</td></tr>
         <tr><td><kbd>← →</kbd></td><td>1 s (<kbd>⇧</kbd> 10 s, <kbd>⌥</kbd> 60 s)</td></tr>
         <tr><td><kbd>, .</kbd></td><td>one frame</td></tr>
-        <tr><td><kbd>[ ]</kbd></td><td>start / end a break here; with a break selected, move its edge here</td></tr>
+        <tr><td><kbd>[ ]</kbd></td><td>mark a new break's start and end here, in either order; with a break selected, move its edge here</td></tr>
         <tr><td><kbd>A</kbd></td><td>accept the selected suggestion as a break</td></tr>
         <tr><td><kbd>K</kbd></td><td>ad → promo → sponsor (in-programme ads: billboards, squeeze-backs, banners) → paid programming</td></tr>
         <tr><td><kbd>N P</kbd></td><td>next / previous edge from any source</td></tr>
         <tr><td><kbd>R</kbd></td><td>mark reviewed up to here (only reviewed parts are scored)</td></tr>
         <tr><td><kbd>Esc</kbd></td><td>clear the selection</td></tr>
       </table>
-      <p>Click a break in the table to frame it on the timeline, or its start or end time to close in on that edge. Drag anywhere on the timeline to scrub; click a span to select it; drag a selected break's edge to move it. Pinch (or <kbd>⌥</kbd>-scroll) to zoom around the pointer, swipe sideways to pan. Changes save as you go.</p>
+      <p>Click a break in the table to frame it on the timeline, or its start or end time to close in on that edge. Drag anywhere on the timeline to scrub; click a span to select it; drag any label's start or end (in the labels row) to move it. Pinch (or <kbd>⌥</kbd>-scroll) to zoom around the pointer, swipe sideways to pan. Changes save as you go.</p>
     </section>
   </div>
   </aside>
@@ -302,7 +302,7 @@ function draw() {
     if (x1 > x0) c.fillRect(x0, yc + 12, x1 - x0, 8);
   }
   // pending start, playhead
-  if (pending !== null) { c.strokeStyle = cssVar("var(--ad)"); c.setLineDash([4, 3]); const x = g.x(pending, vw); c.beginPath(); c.moveTo(x, TOP); c.lineTo(x, g.h); c.stroke(); c.setLineDash([]); }
+  if (pending !== null) { c.strokeStyle = cssVar("var(--ad)"); c.setLineDash([4, 3]); const x = g.x(pending.t, vw); c.beginPath(); c.moveTo(x, TOP); c.lineTo(x, g.h); c.stroke(); c.setLineDash([]); }
   const x = g.x(v.currentTime || 0, vw); c.strokeStyle = "#fff"; c.beginPath(); c.moveTo(x, 0); c.lineTo(x, g.h); c.stroke();
   // Skim line: where the pointer is, with its time.
   if (hoverT !== null && !scrubbing && hoverT >= vw[0] && hoverT <= vw[1]) {
@@ -324,16 +324,29 @@ function hit(ev) {
 
 // Pointer: drag a selected break's edge to move it; otherwise press and drag anywhere to scrub. Clicking a span
 // selects it. Hovering shows a skim line with the time under the pointer.
+// The label edge under the pointer, in the labels row: where two labels meet, the side the pointer is on picks
+// which (left: the earlier one's end; right: the later one's start).
+function edgeAt(h) {
+  if (!h.row || !h.row.label) return null;
+  let best = null;
+  S.labels.breaks.forEach((b, i) => {
+    for (const edge of ["start", "end"]) {
+      const d = Math.abs(h.t - b[edge]);
+      if (d >= h.tol) continue;
+      const inside = edge === "start" ? h.t >= b.start : h.t <= b.end;
+      const score = d - (inside ? h.tol : 0);
+      if (!best || score < best.score) best = { i, edge, score };
+    }
+  });
+  return best;
+}
 tl.addEventListener("pointerdown", (ev) => {
   if (!S || ev.button !== 0) return;
   const h = hit(ev);
   if (h.x < NAME) return;
   tl.setPointerCapture(ev.pointerId);
-  if (sel && sel.label) {
-    const b = S.labels.breaks[sel.i];
-    if (Math.abs(h.t - b.start) < h.tol) { drag = "start"; return; }
-    if (Math.abs(h.t - b.end) < h.tol) { drag = "end"; return; }
-  }
+  const e = edgeAt(h);
+  if (e) { sel = { label: true, i: e.i }; drag = e.edge; renderList(); return; }
   if (h.row) {
     const j = h.row.spans.findIndex((s) => s.start <= h.t && h.t < s.end);
     if (j >= 0) sel = h.row.label ? { label: true, i: j } : { source: h.row.source, i: j };
@@ -346,10 +359,14 @@ tl.addEventListener("pointermove", (ev) => {
   if (!S) return;
   const h = hit(ev);
   hoverT = h.x >= NAME ? h.t : null;
+  tl.style.cursor = drag || (h.x >= NAME && edgeAt(h)) ? "col-resize" : "crosshair";
   if (drag && sel) {
+    // Stay a break, and stop at the neighbouring labels.
     const b = S.labels.breaks[sel.i];
-    if (drag === "start") b.start = Math.min(h.t, b.end - 0.1); else b.end = Math.max(h.t, b.start + 0.1);
-    seek(h.t, true);
+    const prev = S.labels.breaks.filter((x, j) => j !== sel.i && x.end <= b.start + 1e-6).reduce((m, x) => Math.max(m, x.end), 0);
+    const next = S.labels.breaks.filter((x, j) => j !== sel.i && x.start >= b.end - 1e-6).reduce((m, x) => Math.min(m, x.start), S.dur);
+    if (drag === "start") b.start = Math.max(prev, Math.min(h.t, b.end - 0.1)); else b.end = Math.min(next, Math.max(h.t, b.start + 0.1));
+    seek(b[drag], true);
   } else if (scrubbing) {
     seek(h.t, true);
   }
@@ -472,15 +489,20 @@ function key(k, shift, alt) {
     case "ArrowRight": seek(t + (alt ? 60 : shift ? 10 : 1)); break;
     case ",": v.pause(); seek(t - 1 / 29.97); break;
     case ".": v.pause(); seek(t + 1 / 29.97); break;
-    case "[":
-      if (b) { if (t >= b.end || overlaps(t, b.end, sel.i)) return status("can't move the start there", true); b.start = t; changed(); }
-      else { pending = t; status(`break starts at ${fmt(t)}: press ] at its end`); draw(); }
+    case "[": case "]": {
+      const edge = k === "[" ? "start" : "end";
+      // A new break marked by one edge: the other key completes it (either order).
+      if (pending !== null && pending.edge !== edge) { const p = pending.t; pending = null; addBreak(Math.min(p, t), Math.max(p, t)); break; }
+      // With a break selected, move its edge here, if that leaves it a break (start before end, no overlap);
+      // otherwise (e.g. [ at or after the selected break's end) start marking a new break here.
+      if (b && pending === null) {
+        const [a2, b2] = edge === "start" ? [t, b.end] : [b.start, t];
+        if (a2 < b2 && !overlaps(a2, b2, sel.i)) { b[edge] = t; changed(); break; }
+      }
+      pending = { edge, t }; sel = null; renderList();
+      status(`new break ${edge}s at ${fmt(t)}: press ${edge === "start" ? "]" : "["} at its ${edge === "start" ? "end" : "start"}`); draw();
       break;
-    case "]":
-      if (b) { if (t <= b.start || overlaps(b.start, t, sel.i)) return status("can't move the end there", true); b.end = t; changed(); }
-      else if (pending !== null) { const p = pending; pending = null; addBreak(Math.min(p, t), Math.max(p, t)); }
-      else status("press [ at the break's start first", true);
-      break;
+    }
     case "a": case "A":
       if (sel && sel.source) { const s = S.sources.find((x) => x.name === sel.source).breaks[sel.i]; addBreak(s.start, s.end); }
       else status("select a suggestion on the timeline first", true);
