@@ -77,6 +77,39 @@ pub fn seconds(cues: &[Cue], duration: f64) -> Vec<Second> {
     out
 }
 
+/// What is on screen at one instant (see [`at_seconds`]).
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct OnScreen {
+    /// A cue is showing (counting half a second after it ends, as cues are often cut slightly short).
+    pub visible: bool,
+    /// That cue kept a line from the cue before it (roll-up captioning).
+    pub roll_up: bool,
+    /// That cue started within the last second.
+    pub new_cue: bool,
+}
+
+/// What is on screen at each whole second 0, 1, … n-1: the latest cue started at or before that instant. These are
+/// the caption inputs adbreak's model is trained on; keep them as they are, or retrain.
+pub fn at_seconds(cues: &[Cue], n: usize) -> Vec<OnScreen> {
+    let roll: Vec<bool> = cues.iter().enumerate().map(|(i, c)| i > 0 && c.lines.first().is_some_and(|f| cues[i - 1].lines.contains(f))).collect();
+    let mut out = vec![OnScreen::default(); n];
+    let mut i = 0usize;
+    let mut cur: Option<usize> = None;
+    for (s, o) in out.iter_mut().enumerate() {
+        let t = s as f64;
+        while i < cues.len() && cues[i].start <= t {
+            cur = Some(i);
+            i += 1;
+        }
+        if let Some(c) = cur
+            && t < cues[c].end + 0.5
+        {
+            *o = OnScreen { visible: true, roll_up: roll[c], new_cue: cues[c].start > t - 1.0 };
+        }
+    }
+    out
+}
+
 /// Settings for [`uncaptioned`].
 #[derive(Clone, Debug)]
 pub struct Quiet {
@@ -141,6 +174,22 @@ mod tests {
         assert!(s[0].captioned && !s[0].roll_up && s[4].roll_up);
         assert!(s[3600].captioned && !s[3600].roll_up);
         assert!(!s[100].captioned);
+    }
+
+    #[test]
+    fn on_screen_each_second() {
+        let cues = vec![
+            Cue { start: 0.5, end: 2.0, lines: vec!["a".into()] },
+            Cue { start: 2.0, end: 3.2, lines: vec!["a".into(), "b".into()] },
+            Cue { start: 6.0, end: 7.0, lines: vec!["c".into()] },
+        ];
+        let o = at_seconds(&cues, 9);
+        assert!(!o[0].visible);
+        assert!(o[1].visible && o[1].new_cue && !o[1].roll_up);
+        assert!(o[2].visible && o[2].roll_up && o[2].new_cue);
+        assert!(o[3].visible && !o[3].new_cue, "{:?}", o[3]);
+        assert!(!o[4].visible && !o[5].visible);
+        assert!(o[6].visible && !o[6].roll_up && o[7].visible && !o[8].visible);
     }
 
     #[test]

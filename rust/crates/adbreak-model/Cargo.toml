@@ -1,0 +1,11 @@
+[package]
+name = "adbreak-model"
+version = "0.1.0"
+edition = "2024"
+description = "adbreak's commercial-break model: per-second inputs (picture embedding, captions, black and silence) to breaks, with a model trained by adbreak's ml/ and loaded from JSON. Pure Rust."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/barm/adbreak"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["float_roundtrip"] }

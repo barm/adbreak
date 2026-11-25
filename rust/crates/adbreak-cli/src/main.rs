@@ -9,6 +9,7 @@
 //! - `adbreak eval` scores every source against the labels.
 
 mod dataset;
+mod features;
 mod label;
 mod tools;
 
@@ -54,6 +55,18 @@ enum Cmd {
         #[arg(long)]
         quick: bool,
     },
+    /// Compute the per-second model inputs from a recording's copy (picture embeddings, captions, black and
+    /// silence), as the DVR computes them, for training: `features/rust-v1.f32` and `.json` in the media store.
+    Features {
+        #[arg(required = true)]
+        ids: Vec<String>,
+        /// Directory with the image model (`mobileclip2-s0-image.mlpackage`).
+        #[arg(long, env = "ADBREAK_MODEL_DIR", default_value_os_t = home().join("Movies/adbreak/model"))]
+        model_dir: PathBuf,
+        /// Compute again even if the files exist.
+        #[arg(long)]
+        force: bool,
+    },
     /// Serve the labelling page.
     Label {
         /// Address to listen on. Anyone who can reach it can watch the recordings: keep it on loopback (publish it
@@ -90,6 +103,11 @@ async fn main() -> Result<()> {
             }
             for name in ids {
                 suggest(&data, &data.resolve(&name)?, comskip.clone(), !quick)?;
+            }
+        }
+        Cmd::Features { ids, model_dir, force } => {
+            for name in ids {
+                features::compute(&data, &data.resolve(&name)?, &model_dir, force)?;
             }
         }
         Cmd::Label { bind } => label::serve(data, &bind).await?,
