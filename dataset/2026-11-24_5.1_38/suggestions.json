@@ -533,18 +533,18 @@
       "detail": "adbreak-model inputs (rust-v1), leave-one-recording-out over 8",
       "breaks": [
         {
-          "start": 38.0,
+          "start": 39.0,
           "end": 85.0,
           "kind": "ad"
         },
         {
           "start": 175.0,
-          "end": 241.0,
+          "end": 235.0,
           "kind": "ad"
         },
         {
-          "start": 442.0,
-          "end": 540.19,
+          "start": 443.0,
+          "end": 554.05,
           "kind": "ad"
         },
         {
@@ -553,33 +553,28 @@
           "kind": "ad"
         },
         {
-          "start": 1106.0,
-          "end": 1151.0,
-          "kind": "ad"
-        },
-        {
           "start": 1471.0,
           "end": 1675.0,
           "kind": "ad"
         },
         {
-          "start": 2025.0,
+          "start": 2030.0,
           "end": 2249.0,
           "kind": "ad"
         },
         {
-          "start": 2323.0,
-          "end": 2451.0,
+          "start": 2322.0,
+          "end": 2450.0,
           "kind": "ad"
         },
         {
           "start": 2847.0,
-          "end": 3017.0,
+          "end": 3031.0,
           "kind": "ad"
         },
         {
           "start": 3225.0,
-          "end": 3374.0,
+          "end": 3373.0,
           "kind": "ad"
         },
         {
@@ -588,7 +583,7 @@
           "kind": "ad"
         },
         {
-          "start": 4181.0,
+          "start": 4183.0,
           "end": 4250.0,
           "kind": "ad"
         },
@@ -609,7 +604,7 @@
         },
         {
           "start": 6493.0,
-          "end": 6588.0,
+          "end": 6587.0,
           "kind": "ad"
         },
         {
@@ -619,11 +614,11 @@
         },
         {
           "start": 7467.0,
-          "end": 7655.0,
+          "end": 7656.0,
           "kind": "ad"
         },
         {
-          "start": 7733.0,
+          "start": 7734.0,
           "end": 7782.66,
           "kind": "ad"
         },
@@ -633,7 +628,7 @@
           "kind": "ad"
         }
       ],
-      "trained_on": "5866c1a456669e34"
+      "trained_on": "015a90fd748ab575"
     }
   ]
 }
