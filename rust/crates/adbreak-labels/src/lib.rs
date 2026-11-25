@@ -54,14 +54,11 @@ impl Span {
 #[serde(rename_all = "snake_case")]
 pub enum Kind {
     /// A commercial break: the programme is gone and advertising fills the screen (commercials, the network's
-    /// promos for its own shows, station spots and bumpers). What a detector is scored on. (`promo` was a separate
-    /// kind before; it reads as this.)
+    /// promos for its own shows, station spots and bumpers). What a detector is scored on.
     #[default]
-    #[serde(alias = "promo")]
     Ad,
     /// The programme shrunk beside or under an ad (a squeeze-back). Not scored as break or programme, and a break's
-    /// edge anywhere across an adjacent double box counts as right. (`sponsor` was the kind before; it reads as this.)
-    #[serde(alias = "sponsor")]
+    /// edge anywhere across an adjacent double box counts as right.
     DoubleBox,
     /// Advertising over the full-screen programme: an announcer's sponsor read, sponsor graphics or banners over
     /// play, a promo for what's coming up next. Programme as far as break scoring goes.
@@ -437,10 +434,10 @@ mod tests {
     }
 
     #[test]
-    fn old_kinds_still_read() {
-        let k: Vec<Kind> = serde_json::from_str(r#"["promo", "sponsor", "ad_read", "double_box"]"#).unwrap();
-        assert_eq!(k, [Kind::Ad, Kind::DoubleBox, Kind::AdRead, Kind::DoubleBox]);
-        assert_eq!(serde_json::to_string(&Kind::DoubleBox).unwrap(), r#""double_box""#);
+    fn kind_names() {
+        let k: Vec<Kind> = serde_json::from_str(r#"["ad", "double_box", "ad_read", "paid_programming"]"#).unwrap();
+        assert_eq!(k, Kind::ALL);
+        assert!(serde_json::from_str::<Kind>(r#""sponsor""#).is_err(), "old names are gone");
     }
 
     #[test]

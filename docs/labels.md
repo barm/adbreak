@@ -82,5 +82,4 @@ Double box and ad read are planned as outputs of their own, once there are enoug
 }
 ```
 
-Times are seconds from the start of the recording's media. Older files used `promo`, which reads as `ad`, and
-`sponsor`, which reads as `double_box`.
+Times are seconds from the start of the recording's media.
