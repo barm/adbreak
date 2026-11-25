@@ -121,6 +121,26 @@ struct Overview {
     can_run: bool,
     /// Earlier installed models kept in `history/` (their model-info.json), newest first; any can be put back.
     history: Vec<serde_json::Value>,
+    /// What the labelled data covers, by channel: where more recordings would teach the model most.
+    coverage: Vec<Coverage>,
+}
+
+/// One channel's share of the labelled data, and how the model does there when it has never seen the network.
+#[derive(Serialize, Default)]
+struct Coverage {
+    channel: String,
+    network: String,
+    recordings: usize,
+    /// Reviewed seconds (usable), and labelled seconds of each kind in them.
+    seconds: f64,
+    breaks: usize,
+    double_box_seconds: f64,
+    ad_read_seconds: f64,
+    /// Commercial-break F1 of the model trained on other networks (`model-new-network`), over this channel's
+    /// recordings; absent when every recording is from this network.
+    new_network_f1: Option<f64>,
+    #[serde(skip)]
+    new_network: Option<Score>,
 }
 
 const KINDS: [(Kind, &str); 3] = [(Kind::Ad, "commercial break"), (Kind::DoubleBox, "double box"), (Kind::AdRead, "ad read")];
@@ -168,6 +188,7 @@ fn overview(m: &Model) -> anyhow::Result<Overview> {
         None => totals.push((source.into(), k, name, *s)),
     };
     let mut recordings = vec![];
+    let mut coverage: Vec<Coverage> = vec![];
     for e in m.data.all()? {
         let (Some(labels), Some(sugg)) = (&e.labels, &e.suggestions) else { continue };
         if labels.reviewed.is_empty() {
@@ -196,8 +217,23 @@ fn overview(m: &Model) -> anyhow::Result<Overview> {
             row.how = s.detail.clone();
             row.stale = !s.trained_on.is_empty() && s.trained_on != fingerprint;
         }
+        let c = match coverage.iter().position(|c| c.channel == e.recording.channel) {
+            Some(i) => &mut coverage[i],
+            None => {
+                coverage.push(Coverage { channel: e.recording.channel.clone(), network: e.recording.network.clone(), ..Default::default() });
+                coverage.last_mut().unwrap()
+            }
+        };
+        let reviewed = labels.usable_reviewed();
+        let inside = |b: &adbreak_labels::Break| reviewed.iter().map(|r| (b.end.min(r.end) - b.start.max(r.start)).max(0.0)).sum::<f64>();
+        c.recordings += 1;
+        c.seconds += reviewed.iter().map(adbreak_labels::Span::len).sum::<f64>();
+        c.breaks += labels.breaks.iter().filter(|b| b.kind == Kind::Ad && inside(b) > 0.0).count();
+        c.double_box_seconds += labels.breaks.iter().filter(|b| b.kind == Kind::DoubleBox).map(inside).sum::<f64>();
+        c.ad_read_seconds += labels.breaks.iter().filter(|b| b.kind == Kind::AdRead).map(inside).sum::<f64>();
         if let Some(s) = src("model-new-network") {
             let sc = score_kind(labels, Kind::Ad, &s.spans(Kind::Ad));
+            c.new_network.get_or_insert_with(Score::default).add(&sc);
             row.new_network = Some((&sc).into());
             add("model-new-network", Kind::Ad, "commercial break", &sc);
         }
@@ -234,6 +270,13 @@ fn overview(m: &Model) -> anyhow::Result<Overview> {
         recordings,
         can_run: m.ml.join("pyproject.toml").is_file(),
         history: history(&m.dir),
+        coverage: {
+            for c in &mut coverage {
+                c.new_network_f1 = c.new_network.as_ref().map(Score::f1);
+            }
+            coverage.sort_by(|a, b| a.seconds.total_cmp(&b.seconds));
+            coverage
+        },
     })
 }
 
