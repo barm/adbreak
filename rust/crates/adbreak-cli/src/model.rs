@@ -168,11 +168,8 @@ fn with_scores(dir: &Path) -> Option<serde_json::Value> {
 }
 
 fn history(dir: &Path) -> Vec<serde_json::Value> {
-    let mut h: Vec<serde_json::Value> = std::fs::read_dir(dir.join("history"))
-        .map(|d| {
-            d.flatten().filter_map(|e| std::fs::read_to_string(e.path().join("model-info.json")).ok()).filter_map(|t| serde_json::from_str(&t).ok()).collect()
-        })
-        .unwrap_or_default();
+    let mut h: Vec<serde_json::Value> =
+        std::fs::read_dir(dir.join("history")).map(|d| d.flatten().filter_map(|e| with_scores(&e.path())).collect()).unwrap_or_default();
     h.sort_by(|a: &serde_json::Value, b| b["exported_at"].as_str().cmp(&a["exported_at"].as_str()));
     for i in &mut h {
         if let Some(o) = i.as_object_mut() {
