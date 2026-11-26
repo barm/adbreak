@@ -10,6 +10,8 @@ from pathlib import Path
 
 # In the order a recorder needs them replaced: the test vector first, model.json (what it watches) last.
 FILES = ("test_vector.json", "model-info.json", "model.json")
+# Kept alongside when present: the scores at the time it was trained (written by the app after a retrain).
+EXTRA = ("scores.json",)
 KEEP = 10
 
 
@@ -36,7 +38,7 @@ def keep(out: Path) -> None:
         tmp = out / "history" / f".{version}.tmp"
         shutil.rmtree(tmp, ignore_errors=True)
         tmp.mkdir(parents=True)
-        for f in FILES:
+        for f in FILES + tuple(e for e in EXTRA if (out / e).is_file()):
             shutil.copy2(out / f, tmp / f)
         tmp.rename(dest)
     for old in entries(out)[KEEP:]:
@@ -49,8 +51,21 @@ def install(out: Path, version: str) -> None:
     if not all((src / f).is_file() for f in FILES):
         raise SystemExit(f"no kept model {version} in {out / 'history'} (adbreak-ml history lists them)")
     keep(out)
+    for f in EXTRA:
+        if (src / f).is_file():
+            shutil.copy2(src / f, out / f)
+        else:
+            (out / f).unlink(missing_ok=True)
     for f in FILES:
         tmp = out / f".{f}.tmp"
         shutil.copy2(src / f, tmp)
         tmp.replace(out / f)
     print(f"installed {version} in {out}")
+
+
+def next_number(out: Path) -> int:
+    """The next model's number: one more than any installed or kept so far."""
+    seen = [i.get("number", 0) for i in entries(out)]
+    if (out / "model-info.json").is_file():
+        seen.append(json.loads((out / "model-info.json").read_text()).get("number", 0))
+    return max(seen, default=0) + 1

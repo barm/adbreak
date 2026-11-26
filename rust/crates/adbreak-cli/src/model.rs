@@ -145,7 +145,28 @@ struct Coverage {
 
 const KINDS: [(Kind, &str); 3] = [(Kind::Ad, "commercial break"), (Kind::DoubleBox, "double box"), (Kind::AdRead, "ad read")];
 
+/// Writes `scores.json` beside the installed model: the commercial-break totals of the scores just computed (its
+/// leave-one-out and new-network runs, and Comskip's for comparison).
+fn save_scores(m: &Model) -> anyhow::Result<()> {
+    let o = overview(m)?;
+    let totals: Vec<&KindScore> = o.totals.iter().filter(|t| t.kind == "commercial break").collect();
+    let body = serde_json::json!({ "version": o.info.as_ref().and_then(|i| i["version"].as_str()), "recordings": o.recordings.len(), "totals": totals });
+    let tmp = m.dir.join(".scores.json.tmp");
+    std::fs::write(&tmp, serde_json::to_string(&body)?)?;
+    std::fs::rename(tmp, m.dir.join("scores.json"))?;
+    Ok(())
+}
+
 /// The kept models' info, newest first (see `adbreak-ml history`).
+/// A model directory's model-info.json, with its scores.json (if any) as `scores`.
+fn with_scores(dir: &Path) -> Option<serde_json::Value> {
+    let mut info: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(dir.join("model-info.json")).ok()?).ok()?;
+    if let (Some(o), Some(sc)) = (info.as_object_mut(), std::fs::read_to_string(dir.join("scores.json")).ok().and_then(|t| serde_json::from_str(&t).ok())) {
+        o.insert("scores".into(), sc);
+    }
+    Some(info)
+}
+
 fn history(dir: &Path) -> Vec<serde_json::Value> {
     let mut h: Vec<serde_json::Value> = std::fs::read_dir(dir.join("history"))
         .map(|d| {
@@ -180,7 +201,7 @@ fn overview(m: &Model) -> anyhow::Result<Overview> {
     let json: Option<serde_json::Value> = std::fs::read_to_string(m.dir.join("model.json")).ok().and_then(|t| serde_json::from_str(&t).ok());
     let image_model = json.as_ref().and_then(|j| j["image_model"].as_str()).unwrap_or_default().to_string();
     let kinds = json.as_ref().and_then(|j| j["kinds"].as_object()).map(|k| k.keys().cloned().collect()).unwrap_or_default();
-    let info = std::fs::read_to_string(m.dir.join("model-info.json")).ok().and_then(|t| serde_json::from_str(&t).ok());
+    let info = with_scores(&m.dir);
     let fingerprint = crate::label::fingerprint(&m.data);
     let mut totals: Vec<(String, Kind, &'static str, Score)> = vec![];
     let mut add = |source: &str, k: Kind, name: &'static str, s: &Score| match totals.iter_mut().find(|t| t.0 == source && t.1 == k) {
@@ -293,6 +314,8 @@ struct Run {
     only: Option<String>,
     /// "install": which kept model to put back (`history`).
     version: Option<String>,
+    /// "retrain": what changed, kept with the model.
+    note: Option<String>,
 }
 
 async fn run(State(m): State<Arc<Model>>, Json(r): Json<Run>) -> Response {
@@ -327,8 +350,13 @@ async fn run(State(m): State<Arc<Model>>, Json(r): Json<Run>) -> Response {
         steps.push(evaluate);
     }
     if r.action == "retrain" {
-        steps.push(vec!["run".into(), "-q".into(), "adbreak-ml".into(), "export".into(), m.dir.display().to_string()]);
+        let mut export = vec!["run".into(), "-q".into(), "adbreak-ml".into(), "export".into(), m.dir.display().to_string()];
+        if let Some(n) = r.note.as_deref().map(str::trim).filter(|n| !n.is_empty()) {
+            export.extend(["--note".into(), n.to_string()]);
+        }
+        steps.push(export);
     }
+    let retrain = r.action == "retrain";
     let model = m.clone();
     tokio::spawn(async move {
         let mut ok = true;
@@ -345,6 +373,12 @@ async fn run(State(m): State<Arc<Model>>, Json(r): Json<Run>) -> Response {
                     ok = false;
                     break;
                 }
+            }
+        }
+        if ok && retrain {
+            // The new model's scores as they are now, kept with it (and with it in history when it's replaced).
+            if let Err(e) = save_scores(&model) {
+                model.job.lock().unwrap().log.push(format!("saving the scores: {e:#}"));
             }
         }
         let mut j = model.job.lock().unwrap();

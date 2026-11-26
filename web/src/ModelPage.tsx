@@ -9,6 +9,7 @@ import { Button } from "@astryxdesign/core/Button";
 import { Badge } from "@astryxdesign/core/Badge";
 import { CodeBlock } from "@astryxdesign/core/CodeBlock";
 import { MetadataList, MetadataListItem } from "@astryxdesign/core/MetadataList";
+import { TextInput } from "@astryxdesign/core/TextInput";
 import { AppHeader } from "./AppHeader";
 import { LearningCurve, type Curve } from "./LearningCurve";
 import { HowItWorks } from "./HowItWorks";
@@ -18,7 +19,14 @@ import { RowLinks } from "./RowLinks";
 type Scored = { precision: number; recall: number; f1: number; breaks: number; found: number; matched: number; start_error: number; end_error: number ; wrongly_skipped_per_hour: number; missed_per_hour: number };
 type Total = Scored & { source: string; kind: string };
 type Rec = { id: string; title: string; model?: Scored; new_network?: Scored; comskip?: Scored; log_loss?: number; auc?: number; how: string; stale: boolean };
+type Totals = { source: string; f1: number; matched: number; breaks: number; start_error: number; end_error: number; wrongly_skipped_per_hour: number; missed_per_hour: number };
 type Info = {
+  /** 1, 2, ... in the order models were trained (absent for ones from before numbering). */
+  number?: number;
+  /** What changed in it. */
+  note?: string;
+  /** Its scores when it was trained (scores.json). */
+  scores?: { recordings: number; totals: Totals[] };
   version: string;
   exported_at: string;
   trained_on: string[];
@@ -47,6 +55,11 @@ type Coverage = { channel: string; network: string; recordings: number; seconds:
 type Job = { running: boolean; action: string; only: string | null; ok: boolean | null; log: string[] };
 
 const pct = (x: number) => `${Math.round(100 * x)}%`;
+/** One of a model's kept scores, formatted; empty when it has none (trained before scores were kept). */
+const score = (h: Info, source: string, f: (t: Totals) => string) => {
+  const t = h.scores?.totals.find((x) => x.source === source);
+  return t ? f(t) : "";
+};
 const mb = (b: number) => (b >= 1e6 ? `${(b / 1e6).toFixed(1)} MB` : `${Math.round(b / 1e3)} kB`);
 const hours = (s: number) => (s >= 3600 ? `${(s / 3600).toFixed(1)} h` : `${Math.round(s / 60)} min`);
 const secs = (x: number) => `${x.toFixed(1)} s`;
@@ -73,8 +86,10 @@ export function ModelPage() {
     }, 2000);
     return () => clearInterval(t);
   }, [job?.running, load]);
+  const [note, setNote] = useState("");
   const run = async (action: "evaluate" | "retrain" | "learning-curve" | "install", only?: string, version?: string) => {
-    const r = await fetch("/api/model/run", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action, only, version }) });
+    const r = await fetch("/api/model/run", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action, only, version, note: action === "retrain" ? note : undefined }) });
+    if (r.ok && action === "retrain") setNote("");
     if (!r.ok) setError(await r.text());
     else { setError(""); setJob(await r.json()); }
   };
@@ -92,7 +107,8 @@ export function ModelPage() {
           end={
             <>
               <Button label="Rerun on all recordings" size="sm" variant="secondary" isDisabled={busy} tooltip="Each recording's suggestions again, leave-one-out" onClick={() => run("evaluate")} />
-              <Button label="Retrain and install" size="sm" variant="primary" isDisabled={busy} tooltip="Rerun on all, then export the model the DVR loads" onClick={() => run("retrain")} />
+              <TextInput label="What changed" isLabelHidden size="sm" placeholder="What changed (optional)" value={note} onChange={setNote} />
+              <Button label="Retrain and install" size="sm" variant="primary" isDisabled={busy} tooltip="Rerun on all, then export the model the DVR loads, numbered, with the note" onClick={() => run("retrain")} />
             </>
           }
         />
@@ -117,7 +133,8 @@ export function ModelPage() {
               <Stack direction="horizontal" gap={4} wrap="wrap" align="start">
                 <Section padding={3}>
                   <Stack gap={2}>
-                    <Heading level={3}>Installed model</Heading>
+                    <Heading level={3}>{info?.number ? `Installed: model ${info.number}` : "Installed model"}</Heading>
+                    {info?.note && <Text color="secondary">{info.note}</Text>}
                     <MetadataList>
                       <MetadataListItem label="Version">{info?.version ?? "–"}</MetadataListItem>
                       <MetadataListItem label="Exported">{info ? new Date(info.exported_at).toLocaleString() : "before this was recorded"}</MetadataListItem>
@@ -149,22 +166,27 @@ export function ModelPage() {
                 </Section>
               </Stack>
             )}
-            {m && m.history.length > 0 && (
+            {m && (info || m.history.length > 0) && (
               <Stack gap={2}>
-                <Heading level={3}>Earlier models</Heading>
+                <Heading level={3}>Models</Heading>
                 <Text type="supporting" color="secondary">
-                  The models this one replaced, newest first. Reinstalling one puts it back for recorders (they pick it up on their own); the scores above stay those of the current training.
+                  The installed model and the ones it replaced, newest first, each with its scores from when it was trained (leave-one-out over the recordings labelled then). Reinstalling one puts it back for recorders; they pick it up on their own.
                 </Text>
                 <Table
-                  data={m.history}
+                  data={[...(info && !m.history.some((h) => h.version === info.version) ? [info] : []), ...m.history]}
                   idKey="version"
                   density="compact"
                   columns={[
-                    { key: "version", header: "Version", renderCell: (h: Info) => <Text type="code">{h.version}</Text> },
-                    { key: "exported_at", header: "Trained", renderCell: (h: Info) => new Date(h.exported_at).toLocaleString() },
+                    { key: "number", header: "Model", renderCell: (h: Info) => <Stack gap={0}><Text type="label">{h.number ? `${h.number}${h.version === info?.version ? " (installed)" : ""}` : "–"}</Text><Text type="code" color="secondary">{h.version}</Text></Stack> },
+                    { key: "note", header: "What changed", renderCell: (h: Info) => h.note || "" },
+                    { key: "exported_at", header: "Trained", renderCell: (h: Info) => new Date(h.exported_at).toLocaleDateString() },
                     { key: "trained_on", header: "Recordings", align: "end" as const, renderCell: (h: Info) => `${h.trained_on.length}` },
-                    { key: "seconds", header: "Labelled", align: "end" as const, renderCell: (h: Info) => hours(h.seconds) },
-                    { key: "reinstall", header: "", align: "end" as const, renderCell: (h: Info) => <Button label="Reinstall" size="sm" variant="secondary" isDisabled={busy} onClick={() => run("install", undefined, h.version)} /> },
+                    { key: "f1", header: "F1", align: "end" as const, renderCell: (h: Info) => score(h, "model", (t) => pct(t.f1)) },
+                    { key: "edges", header: "Start / end error", align: "end" as const, renderCell: (h: Info) => score(h, "model", (t) => `${secs(t.start_error)} / ${secs(t.end_error)}`) },
+                    { key: "cut", header: "Show cut / h", align: "end" as const, renderCell: (h: Info) => score(h, "model", (t) => `${Math.round(t.wrongly_skipped_per_hour)} s`) },
+                    { key: "left", header: "Ads left / h", align: "end" as const, renderCell: (h: Info) => score(h, "model", (t) => `${Math.round(t.missed_per_hour)} s`) },
+                    { key: "nn", header: "New network F1", align: "end" as const, renderCell: (h: Info) => score(h, "model-new-network", (t) => pct(t.f1)) },
+                    { key: "reinstall", header: "", align: "end" as const, renderCell: (h: Info) => h.version === info?.version ? null : <Button label="Reinstall" size="sm" variant="secondary" isDisabled={busy} onClick={() => run("install", undefined, h.version)} /> },
                   ]}
                 />
               </Stack>
