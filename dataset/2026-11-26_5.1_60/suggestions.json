@@ -1,0 +1,124 @@
+{
+  "format": 1,
+  "recording": {
+    "source": "recorder",
+    "job": 60,
+    "channel": "5.1",
+    "network": "KPIX-TV",
+    "title": "Comics Unleashed With Byron Allen - Shayma Tash; Matt McClowry; Jared Goldstein; Rob Ward",
+    "start": "2026-11-26T07:34:00+00:00",
+    "duration": 2037.2018222222407
+  },
+  "sources": [
+    {
+      "name": "captions",
+      "detail": "uncaptioned: window 30 s, coverage < 0.5, at least 30 s",
+      "breaks": [
+        {
+          "start": 428.0,
+          "end": 544.0,
+          "kind": "ad"
+        },
+        {
+          "start": 917.0,
+          "end": 1136.0,
+          "kind": "ad"
+        },
+        {
+          "start": 1355.0,
+          "end": 1524.0,
+          "kind": "ad"
+        }
+      ]
+    },
+    {
+      "name": "comskip",
+      "detail": "Comskip 0.83.001, made using ffmpeg",
+      "breaks": [
+        {
+          "start": 0.02,
+          "end": 64.78,
+          "kind": "ad"
+        },
+        {
+          "start": 473.17,
+          "end": 605.44,
+          "kind": "ad"
+        },
+        {
+          "start": 904.44,
+          "end": 1132.83,
+          "kind": "ad"
+        },
+        {
+          "start": 1344.31,
+          "end": 1546.91,
+          "kind": "ad"
+        }
+      ]
+    },
+    {
+      "name": "logo-detector",
+      "detail": "logo detector (crates/adbreak) 0.1.0, defaults",
+      "breaks": []
+    },
+    {
+      "name": "model",
+      "detail": "adbreak-model inputs (rust-v1), trained on all 14 labelled recordings",
+      "breaks": [
+        {
+          "start": 69.0,
+          "end": 81.0,
+          "kind": "ad_read"
+        },
+        {
+          "start": 401.0,
+          "end": 605.71,
+          "kind": "ad"
+        },
+        {
+          "start": 904.65,
+          "end": 1133.12,
+          "kind": "ad"
+        },
+        {
+          "start": 1344.51,
+          "end": 1547.36,
+          "kind": "ad"
+        },
+        {
+          "start": 1795.0,
+          "end": 1806.0,
+          "kind": "ad_read"
+        },
+        {
+          "start": 1840.0,
+          "end": 1855.0,
+          "kind": "ad_read"
+        }
+      ],
+      "trained_on": "654f5f31f8b6ef3d"
+    },
+    {
+      "name": "recorder",
+      "detail": "the recorder's own break scan",
+      "breaks": [
+        {
+          "start": 400.0,
+          "end": 605.71,
+          "kind": "ad"
+        },
+        {
+          "start": 904.65,
+          "end": 1133.12,
+          "kind": "ad"
+        },
+        {
+          "start": 1344.51,
+          "end": 1547.36,
+          "kind": "ad"
+        }
+      ]
+    }
+  ]
+}

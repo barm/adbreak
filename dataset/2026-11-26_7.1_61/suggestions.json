@@ -1,0 +1,168 @@
+{
+  "format": 1,
+  "recording": {
+    "source": "recorder",
+    "job": 61,
+    "channel": "7.1",
+    "network": "KGO-HD",
+    "title": "Jimmy Kimmel Live! - John Mulaney; Jordan Firstman; Sam and the Pink Notes; Sara Niemietz",
+    "start": "2026-11-26T07:34:00+00:00",
+    "duration": 3957.32004444445
+  },
+  "sources": [
+    {
+      "name": "captions",
+      "detail": "uncaptioned: window 30 s, coverage < 0.5, at least 30 s",
+      "breaks": [
+        {
+          "start": 0.0,
+          "end": 34.0,
+          "kind": "ad"
+        },
+        {
+          "start": 849.0,
+          "end": 879.0,
+          "kind": "ad"
+        },
+        {
+          "start": 909.0,
+          "end": 1031.0,
+          "kind": "ad"
+        },
+        {
+          "start": 1778.0,
+          "end": 1897.0,
+          "kind": "ad"
+        },
+        {
+          "start": 1948.0,
+          "end": 1988.0,
+          "kind": "ad"
+        },
+        {
+          "start": 2360.0,
+          "end": 2390.0,
+          "kind": "ad"
+        },
+        {
+          "start": 2495.0,
+          "end": 2577.0,
+          "kind": "ad"
+        },
+        {
+          "start": 2723.0,
+          "end": 2828.0,
+          "kind": "ad"
+        },
+        {
+          "start": 3492.0,
+          "end": 3601.0,
+          "kind": "ad"
+        }
+      ]
+    },
+    {
+      "name": "comskip",
+      "detail": "Comskip 0.83.001, made using ffmpeg",
+      "breaks": [
+        {
+          "start": 0.02,
+          "end": 63.0,
+          "kind": "ad"
+        },
+        {
+          "start": 803.55,
+          "end": 1060.06,
+          "kind": "ad"
+        },
+        {
+          "start": 1716.98,
+          "end": 1989.64,
+          "kind": "ad"
+        },
+        {
+          "start": 2299.25,
+          "end": 2879.44,
+          "kind": "ad"
+        }
+      ]
+    },
+    {
+      "name": "logo-detector",
+      "detail": "logo detector (crates/adbreak) 0.1.0, defaults",
+      "breaks": [
+        {
+          "start": 27.96127222222222,
+          "end": 114.0,
+          "kind": "ad"
+        },
+        {
+          "start": 1060.3676444444445,
+          "end": 1118.0,
+          "kind": "ad"
+        },
+        {
+          "start": 1982.6139666666668,
+          "end": 2008.0,
+          "kind": "ad"
+        },
+        {
+          "start": 2299.463838888889,
+          "end": 2904.0,
+          "kind": "ad"
+        },
+        {
+          "start": 3490.6204666666667,
+          "end": 3644.0,
+          "kind": "ad"
+        },
+        {
+          "start": 3785.1146666666664,
+          "end": 3958.0,
+          "kind": "ad"
+        }
+      ]
+    },
+    {
+      "name": "recorder",
+      "detail": "the recorder's own break scan",
+      "breaks": [
+        {
+          "start": 98.0,
+          "end": 128.0,
+          "kind": "ad"
+        },
+        {
+          "start": 297.0,
+          "end": 335.0,
+          "kind": "ad"
+        },
+        {
+          "start": 770.5,
+          "end": 1060.37,
+          "kind": "ad"
+        },
+        {
+          "start": 1719.5,
+          "end": 1982.61,
+          "kind": "ad"
+        },
+        {
+          "start": 2299.46,
+          "end": 2879.76,
+          "kind": "ad"
+        },
+        {
+          "start": 3490.62,
+          "end": 3725.0,
+          "kind": "ad"
+        },
+        {
+          "start": 3875.0,
+          "end": 3958.0,
+          "kind": "ad"
+        }
+      ]
+    }
+  ]
+}
