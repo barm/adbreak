@@ -22,7 +22,8 @@ def main() -> None:
     ap.add_argument("command", choices=["features", "baseline", "fusion", "export", "evaluate", "refresh", "learning-curve", "history", "install"])
     ap.add_argument("out", nargs="?", default=None, help="the model directory (default: ADBREAK_MODEL_DIR, or model/ beside the database)")
     ap.add_argument("--version", help="install: which kept model (see history)")
-    ap.add_argument("--note", default="", help="export: what changed in this model, shown beside its number")
+    ap.add_argument("--note", default="", help="export: what changed in this model, shown beside its name")
+    ap.add_argument("--name", default="", help="export: the name's first part instead of adbreak-0.<number> (the size is added)")
     ap.add_argument("--only", action="append", default=[], help="evaluate: just these recordings (repeatable)")
     a = ap.parse_args()
     from .data import MODEL
@@ -41,7 +42,7 @@ def main() -> None:
         else:
             installed = json.loads((out / "model-info.json").read_text()).get("version") if (out / "model-info.json").is_file() else None
             for i in history.entries(out):
-                print(f"model {i.get('number', '?'):>3}  {i['version']}  {i.get('exported_at', '')}  {len(i.get('trained_on', []))} recordings  {i.get('note', '')}")
+                print(f"{i.get('name') or 'model ' + str(i.get('number', '?')):>18}  {i['version']}  {i.get('exported_at', '')}  {len(i.get('trained_on', []))} recordings  {i.get('note', '')}")
             print(f"installed: {installed}")
         return
     recs = [r for r in recordings() if r.media.is_file()]
@@ -63,7 +64,7 @@ def main() -> None:
 
         from . import export
 
-        export.export([r for r in recs if r.labels], Path(a.out), note=a.note)
+        export.export([r for r in recs if r.labels], Path(a.out), note=a.note, name=a.name)
     elif a.command == "refresh":
         # Every learned source, retrained leave-one-out against the current labels: after labelling or adding a recording.
         from . import export

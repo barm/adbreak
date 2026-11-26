@@ -23,6 +23,8 @@ type Totals = { source: string; f1: number; matched: number; breaks: number; sta
 type Info = {
   /** 1, 2, ... in the order models were trained (absent for ones from before numbering). */
   number?: number;
+  /** adbreak-0.<number>-<trees>. */
+  name?: string;
   /** What changed in it. */
   note?: string;
   /** Its scores when it was trained (scores.json). */
@@ -55,6 +57,8 @@ type Coverage = { channel: string; network: string; recordings: number; seconds:
 type Job = { running: boolean; action: string; only: string | null; ok: boolean | null; log: string[] };
 
 const pct = (x: number) => `${Math.round(100 * x)}%`;
+/** adbreak-0.2-300; for a model from before names, its number or short hash. */
+const modelName = (i: Info) => i.name ?? (i.number ? `model ${i.number}` : i.version.slice(0, 8));
 /** One of a model's kept scores, formatted; empty when it has none (trained before scores were kept). */
 const score = (h: Info, source: string, f: (t: Totals) => string) => {
   const t = h.scores?.totals.find((x) => x.source === source);
@@ -133,7 +137,7 @@ export function ModelPage() {
               <Stack direction="horizontal" gap={4} wrap="wrap" align="start">
                 <Section padding={3}>
                   <Stack gap={2}>
-                    <Heading level={3}>{info?.number ? `Installed: model ${info.number}` : "Installed model"}</Heading>
+                    <Heading level={3}>{info ? `Installed: ${modelName(info)}` : "Installed model"}</Heading>
                     {info?.note && <Text color="secondary">{info.note}</Text>}
                     <MetadataList>
                       <MetadataListItem label="Version">{info?.version ?? "–"}</MetadataListItem>
@@ -177,7 +181,7 @@ export function ModelPage() {
                   idKey="version"
                   density="compact"
                   columns={[
-                    { key: "number", header: "Model", renderCell: (h: Info) => <Stack gap={0}><Text type="label">{h.number ? `${h.number}${h.version === info?.version ? " (installed)" : ""}` : "–"}</Text><Text type="code" color="secondary">{h.version}</Text></Stack> },
+                    { key: "number", header: "Model", renderCell: (h: Info) => <Stack gap={0}><Text type="label">{`${modelName(h)}${h.version === info?.version ? " (installed)" : ""}`}</Text><Text type="code" color="secondary">{h.version.slice(0, 8)}</Text></Stack> },
                     { key: "note", header: "What changed", renderCell: (h: Info) => h.note || "" },
                     { key: "exported_at", header: "Trained", renderCell: (h: Info) => new Date(h.exported_at).toLocaleDateString() },
                     { key: "trained_on", header: "Recordings", align: "end" as const, renderCell: (h: Info) => `${h.trained_on.length}` },
