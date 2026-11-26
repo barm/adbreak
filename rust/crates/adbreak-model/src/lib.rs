@@ -16,6 +16,8 @@
 
 #![forbid(unsafe_code)]
 
+mod text;
+
 use serde::Deserialize;
 
 /// The model file's format version this code reads.
@@ -44,6 +46,9 @@ pub struct Row {
 pub struct Inputs {
     pub rows: Vec<Row>,
     pub edges: Vec<f64>,
+    /// The captions: each cue's start and end (seconds) and its text, its lines joined with a space
+    /// (`adbreak_captions::parse_vtt`). Read by models with text inputs.
+    pub captions: Vec<(f64, f64, String)>,
 }
 
 /// A break found: seconds from the start of the recording.
@@ -109,6 +114,9 @@ struct Json {
     /// The other kinds' outputs, by kind name (absent from models that find commercial breaks only).
     #[serde(default)]
     kinds: std::collections::BTreeMap<String, KindHead>,
+    /// Caption text inputs (absent from older models, whose trees read no text columns).
+    #[serde(default)]
+    text: Option<text::Text>,
 }
 
 /// A stretch of one kind: `ad` (a commercial break), `double_box` or `ad_read`.
@@ -124,7 +132,21 @@ pub struct Model {
     m: Json,
 }
 
-/// The input columns the trees read, in order; the model file must list the same.
+/// The trailing text score's recent maximum is taken over these many seconds.
+const TEXT_MAX: [usize; 2] = [30, 60];
+
+/// The input columns the trees read, in order, for a model with caption text inputs or without; the model file must
+/// list the same.
+pub fn feature_names_with(windows: &[usize], text: bool) -> Vec<String> {
+    let mut v = feature_names(windows);
+    if text {
+        v.extend(["text_now", "text_trail", "text_now_w7", "text_now_w30"].map(String::from));
+        v.extend(TEXT_MAX.iter().map(|w| format!("text_trail_max{w}")));
+    }
+    v
+}
+
+/// The input columns of a model without caption text inputs.
 pub fn feature_names(windows: &[usize]) -> Vec<String> {
     let mut v: Vec<String> =
         ["p", "has_captions", "visible", "roll_up", "new_cue", "black", "silent", "edge_dist", "edge_here"].iter().map(|s| s.to_string()).collect();
@@ -162,7 +184,10 @@ impl Model {
         if m.frame_coef.len() != m.embedding_dim || m.kinds.values().any(|h| h.frame_coef.len() != m.embedding_dim) {
             return Err("frame weights don't match the embedding size".into());
         }
-        if m.features != feature_names(&m.windows) {
+        if m.text.as_ref().is_some_and(|t| [&t.now, &t.trail_head].into_iter().flatten().any(|h| h.coef.len() != t.buckets) || t.trail == 0) {
+            return Err("text weights don't match their bucket count".into());
+        }
+        if m.features != feature_names_with(&m.windows, m.text.is_some()) {
             return Err("the model's inputs don't match this code's: retrain or update".into());
         }
         Ok(Model { m })
@@ -263,6 +288,18 @@ impl Model {
         let p2: Vec<f64> = p.iter().map(|v| v * v).collect();
         let (m1, m2) = (window_mean(p, 15), window_mean(&p2, 15));
         cols.push(m1.iter().zip(&m2).map(|(a, b)| (b - a * a).max(0.0).sqrt()).collect());
+        if let Some(t) = &self.m.text {
+            let (now_sets, trail_sets) = text::per_second(&inputs.captions, n, t.buckets, t.trail);
+            let now = text::score(&now_sets, t.now.as_ref());
+            let trail = text::score(&trail_sets, t.trail_head.as_ref());
+            cols.push(now.clone());
+            cols.push(trail.clone());
+            cols.push(window_mean(&now, 7));
+            cols.push(window_mean(&now, 30));
+            for w in TEXT_MAX {
+                cols.push((0..n).map(|k| trail[k.saturating_sub(w)..=k].iter().copied().fold(f64::NEG_INFINITY, f64::max)).collect());
+            }
+        }
         // Rounded to f32, as in training: Rust and NumPy can differ in the last bit of f64 arithmetic, which would send
         // a value sitting on a tree threshold the other way.
         (0..n).map(|i| cols.iter().map(|c| f64::from(c[i] as f32)).collect()).collect()
@@ -327,6 +364,9 @@ pub struct TestVector {
     pub model: Option<String>,
     rows: Vec<JsonRow>,
     edges: Vec<f64>,
+    /// The captions of its span (for models with text inputs).
+    #[serde(default)]
+    captions: Vec<(f64, f64, String)>,
     probabilities: Vec<f64>,
     breaks: Vec<(f64, f64)>,
     /// The other kinds' probabilities, and every kind's breaks as [`Model::kind_breaks`] gives them.
@@ -360,6 +400,7 @@ impl Model {
                 })
                 .collect(),
             edges: tv.edges.clone(),
+            captions: tv.captions.clone(),
         };
         let p = self.probabilities(&inputs);
         if p.len() != tv.probabilities.len() {

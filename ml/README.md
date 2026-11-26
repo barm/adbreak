@@ -45,8 +45,10 @@ cd .. && adbreak eval --each # scores them next to Comskip
 `adbreak_ml/fusion.py` turns per-second evidence into breaks:
 
 - the frame classifier's break probability (each recording scored by a classifier trained on the others);
-- the caption on screen: whether captions exist, whether one is visible, roll-up or pop-on, a new cue, and a
-  break probability from a classifier on the caption's text (same leave-one-out rule);
+- the caption on screen: whether captions exist, whether one is visible, roll-up or pop-on, a new cue; and two
+  text scores (`adbreak_ml/text.py`, hashed words and word pairs, logistic regression, out-of-fold for the trees):
+  whether the caption on screen is a commercial's, and whether the last 20 s of captions say a break is coming
+  within 30 s. `adbreak-model`'s `text` module computes them the same way, from the weights in model.json;
 - black, silence, and the black-and-silent moments networks put between ads (distance to the nearest, how many
   nearby);
 - all of it averaged over windows of ±2 s to ±150 s, into gradient-boosted trees; then a threshold, short gaps

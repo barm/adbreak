@@ -15,7 +15,7 @@ import numpy as np
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression
 
-from .data import BREAK, IGNORE, MINOR_KINDS, Recording, kind_labels
+from .data import BREAK, IGNORE, MINOR_KINDS, PROGRAMME, Recording, kind_labels
 from .embed import NAME as EMBED, MODEL as IMAGE_MODEL
 from .data import second_labels
 from .fusion import WINDOWS, window_mean
@@ -43,8 +43,16 @@ class Data:
         self.cap = raw[:, meta["dim"] : meta["dim"] + 4].astype(np.float64)
         self.av = raw[:, meta["dim"] + 4 :].astype(np.float64)
         self.edges = np.array(meta["edges"]) if meta["edges"] else np.array([-1e9])
+        from .text import cues, per_second
+
+        vtt = d.parent / "captions.vtt"
+        self.cues = cues(vtt.read_text(errors="ignore")) if vtt.is_file() else []
+        self.tok_now, self.tok_trail = per_second(self.cues, len(self.t))
+        # The text scores (out-of-fold in training), set by train_head / predict_head before table().
+        self.tnow = self.ttrail = None
 
 FORMAT = 1
+TEXT_MAX = (30, 60)
 EDGE_CAP = 120.0
 # snap_black: a break's ends also snap to black pictures without a silence (a run of black seconds, at its middle):
 # some channels open and close breaks with a black frame but no silence.
@@ -67,7 +75,7 @@ def feature_names() -> list[str]:
     v = ["p", "has_captions", "visible", "roll_up", "new_cue", "black", "silent", "edge_dist", "edge_here"]
     for w in WINDOWS:
         v += [f"p_w{w}", f"visible_w{w}", f"roll_up_w{w}", f"edges_w{w}"]
-    return v + ["p_std15"]
+    return v + ["p_std15", "text_now", "text_trail", "text_now_w7", "text_now_w30"] + [f"text_trail_max{w}" for w in TEXT_MAX]
 
 
 def inputs(d: Data, drop_captions: bool = False):
@@ -92,6 +100,13 @@ def table(d: Data, p: np.ndarray, drop_captions: bool = False) -> np.ndarray:
         cols += [window_mean(p, w), window_mean(vis, w), window_mean(roll, w), window_mean(here, w) * (2 * w + 1)]
     m1, m2 = window_mean(p, 15), window_mean(p * p, 15)
     cols.append(np.sqrt(np.maximum(m2 - m1 * m1, 0)))
+    # Caption text (text.py): the score of what's on screen, and of what was said in the last 20 s, with context.
+    tnow, ttrail = getattr(d, "tnow", None), getattr(d, "ttrail", None)
+    if tnow is None or drop_captions:
+        tnow = ttrail = np.zeros(len(p))
+    cols += [tnow, ttrail, window_mean(tnow, 7), window_mean(tnow, 30)]
+    for w in TEXT_MAX:  # the trailing score's recent maximum: a cue said a little while ago
+        cols.append(np.array([ttrail[max(k - w, 0):k + 1].max() for k in range(len(p))]))
     # Rounded to float32: Rust and NumPy can differ in the last bit of float64 arithmetic, which would send a value
     # sitting on a tree threshold the other way.
     return np.stack([np.asarray(c, np.float64) for c in cols], 1).astype(np.float32).astype(np.float64)
@@ -123,17 +138,30 @@ def fit_trees(train: list[Data], oof: dict, kind: str = "ad") -> HistGradientBoo
                                           class_weight=None if kind == "ad" else "balanced", random_state=0).fit(X, Y)
 
 
+def oof_text(train: list[Data]) -> None:
+    """Out-of-fold text scores on each training recording (from text models trained on the others), for the trees."""
+    from .text import TextHeads
+
+    for o in train:
+        o.tnow, o.ttrail = TextHeads([q for q in train if q is not o], BREAK, PROGRAMME).scores(o)
+
+
 def train_head(train: list[Data], kind: str):
     """One output. Commercial breaks: a frame model and trees on its out-of-fold frame probabilities. The other
     kinds: a frame model alone (see KIND_SMOOTH)."""
     if kind != "ad":
-        return frame_model(train, kind), None
+        return frame_model(train, kind), None, None
     oof = {o.rec.id: frame_model([q for q in train if q is not o], kind).predict_proba(o.x)[:, 1] for o in train}
-    return frame_model(train, kind), fit_trees(train, oof, kind)
+    oof_text(train)
+    from .text import TextHeads
+
+    return frame_model(train, kind), fit_trees(train, oof, kind), TextHeads(train, BREAK, PROGRAMME)
 
 
 def predict_head(head, d: Data) -> tuple[np.ndarray, np.ndarray]:
-    frame, trees = head
+    frame, trees, text = head
+    if text is not None:
+        d.tnow, d.ttrail = text.scores(d)
     p = frame.predict_proba(d.x)[:, 1]
     if trees is None:
         return p, window_mean(p, KIND_SMOOTH)
@@ -261,13 +289,18 @@ def export(recs: list[Recording], out: Path, vector_secs: int = 600, note: str =
     data = [Data(r) for r in recs if r.features(RUST).with_suffix(".json").exists()]
     labelled = [d for d in data if (d.y != IGNORE).any()]
     oof = {d.rec.id: frame_model([o for o in labelled if o is not d]).predict_proba(d.x)[:, 1] for d in labelled}
+    oof_text(labelled)
     trees = fit_trees(labelled, oof)
     frame = frame_model(labelled)
+    from . import text as T
+
+    text_heads = T.export(T.TextHeads(labelled, BREAK, PROGRAMME))
     baseline, tj = trees_json(trees)
     model = {"format": FORMAT, "image_model": EMBED, "embedding_dim": int(labelled[0].x.shape[1]),
              "frame_coef": [float(c) for c in frame.coef_[0]], "frame_intercept": float(frame.intercept_[0]),
              "windows": WINDOWS, "edge_cap": EDGE_CAP, "features": feature_names(), "baseline": baseline, "trees": tj,
-             "post": POST, "trained_on": [d.rec.id for d in labelled], "image_model_source": f"open_clip {IMAGE_MODEL}"}
+             "post": POST, "trained_on": [d.rec.id for d in labelled], "image_model_source": f"open_clip {IMAGE_MODEL}",
+             "text": text_heads}
     # The other kinds' outputs (see KIND_SMOOTH), for those with examples to learn from.
     model["kinds"] = {}
     for k in MINOR_KINDS:
@@ -293,6 +326,12 @@ def export(recs: list[Recording], out: Path, vector_secs: int = 600, note: str =
     p = 1 / (1 + np.exp(-z))
     sub = type("Sub", (), {})()
     sub.cap, sub.av, sub.edges = d.cap[:n], d.av[:n], np.array(edges) if edges else np.array([-1e9])
+    # The captions of the vector's span, and the text scores from the exported weights, as a recorder computes them.
+    vec_cues = [c for c in d.cues if c[0] < n]
+    tok_now, tok_trail = T.per_second(vec_cues, n)
+    zero = np.zeros(n)
+    sub.tnow = T.score(tok_now, text_heads["now"]) if text_heads["now"] else zero
+    sub.ttrail = T.score(tok_trail, text_heads["trail_head"]) if text_heads["trail_head"] else zero
     prob = trees.predict_proba(table(sub, p))[:, 1]
 
     def head_p(h: dict) -> np.ndarray:
@@ -303,7 +342,7 @@ def export(recs: list[Recording], out: Path, vector_secs: int = 600, note: str =
     kinds = combine(to_breaks(prob, edges, black=black[:n]), {k: to_breaks(v, edges, KIND_POST[k]) for k, v in kp.items()}, kp)
     vec = {"model": model_version(text), "recording": d.rec.id, "rows": [[x[i].tolist(), bool(has[i]), bool(vis[i]), bool(roll[i]), bool(new[i]),
                                              float(black[i]), float(silent[i])] for i in range(n)],
-           "edges": edges, "probabilities": prob.tolist(), "breaks": to_breaks(prob, edges, black=black[:n]),
+           "edges": edges, "captions": [list(c) for c in vec_cues], "probabilities": prob.tolist(), "breaks": to_breaks(prob, edges, black=black[:n]),
            "kind_probabilities": {k: v.tolist() for k, v in kp.items()}, "kind_breaks": [list(b) for b in kinds]}
     # Installed atomically, the test vector first: a recorder watching model.json reloads when it changes, and
     # checks the model against the test vector made for it (its "model" is model.json's version).
