@@ -87,7 +87,8 @@ impl<E: Embedder> Extractor<E> {
                 silent: silent[s],
             })
             .collect();
-        Inputs { rows, edges: self.detector.edges() }
+        let captions = cues.iter().map(|c| (c.start, c.end, c.lines.join(" "))).collect();
+        Inputs { rows, edges: self.detector.edges(), captions }
     }
 }
 

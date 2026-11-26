@@ -13,17 +13,19 @@ For each second of a recording, adbreak computes a few inputs, all from code in 
 - an **embedding of one picture** from that second (MobileCLIP2-S0's image encoder, through Core ML), the whole
   picture squashed to 256×256 so the network's corner logo stays in view;
 - what the **captions** are doing: whether the recording has any, whether a cue is on screen, whether it rolled up
-  from the one before (live shows) or popped on (ads and pre-produced shows), whether it just started;
+  from the one before (live shows) or popped on (ads and pre-produced shows), whether it just started; and what
+  they **say**: the words, hashed, read by two small learned models, one asking whether the caption on screen is a
+  commercial's and one whether what was said in the last 20 s means a break is coming ("we'll be right back");
 - how much of the second was **black** and how much **silent**, and how far it is to the nearest moment that was
   both, which networks put around breaks.
 
 Then:
 
 1. a logistic regression on the embedding gives each second a break probability from the picture alone;
-2. that, the captions and the black/silence inputs, averaged over windows from ±2 s to ±150 s, go into
-   gradient-boosted trees for the final probability;
+2. that, the captions, the two text scores and the black/silence inputs, averaged over windows from ±2 s to ±150 s,
+   go into gradient-boosted trees for the final probability;
 3. a threshold, short gaps closed, short runs dropped, and each break's ends snapped to a black-and-silent moment
-   within 20 s.
+   within 20 s, or else to a black picture.
 
 Training is in Python (`ml/`); the trained model is a `model.json` that `rust/crates/adbreak-model` runs, with
 results identical to the Python code's (checked by a test vector).
