@@ -257,7 +257,7 @@ def training_info(trees: HistGradientBoostingClassifier, labelled: list[Data], v
     }
 
 
-def export(recs: list[Recording], out: Path, vector_secs: int = 600, note: str = "") -> None:
+def export(recs: list[Recording], out: Path, vector_secs: int = 600, note: str = "", name: str = "") -> None:
     data = [Data(r) for r in recs if r.features(RUST).with_suffix(".json").exists()]
     labelled = [d for d in data if (d.y != IGNORE).any()]
     oof = {d.rec.id: frame_model([o for o in labelled if o is not d]).predict_proba(d.x)[:, 1] for d in labelled}
@@ -279,7 +279,10 @@ def export(recs: list[Recording], out: Path, vector_secs: int = 600, note: str =
     from . import history as _history
 
     # A number to tell models apart by (model 1, 2, ...), and what changed, alongside the version hash.
-    info = {"number": _history.next_number(out), "note": note, **training_info(trees, labelled, model_version(text))}
+    number = _history.next_number(out)
+    # Its name: adbreak-0.<number> (or `name`, for a bigger change), then its size: the number of trees.
+    info = {"number": number, "name": f"{name or f'adbreak-0.{number}'}-{int(trees.n_iter_)}", "note": note,
+            **training_info(trees, labelled, model_version(text))}
     # A test vector: the first `vector_secs` seconds of a captioned recording, the exported model's outputs on it.
     d = next(d for d in labelled if d.cap[:, 0].any())
     n = min(vector_secs, len(d.t))
