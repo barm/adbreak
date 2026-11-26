@@ -40,7 +40,47 @@ CREATE TABLE IF NOT EXISTS sources (
     updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     PRIMARY KEY (id, name)
 );
+-- Training runs (also created by the ML project's adbreak_ml/runs.py, which keeps the same columns).
+CREATE TABLE IF NOT EXISTS runs (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind          TEXT NOT NULL,
+    origin        TEXT NOT NULL,
+    note          TEXT NOT NULL DEFAULT '',
+    pid           INTEGER,
+    started_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    finished_at   TEXT,
+    status        TEXT NOT NULL DEFAULT 'running',
+    progress      TEXT NOT NULL DEFAULT '',
+    error         TEXT,
+    labels        TEXT,
+    recordings    INTEGER,
+    model_name    TEXT,
+    model_version TEXT,
+    scores        TEXT
+);
 ";
+
+/// A training run (`runs`): one per training command from the CLI, or per action from the app.
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct Run {
+    pub id: i64,
+    pub kind: String,
+    pub origin: String,
+    pub note: String,
+    pub pid: Option<i64>,
+    pub started_at: String,
+    pub finished_at: Option<String>,
+    /// running, ok, failed; or interrupted (running, but its process is gone).
+    pub status: String,
+    pub progress: String,
+    pub error: Option<String>,
+    pub labels: Option<String>,
+    pub recordings: Option<i64>,
+    pub model_name: Option<String>,
+    pub model_version: Option<String>,
+    /// JSON, as written.
+    pub scores: Option<serde_json::Value>,
+}
 
 /// The database. Safe to share between threads; other processes (training) may use it at the same time.
 pub struct Db {
@@ -225,6 +265,62 @@ impl Db {
         Ok(ids.len())
     }
 
+    /// Starts a run owned by process `pid`. Returns its id.
+    pub fn start_run(&self, kind: &str, origin: &str, note: &str, pid: u32) -> Result<i64> {
+        let c = self.conn();
+        c.execute("INSERT INTO runs (kind, origin, note, pid) VALUES (?1, ?2, ?3, ?4)", params![kind, origin, note, pid])?;
+        Ok(c.last_insert_rowid())
+    }
+
+    /// Ends a run: ok, or failed with a reason.
+    pub fn finish_run(&self, id: i64, error: Option<&str>) -> Result<()> {
+        self.conn().execute(
+            "UPDATE runs SET status = ?2, error = ?3, finished_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = ?1",
+            params![id, if error.is_some() { "failed" } else { "ok" }, error],
+        )?;
+        Ok(())
+    }
+
+    pub fn set_run_scores(&self, id: i64, scores: &serde_json::Value) -> Result<()> {
+        self.conn().execute("UPDATE runs SET scores = ?2 WHERE id = ?1", params![id, scores.to_string()])?;
+        Ok(())
+    }
+
+    /// The newest `limit` runs, newest first. A run still marked running whose process is gone reads as interrupted.
+    pub fn runs(&self, limit: usize) -> Result<Vec<Run>> {
+        let c = self.conn();
+        let mut q = c.prepare(
+            "SELECT id, kind, origin, note, pid, started_at, finished_at, status, progress, error, labels, recordings,
+                    model_name, model_version, scores FROM runs ORDER BY id DESC LIMIT ?1",
+        )?;
+        let rows = q.query_map([limit as i64], |r| {
+            Ok(Run {
+                id: r.get(0)?,
+                kind: r.get(1)?,
+                origin: r.get(2)?,
+                note: r.get(3)?,
+                pid: r.get(4)?,
+                started_at: r.get(5)?,
+                finished_at: r.get(6)?,
+                status: r.get(7)?,
+                progress: r.get(8)?,
+                error: r.get(9)?,
+                labels: r.get(10)?,
+                recordings: r.get(11)?,
+                model_name: r.get(12)?,
+                model_version: r.get(13)?,
+                scores: r.get::<_, Option<String>>(14)?.and_then(|t| serde_json::from_str(&t).ok()),
+            })
+        })?;
+        let mut out: Vec<Run> = rows.collect::<std::result::Result<_, _>>()?;
+        for r in &mut out {
+            if r.status == "running" && !r.pid.is_some_and(alive) {
+                r.status = "interrupted".into();
+            }
+        }
+        Ok(out)
+    }
+
     /// Writes a consistent copy of the whole database, label history included, to
     /// `dir/adbreak-<UTC time>.db` (`VACUUM INTO`: safe while the app and training are writing), then deletes all but
     /// the newest `keep` copies there. Returns the new copy's path.
@@ -249,6 +345,11 @@ impl Db {
         }
         Ok(path)
     }
+}
+
+/// Whether process `pid` exists (`kill -0`).
+fn alive(pid: i64) -> bool {
+    std::process::Command::new("/bin/kill").args(["-0", &pid.to_string()]).stderr(std::process::Stdio::null()).status().is_ok_and(|s| s.success())
 }
 
 fn read<T: serde::de::DeserializeOwned>(path: &Path) -> Result<Option<T>> {

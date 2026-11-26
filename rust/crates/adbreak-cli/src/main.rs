@@ -257,6 +257,7 @@ fn draft(data: &Dataset, ml: &Path, id: &str) -> Result<()> {
         .current_dir(ml)
         .env("ADBREAK_DB", &data.db.path)
         .env("ADBREAK_MEDIA", &data.media)
+        .env("ADBREAK_RUN_ORIGIN", "ingest")
         .status()
         .context("running uv (ADBREAK_UV)")?
         .success();

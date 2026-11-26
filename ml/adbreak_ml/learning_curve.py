@@ -26,7 +26,10 @@ def run(recs: list[Recording], out: Path, sets: int = 6) -> None:
     rng = random.Random(0)
     runs = []
     fits = 0
+    from . import runs
+
     for k in range(1, len(lab)):
+        runs.progress(f"learning curve {k}/{len(lab) - 1}")
         combos = list(itertools.combinations(range(len(lab)), k))
         for c in rng.sample(combos, min(sets, len(combos))):
             train = [lab[i] for i in c]
@@ -50,7 +53,6 @@ def run(recs: list[Recording], out: Path, sets: int = 6) -> None:
                 runs.append({"test": test.rec.id, "k": k, "seconds": seconds,
                              "log_loss": round(float(log_loss(y, np.clip(p, 1e-6, 1 - 1e-6))), 5),
                              "auc": round(float(roc_auc_score(y, p)), 5), "f1": round(float(f1_score(y, p >= 0.5)), 5)})
-        print(f"  k={k}", flush=True)
 
     def q(v: list[float], p: float) -> float:
         return float(np.quantile(v, p))
