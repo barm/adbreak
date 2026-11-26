@@ -46,7 +46,9 @@ class Data:
 
 FORMAT = 1
 EDGE_CAP = 120.0
-POST = {"threshold": 0.5, "min_len": 30.0, "max_gap": 15.0, "snap": 20.0}
+# snap_black: a break's ends also snap to black pictures without a silence (a run of black seconds, at its middle):
+# some channels open and close breaks with a black frame but no silence.
+POST = {"threshold": 0.5, "min_len": 30.0, "max_gap": 15.0, "snap": 20.0, "snap_black": True}
 # The other kinds come from the picture alone, averaged over ±KIND_SMOOTH s: with minutes of examples, trees on the
 # other inputs learn the examples rather than the kind (leave-one-out AUC 0.64 against 0.82 for ad reads, 0.76
 # against 0.94 for double boxes). Their runs are short (an ad read is often under 10 s): shorter runs kept, smaller
@@ -172,9 +174,25 @@ def trees_json(clf: HistGradientBoostingClassifier) -> tuple[float, list]:
     return float(np.ravel(clf._baseline_prediction)[0]), out
 
 
-def to_breaks(p: np.ndarray, edges: list[float], post: dict | None = None) -> list[tuple[float, float]]:
-    """As adbreak_model::to_breaks."""
+def black_points(black: np.ndarray) -> list[float]:
+    """As adbreak_model::black_points: the middle of each run of seconds with any black."""
+    pts, i, b = [], 0, np.asarray(black) > 0
+    while i < len(b):
+        if b[i]:
+            j = i
+            while j + 1 < len(b) and b[j + 1]:
+                j += 1
+            pts.append((i + j + 1) / 2)
+            i = j + 1
+        else:
+            i += 1
+    return pts
+
+
+def to_breaks(p: np.ndarray, edges: list[float], post: dict | None = None, black: np.ndarray | None = None) -> list[tuple[float, float]]:
+    """As adbreak_model::to_breaks (with the black points added when the settings say snap_black)."""
     POST = post or globals()["POST"]
+    fallback = black_points(black) if POST.get("snap_black") and black is not None else []
     spans, start = [], None
     for i, v in enumerate(p):
         if v >= POST["threshold"] and start is None:
@@ -192,10 +210,13 @@ def to_breaks(p: np.ndarray, edges: list[float], post: dict | None = None) -> li
             merged.append(s)
 
     def snapped(x: float) -> float:
-        if not edges:
-            return x
-        e = min(edges, key=lambda e: abs(e - x))
-        return e if abs(e - x) <= POST["snap"] else x
+        # A black-and-silent edge if one is near (its time is exact), else a black picture (to the half second).
+        for points in (edges, fallback):
+            if points:
+                e = min(points, key=lambda e: abs(e - x))
+                if abs(e - x) <= POST["snap"]:
+                    return e
+        return x
 
     out = []
     for a, b in merged:
@@ -273,10 +294,10 @@ def export(recs: list[Recording], out: Path, vector_secs: int = 600) -> None:
         return window_mean(1 / (1 + np.exp(-z)), h["smooth"])
 
     kp = {k: head_p(h) for k, h in model["kinds"].items()}
-    kinds = combine(to_breaks(prob, edges), {k: to_breaks(v, edges, KIND_POST[k]) for k, v in kp.items()}, kp)
+    kinds = combine(to_breaks(prob, edges, black=black[:n]), {k: to_breaks(v, edges, KIND_POST[k]) for k, v in kp.items()}, kp)
     vec = {"model": model_version(text), "recording": d.rec.id, "rows": [[x[i].tolist(), bool(has[i]), bool(vis[i]), bool(roll[i]), bool(new[i]),
                                              float(black[i]), float(silent[i])] for i in range(n)],
-           "edges": edges, "probabilities": prob.tolist(), "breaks": to_breaks(prob, edges),
+           "edges": edges, "probabilities": prob.tolist(), "breaks": to_breaks(prob, edges, black=black[:n]),
            "kind_probabilities": {k: v.tolist() for k, v in kp.items()}, "kind_breaks": [list(b) for b in kinds]}
     # Installed atomically, the test vector first: a recorder watching model.json reloads when it changes, and
     # checks the model against the test vector made for it (its "model" is model.json's version).
@@ -309,7 +330,7 @@ def evaluate(recs: list[Recording], only: set[str] | None = None) -> None:
         edges = [float(e) for e in d.edges if e > -1e8]
         probs = {k: predict_head(train_head(train, k), d)[1] for k in MINOR_KINDS if has_kind(train, k)}
         minor = {k: to_breaks(p, edges, KIND_POST[k]) for k, p in probs.items()}
-        found = combine(to_breaks(prob, edges), minor, probs)
+        found = combine(to_breaks(prob, edges, black=d.av[:, 0]), minor, probs)
         breaks = [{"start": a, "end": b, "kind": k} for a, b, k in found]
         save_source(d.rec, source, f"adbreak-model inputs (rust-v1), {how}", breaks)
         if source != "model":

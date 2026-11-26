@@ -79,6 +79,9 @@ struct Post {
     min_len: f64,
     max_gap: f64,
     snap: f64,
+    /// Also snap to black pictures without a silence ([`black_points`]). Absent in older models: edges only.
+    #[serde(default)]
+    snap_black: bool,
 }
 
 /// Another kind's output (`double_box`, `ad_read`): the picture alone, averaged over ±`smooth` seconds.
@@ -290,7 +293,9 @@ impl Model {
     }
 
     pub fn breaks(&self, inputs: &Inputs) -> Vec<Break> {
-        to_breaks(&self.probabilities(inputs), &inputs.edges, self.m.post.threshold, self.m.post.min_len, self.m.post.max_gap, self.m.post.snap)
+        let black = if self.m.post.snap_black { black_points(&inputs.rows) } else { vec![] };
+        let p = &self.m.post;
+        to_breaks_snapping(&self.probabilities(inputs), &inputs.edges, &black, p.threshold, p.min_len, p.max_gap, p.snap)
     }
 }
 
@@ -302,8 +307,6 @@ fn subtract(mut spans: Vec<(f64, f64)>, cuts: &[(f64, f64)]) -> Vec<(f64, f64)> 
     spans
 }
 
-/// Per-second probabilities to breaks: runs at or above `threshold`, gaps up to `max_gap` closed, each end snapped
-/// to the nearest edge within `snap` seconds, runs shorter than `min_len` dropped.
 /// A model.json's version: FNV-1a 64 of its bytes, in hex. Recorders keep it with the breaks a model found.
 pub fn version(model_json: &str) -> String {
     let mut h: u64 = 0xcbf2_9ce4_8422_2325;
@@ -387,7 +390,34 @@ impl Model {
     }
 }
 
+/// The middle of each run of seconds with any black picture: where a break can start or end on a channel that marks
+/// it with a black frame but no silence.
+pub fn black_points(rows: &[Row]) -> Vec<f64> {
+    let mut pts = vec![];
+    let mut i = 0;
+    while i < rows.len() {
+        if rows[i].black > 0.0 {
+            let mut j = i;
+            while j + 1 < rows.len() && rows[j + 1].black > 0.0 {
+                j += 1;
+            }
+            pts.push((i + j + 1) as f64 / 2.0);
+            i = j + 1;
+        } else {
+            i += 1;
+        }
+    }
+    pts
+}
+
+/// Per-second probabilities to breaks: runs at or above `threshold`, gaps up to `max_gap` closed, each end snapped
+/// to the nearest edge within `snap` seconds, runs shorter than `min_len` dropped.
 pub fn to_breaks(p: &[f64], edges: &[f64], threshold: f64, min_len: f64, max_gap: f64, snap: f64) -> Vec<Break> {
+    to_breaks_snapping(p, edges, &[], threshold, min_len, max_gap, snap)
+}
+
+/// [`to_breaks`], with `fallback` points (black pictures) to snap to where no edge is within `snap`.
+pub fn to_breaks_snapping(p: &[f64], edges: &[f64], fallback: &[f64], threshold: f64, min_len: f64, max_gap: f64, snap: f64) -> Vec<Break> {
     let mut spans: Vec<(f64, f64)> = vec![];
     let mut start: Option<f64> = None;
     for (i, &v) in p.iter().enumerate() {
@@ -411,8 +441,9 @@ pub fn to_breaks(p: &[f64], edges: &[f64], threshold: f64, min_len: f64, max_gap
             _ => merged.push(s),
         }
     }
-    let snapped =
-        |x: f64| -> f64 { edges.iter().copied().min_by(|a, b| (a - x).abs().total_cmp(&(b - x).abs())).filter(|e| (e - x).abs() <= snap).unwrap_or(x) };
+    let near = |points: &[f64], x: f64| points.iter().copied().min_by(|a, b| (a - x).abs().total_cmp(&(b - x).abs())).filter(|e| (e - x).abs() <= snap);
+    // A black-and-silent edge if one is near (its time is exact), else a black picture (to the half second).
+    let snapped = |x: f64| -> f64 { near(edges, x).or_else(|| near(fallback, x)).unwrap_or(x) };
     merged
         .into_iter()
         .map(|(a, b)| (snapped(a), snapped(b)))
@@ -457,5 +488,12 @@ mod tests {
     fn version_is_fnv1a() {
         assert_eq!(version(""), "cbf29ce484222325");
         assert_eq!(version("a"), "af63dc4c8601ec8c");
+    }
+
+    #[test]
+    fn black_points_are_the_middle_of_black_runs() {
+        let row = |black: f32| Row { black, ..Default::default() };
+        let rows: Vec<Row> = [0.0, 0.3, 0.0, 0.2, 1.0, 0.0, 0.0].into_iter().map(row).collect();
+        assert_eq!(black_points(&rows), vec![1.5, 4.0]);
     }
 }
