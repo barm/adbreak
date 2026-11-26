@@ -29,6 +29,22 @@ def main() -> None:
     from .data import MODEL
 
     a.out = a.out or str(MODEL)
+    from . import runs
+
+    # Training commands are recorded as runs (or report into the app's run).
+    if a.command in ("evaluate", "export", "learning-curve", "install", "refresh"):
+        runs.start(a.command, a.note)
+        try:
+            _command(a)
+        except BaseException as e:
+            runs.finish(f"{type(e).__name__}: {e}" if not isinstance(e, KeyboardInterrupt) else "interrupted")
+            raise
+        runs.finish()
+        return
+    _command(a)
+
+
+def _command(a) -> None:
     if a.command in ("history", "install"):
         from pathlib import Path
 

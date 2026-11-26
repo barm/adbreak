@@ -52,7 +52,20 @@ type Overview = {
   can_run: boolean;
   history: Info[];
   coverage: Coverage[];
+  runs: Run[];
 };
+/** A training run (the app's or the CLI's). */
+type Run = {
+  id: number; kind: string; origin: string; note: string; started_at: string; finished_at: string | null;
+  status: "running" | "ok" | "failed" | "interrupted"; progress: string; error: string | null; recordings: number | null;
+  model_name: string | null; model_version: string | null; scores: { totals: Totals[] } | null;
+};
+const KIND: Record<string, string> = { retrain: "Retrain and install", evaluate: "Rerun on all recordings", export: "Export", "learning-curve": "Learning curve", install: "Reinstall a model", refresh: "Refresh all sources" };
+const took = (r: Run) => {
+  const s = ((r.finished_at ? new Date(r.finished_at) : new Date()).getTime() - new Date(r.started_at).getTime()) / 1000;
+  return s >= 3600 ? `${Math.floor(s / 3600)} h ${Math.round((s % 3600) / 60)} min` : s >= 60 ? `${Math.round(s / 60)} min` : `${Math.round(s)} s`;
+};
+const STATUS: Record<Run["status"], "info" | "success" | "error" | "warning"> = { running: "info", ok: "success", failed: "error", interrupted: "warning" };
 type Coverage = { channel: string; network: string; recordings: number; seconds: number; breaks: number; double_box_seconds: number; ad_read_seconds: number; new_network_f1: number | null };
 type Job = { running: boolean; action: string; only: string | null; ok: boolean | null; log: string[] };
 
@@ -90,6 +103,13 @@ export function ModelPage() {
     }, 2000);
     return () => clearInterval(t);
   }, [job?.running, load]);
+  // A run started elsewhere (the CLI, an import's draft): follow it too.
+  const active = m?.runs.find((r) => r.status === "running");
+  useEffect(() => {
+    if (!active || job?.running) return;
+    const t = setInterval(load, 3000);
+    return () => clearInterval(t);
+  }, [active?.id, job?.running, load]);
   const [note, setNote] = useState("");
   const run = async (action: "evaluate" | "retrain" | "learning-curve" | "install", only?: string, version?: string) => {
     const r = await fetch("/api/model/run", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action, only, version, note: action === "retrain" ? note : undefined }) });
@@ -97,7 +117,7 @@ export function ModelPage() {
     if (!r.ok) setError(await r.text());
     else { setError(""); setJob(await r.json()); }
   };
-  const busy = !!job?.running || !m?.can_run;
+  const busy = !!job?.running || !!active || !m?.can_run;
   const info = m?.info;
   const loss = info?.loss;
   const last = (v?: number[]) => (v && v.length ? v[v.length - 1] : undefined);
@@ -122,6 +142,16 @@ export function ModelPage() {
           <Stack gap={4}>
             {error && <Text color="accent">{error}</Text>}
             {m && !m.can_run && <Text color="secondary">Actions are off: no ML project here (adbreak label --ml).</Text>}
+            {active && !job?.running && (
+              <Section padding={3} variant="muted">
+                <Stack direction="horizontal" gap={2} align="center" wrap="wrap">
+                  <Badge label="running" variant="info" />
+                  <Text type="label">{`${KIND[active.kind] ?? active.kind}, from the ${active.origin === "cli" ? "command line" : active.origin}`}</Text>
+                  {active.note && <Text color="secondary">{active.note}</Text>}
+                  <Text color="secondary">{`${active.progress || "starting"} · ${took(active)}`}</Text>
+                </Stack>
+              </Section>
+            )}
             {job && (job.running || job.log.length > 0) && (
               <Section padding={3} variant="muted">
                 <Stack gap={2}>
@@ -129,6 +159,7 @@ export function ModelPage() {
                     <Badge label={job.running ? "running" : job.ok ? "done" : "failed"} variant={job.running ? "info" : job.ok ? "success" : "error"} />
                     <Text type="label">{job.action === "retrain" ? "Retrain and install" : job.action === "learning-curve" ? "Learning curve" : job.action === "ingest" ? `Importing ${job.only}` : job.action === "install" ? "Reinstall an earlier model" : job.only ? `Rerun on ${job.only}` : "Rerun on all recordings"}</Text>
                   </Stack>
+                  {job.running && active && <Text color="secondary">{`${active.progress || "starting"} · ${took(active)}`}</Text>}
                   <CodeBlock code={job.log.slice(-12).join("\n") || "…"} size="sm" hasCopyButton={false} />
                 </Stack>
               </Section>
@@ -191,6 +222,28 @@ export function ModelPage() {
                     { key: "left", header: "Ads left / h", align: "end" as const, renderCell: (h: Info) => score(h, "model", (t) => `${Math.round(t.missed_per_hour)} s`) },
                     { key: "nn", header: "New network F1", align: "end" as const, renderCell: (h: Info) => score(h, "model-new-network", (t) => pct(t.f1)) },
                     { key: "reinstall", header: "", align: "end" as const, renderCell: (h: Info) => h.version === info?.version ? null : <Button label="Reinstall" size="sm" variant="secondary" isDisabled={busy} onClick={() => run("install", undefined, h.version)} /> },
+                  ]}
+                />
+              </Stack>
+            )}
+            {m && m.runs.length > 0 && (
+              <Stack gap={2}>
+                <Heading level={3}>Training runs</Heading>
+                <Text type="supporting" color="secondary">Every training run, from this page or the command line, newest first.</Text>
+                <Table
+                  data={m.runs}
+                  idKey="id"
+                  density="compact"
+                  columns={[
+                    { key: "started_at", header: "Started", renderCell: (r: Run) => new Date(r.started_at).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) },
+                    { key: "kind", header: "Run", renderCell: (r: Run) => <Stack gap={0}><Text>{KIND[r.kind] ?? r.kind}</Text>{r.note && <Text type="supporting" color="secondary">{r.note}</Text>}</Stack> },
+                    { key: "origin", header: "From", renderCell: (r: Run) => (r.origin === "cli" ? "command line" : r.origin) },
+                    { key: "took", header: "Took", align: "end" as const, renderCell: took },
+                    { key: "status", header: "", renderCell: (r: Run) => <Badge label={r.status} variant={STATUS[r.status]} /> },
+                    { key: "progress", header: "Progress", renderCell: (r: Run) => (r.status === "running" ? r.progress : r.status === "failed" ? r.error ?? "" : "") },
+                    { key: "model", header: "Model", renderCell: (r: Run) => r.model_name ?? "" },
+                    { key: "f1", header: "F1", align: "end" as const, renderCell: (r: Run) => { const t = r.scores?.totals.find((x) => x.source === "model"); return t ? pct(t.f1) : ""; } },
+                    { key: "cut", header: "Show cut / h", align: "end" as const, renderCell: (r: Run) => { const t = r.scores?.totals.find((x) => x.source === "model"); return t ? `${Math.round(t.wrongly_skipped_per_hour)} s` : ""; } },
                   ]}
                 />
               </Stack>

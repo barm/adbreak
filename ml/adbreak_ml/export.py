@@ -316,6 +316,9 @@ def export(recs: list[Recording], out: Path, vector_secs: int = 600, note: str =
         tmp = out / f".{name}.tmp"
         tmp.write_text(body)
         tmp.replace(out / name)
+    from . import runs
+
+    runs.update(model_name=info["name"], model_version=info["version"], recordings=len(labelled))
     print(f"exported to {out}: {len(tj)} trees, trained on {len(labelled)} recordings; test vector {d.rec.id} "
           f"({n} s, {len(vec['breaks'])} breaks)")
 
@@ -357,13 +360,16 @@ def evaluate(recs: list[Recording], only: set[str] | None = None) -> None:
         n = {k: sum(1 for *_, kk in found if kk == k) for k in ("ad", *MINOR_KINDS)}
         print(f"  {d.rec.id}: " + ", ".join(f"{v} {k}" for k, v in n.items()))
 
-    for d in labelled:
-        if only is None or d.rec.id in only:
-            write(d, [o for o in labelled if o is not d], f"leave-one-recording-out over {len(labelled)}")
-    for d in data:
-        if d not in labelled and (only is None or d.rec.id in only):
-            write(d, labelled, f"trained on all {len(labelled)} labelled recordings")
+    from . import runs
+
+    jobs = [(d, [o for o in labelled if o is not d], f"leave-one-recording-out over {len(labelled)}", "model") for d in labelled]
+    jobs += [(d, labelled, f"trained on all {len(labelled)} labelled recordings", "model") for d in data if d not in labelled]
     for d in labelled:
         others = [o for o in labelled if o.rec.network != d.rec.network]
-        if (only is None or d.rec.id in only) and others:
-            write(d, others, f"trained on the {len(others)} recordings from other networks", "model-new-network")
+        if others:
+            jobs.append((d, others, f"trained on the {len(others)} recordings from other networks", "model-new-network"))
+    jobs = [j for j in jobs if only is None or j[0].rec.id in only]
+    runs.update(recordings=len(labelled), labels=fp)
+    for i, (d, train, how, source) in enumerate(jobs):
+        runs.progress(f"evaluate {i + 1}/{len(jobs)}: {d.rec.id}{' (new network)' if source != 'model' else ''}")
+        write(d, train, how, source)

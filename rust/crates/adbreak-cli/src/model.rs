@@ -35,6 +35,8 @@ struct Job {
     finished: String,
     ok: Option<bool>,
     log: Vec<String>,
+    /// The training run it records (`runs`), for actions that train.
+    run: Option<i64>,
 }
 
 impl Model {
@@ -123,6 +125,8 @@ struct Overview {
     history: Vec<serde_json::Value>,
     /// What the labelled data covers, by channel: where more recordings would teach the model most.
     coverage: Vec<Coverage>,
+    /// Recent training runs, newest first, from the app or the CLI (a running one first of all).
+    runs: Vec<adbreak_db::Run>,
 }
 
 /// One channel's share of the labelled data, and how the model does there when it has never seen the network.
@@ -154,6 +158,9 @@ fn save_scores(m: &Model) -> anyhow::Result<()> {
     let tmp = m.dir.join(".scores.json.tmp");
     std::fs::write(&tmp, serde_json::to_string(&body)?)?;
     std::fs::rename(tmp, m.dir.join("scores.json"))?;
+    if let Some(id) = m.job.lock().unwrap().run {
+        m.data.db.set_run_scores(id, &body)?;
+    }
     Ok(())
 }
 
@@ -288,6 +295,7 @@ fn overview(m: &Model) -> anyhow::Result<Overview> {
         recordings,
         can_run: m.ml.join("pyproject.toml").is_file(),
         history: history(&m.dir),
+        runs: m.data.db.runs(30).unwrap_or_default(),
         coverage: {
             for c in &mut coverage {
                 c.new_network_f1 = c.new_network.as_ref().map(Score::f1);
@@ -330,7 +338,14 @@ async fn run(State(m): State<Arc<Model>>, Json(r): Json<Run>) -> Response {
         if j.running {
             return (StatusCode::CONFLICT, format!("already running: {}", j.action)).into_response();
         }
-        *j = Job { running: true, action: r.action.clone(), only: r.only.clone(), started: now(), ..Default::default() };
+        // A run started elsewhere (the CLI) holds the same dataset and model: one at a time.
+        if let Some(other) = m.data.db.runs(5).ok().and_then(|rs| rs.into_iter().find(|r| r.status == "running")) {
+            return (StatusCode::CONFLICT, format!("a {} run from the {} is going (run {}): {}", other.kind, other.origin, other.id, other.progress))
+                .into_response();
+        }
+        let note = r.note.as_deref().map(str::trim).unwrap_or_default();
+        let run = m.data.db.start_run(&r.action, "app", note, std::process::id()).ok();
+        *j = Job { running: true, action: r.action.clone(), only: r.only.clone(), started: now(), run, ..Default::default() };
     }
     let mut steps: Vec<Vec<String>> = vec![];
     if let (Some(v), "install") = (&r.version, r.action.as_str()) {
@@ -377,6 +392,11 @@ async fn run(State(m): State<Arc<Model>>, Json(r): Json<Run>) -> Response {
             if let Err(e) = save_scores(&model) {
                 model.job.lock().unwrap().log.push(format!("saving the scores: {e:#}"));
             }
+        }
+        let run = model.job.lock().unwrap().run;
+        if let Some(id) = run {
+            let why = if ok { None } else { model.job.lock().unwrap().log.last().cloned().or(Some("a step failed".into())) };
+            let _ = model.data.db.finish_run(id, why.as_deref());
         }
         let mut j = model.job.lock().unwrap();
         j.running = false;
@@ -460,11 +480,16 @@ async fn exec_program(m: &Model, program: &std::ffi::OsStr, args: &[String], dir
     if let Some(d) = dir {
         cmd.current_dir(d);
     }
+    if let Some(id) = m.job.lock().unwrap().run {
+        cmd.env("ADBREAK_RUN_ID", id.to_string()); // its steps report into the app's run
+    }
     let mut child = cmd
         .args(args)
         // The same dataset and media store as this server.
         .env("ADBREAK_DB", &m.data.db.path)
         .env("ADBREAK_MEDIA", &m.data.media)
+        // Progress as it happens, not when the step ends.
+        .env("PYTHONUNBUFFERED", "1")
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
         .kill_on_drop(true)
