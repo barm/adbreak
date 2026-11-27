@@ -9,7 +9,8 @@ export const KINDS = ["ad", "double_box", "ad_read", "paid_programming"];
 export const KIND_NAME = { ad: "commercial break", double_box: "double box", ad_read: "ad read", paid_programming: "paid programming" };
 
 export function fmt(t) {
-  const h = Math.floor(t / 3600), m = Math.floor(t / 60) % 60, s = t % 60;
+  // In tenths first, so 179.96 s reads 0:03:00.0, not 0:02:60.0.
+  const d = Math.round(Math.max(0, t) * 10), h = Math.floor(d / 36000), m = Math.floor(d / 600) % 60, s = (d % 600) / 10;
   return `${h}:${String(m).padStart(2, "0")}:${s.toFixed(1).padStart(4, "0")}`;
 }
 
@@ -37,6 +38,8 @@ export function createEngine(env) {
   let scrubbing = false, hoverT = null, resume = false;
   let S = null; // { id, labels, sources, cues, covered, dur }
   let sel = null, pending = null, saveTimer = null, drag = null, dragMate = null;
+  // A stretch chosen on the reviewed row (drag across it): R marks it reviewed, X excludes it, ⌫ clears both.
+  let range = null, rangeFrom = null;
 
   function status(msg, err) { env.status(msg, !!err); }
   const VARS = { "--ad": "#e5484d", "--double": "#4cb1f5", "--adread": "#f5a524", "--paid": "#8e4ec6", "--dim": "#9a9aa6", "--line": "#2c2c34", "--warn": "#f5a524", "--accent": "#3e63dd" };
@@ -66,7 +69,7 @@ export function createEngine(env) {
     comskip: "For comparison, not an input: Comskip, the established open-source detector. Rarely marks programme as a break, but often ends breaks early and misses some.",
     "frames-zeroshot": "For comparison, not an input: pictures matched against text such as \"a TV commercial\", with no training. A baseline.",
     "logo-detector": "For comparison, not an input: the first, non-ML detector (black-and-silent edges plus the network's corner logo).",
-    reviewed: "The parts whose labels have been checked (green). Only reviewed time is scored. Hatched parts are excluded (bad reception, say): never scored or trained on, and not counted as left to review. Right-click this row to exclude everything before or after the playhead, or to clear exclusions.",
+    reviewed: "The parts whose labels have been checked (green). Only reviewed time is scored. Hatched parts are excluded (bad quality, say): never scored or trained on, and not counted as left to review. Drag across this row to choose a stretch, then R marks it reviewed, X excludes it, ⌫ clears both; as many stretches as you like. Right-click for the same, to remove an exclusion, or to exclude everything before or after the playhead.",
   };
   // The comparison sources shown (the others in suggestions.json are superseded or duplicates).
   const COMPARE = ["comskip", "frames-zeroshot", "logo-detector"];
@@ -210,6 +213,14 @@ export function createEngine(env) {
         if (isSel) { c.strokeStyle = "#fff"; c.lineWidth = 2; c.strokeRect(x0, top - 1, Math.max(2, x1 - x0), hh + 2); c.lineWidth = 1; }
       });
     }
+    // The chosen stretch: a band over the whole timeline, with its edges.
+    if (range) {
+      const x0 = Math.max(NAME, g.x(range.a, vw)), x1 = Math.min(g.w - 6, g.x(range.b, vw));
+      if (x1 > x0) {
+        c.fillStyle = "rgba(120,170,255,0.16)"; c.fillRect(x0, TOP, x1 - x0, g.h - TOP);
+        c.strokeStyle = "rgba(120,170,255,0.9)"; c.beginPath(); c.moveTo(x0, TOP); c.lineTo(x0, g.h); c.moveTo(x1, TOP); c.lineTo(x1, g.h); c.stroke();
+      }
+    }
     // pending start, playhead
     if (pending !== null) { c.strokeStyle = cssVar("var(--ad)"); c.setLineDash([4, 3]); const x = g.x(pending.t, vw); c.beginPath(); c.moveTo(x, TOP); c.lineTo(x, g.h); c.stroke(); c.setLineDash([]); }
     const x = g.x(v.currentTime || 0, vw); c.strokeStyle = "#fff"; c.beginPath(); c.moveTo(x, 0); c.lineTo(x, g.h); c.stroke();
@@ -256,6 +267,10 @@ export function createEngine(env) {
     const h = hit(ev);
     if (h.x < NAME) return;
     tl.setPointerCapture(ev.pointerId);
+    if (h.row && h.row.type === "reviewed") {
+      // Drag across the reviewed row to choose a stretch (a click just moves the playhead there).
+      rangeFrom = h.t; range = null; draw(); return;
+    }
     const e = edgeAt(h);
     if (e) {
       sel = { label: true, i: e.i }; drag = e.edge;
@@ -278,7 +293,9 @@ export function createEngine(env) {
     const h = hit(ev);
     hoverT = h.x >= NAME ? h.t : null;
     tl.style.cursor = drag || (h.x >= NAME && edgeAt(h)) ? "col-resize" : "crosshair";
-    if (drag && sel) {
+    if (rangeFrom !== null) {
+      range = { a: Math.min(rangeFrom, h.t), b: Math.max(rangeFrom, h.t) };
+    } else if (drag && sel) {
       // Stay a break, and stop at the neighbouring labels.
       const b = S.labels.breaks[sel.i], mate = dragMate;
       const others = S.labels.breaks.filter((x, j) => j !== sel.i && x !== mate);
@@ -299,6 +316,11 @@ export function createEngine(env) {
     draw();
   });
   function endPointer() {
+    if (rangeFrom !== null) {
+      const from = rangeFrom; rangeFrom = null;
+      if (!range || range.b - range.a < 0.5) { range = null; seek(from); draw(); }
+      else { status(`${fmt(range.a)}–${fmt(range.b)} chosen: R reviewed · X exclude (bad quality) · ⌫ clear · Esc cancel`); draw(); }
+    }
     if (drag) { drag = null; dragMate = null; seek(v.currentTime); changed(); }
     if (scrubbing) { scrubbing = false; seek(v.currentTime); if (resume) v.play(); }
   }
@@ -344,13 +366,26 @@ export function createEngine(env) {
     return items;
   }
   // The reviewed row's menu: leave out everything before or after the playhead (bad reception, say), or undo that.
-  function excludeMenu() {
+  function excludeMenu(at) {
     const t = v.currentTime || 0, ex = S.labels.excluded || [];
     const set = (spans) => { S.labels.excluded = spans; changed(); };
-    const items = [
+    if (range) {
+      const span = `${fmt(range.a)}–${fmt(range.b)}`;
+      return [
+        { label: `Mark ${span} reviewed`, onClick: () => applyRange("reviewed") },
+        { label: `Exclude ${span} (bad quality)`, onClick: () => applyRange("excluded") },
+        { label: `Clear ${span}: not reviewed, not excluded`, onClick: () => applyRange("clear") },
+      ];
+    }
+    const hereEx = ex.find((e) => e.start <= at && at < e.end);
+    const hereRv = S.labels.reviewed.find((r) => r.start <= at && at < r.end);
+    const items = [];
+    if (hereEx) items.push({ label: `Remove this exclusion (${fmt(hereEx.start)}–${fmt(hereEx.end)})`, onClick: () => set(ex.filter((e) => e !== hereEx)) });
+    if (hereRv && !hereEx) items.push({ label: `Mark this stretch not reviewed (${fmt(hereRv.start)}–${fmt(hereRv.end)})`, onClick: () => { S.labels.reviewed = S.labels.reviewed.filter((r) => r !== hereRv); changed(); } });
+    items.push(
       { label: `Exclude everything before ${fmt(t)}`, onClick: () => set([...ex.filter((e) => e.start >= t), { start: 0, end: t }].sort((a, b) => a.start - b.start)) },
       { label: `Exclude everything after ${fmt(t)}`, onClick: () => set([...ex.filter((e) => e.end <= t), { start: t, end: S.dur }].sort((a, b) => a.start - b.start)) },
-    ];
+    );
     if (ex.length) items.push({ label: "Clear exclusions", onClick: () => set([]) });
     return items;
   }
@@ -358,7 +393,7 @@ export function createEngine(env) {
   function menuAt(ev) {
     if (!S) return null;
     const h = hit(ev);
-    if (h.row && h.row.type === "reviewed") return excludeMenu();
+    if (h.row && h.row.type === "reviewed") return excludeMenu(h.t);
     if (!h.row || !h.row.label) return null;
     const j = S.labels.breaks.findIndex((b) => b.start <= h.t && h.t < b.end);
     if (j < 0) return null;
@@ -461,6 +496,36 @@ export function createEngine(env) {
     } catch (e) { status("not saved: " + e.message, true); }
   }
 
+  // Spans as sorted, non-overlapping lists: add a stretch (merging what it touches), or take one out.
+  function addSpan(list, a, b) {
+    const out = [];
+    for (const x of [...list, { start: a, end: b }].sort((p, q) => p.start - q.start)) {
+      const last = out[out.length - 1];
+      if (last && x.start <= last.end + 0.05) last.end = Math.max(last.end, x.end);
+      else out.push({ start: x.start, end: x.end });
+    }
+    return out;
+  }
+  function cutSpan(list, a, b) {
+    const out = [];
+    for (const x of list) {
+      if (x.end <= a || x.start >= b) { out.push(x); continue; }
+      if (x.start < a) out.push({ start: x.start, end: a });
+      if (x.end > b) out.push({ start: b, end: x.end });
+    }
+    return out;
+  }
+  // Acting on the chosen stretch: "reviewed", "excluded" or "clear" (neither).
+  function applyRange(what) {
+    if (!range) return;
+    const { a, b } = range, ex = S.labels.excluded || [];
+    if (what === "reviewed") S.labels.reviewed = addSpan(S.labels.reviewed, a, b);
+    if (what === "excluded") S.labels.excluded = addSpan(ex, a, b);
+    if (what === "clear") { S.labels.reviewed = cutSpan(S.labels.reviewed, a, b); S.labels.excluded = cutSpan(ex, a, b); }
+    status(`${fmt(a)}–${fmt(b)}: ${what === "reviewed" ? "marked reviewed" : what === "excluded" ? "excluded" : "cleared"}`);
+    range = null; changed();
+  }
+
   function key(k, shift, alt) {
     // I and O mark in and out, as in Final Cut Pro: the same as [ and ].
     if (k === "i" || k === "I") k = "[";
@@ -499,10 +564,16 @@ export function createEngine(env) {
         break;
       case "Backspace": case "Delete":
         if (b) { S.labels.breaks.splice(sel.i, 1); sel = null; changed(); }
+        else if (range) applyRange("clear");
+        break;
+      case "x": case "X":
+        if (range) applyRange("excluded");
+        else status("drag across the reviewed row to choose a stretch to exclude", true);
         break;
       case "n": case "N": { const e = edges().find((x) => x > t + 0.05); if (e !== undefined) seek(e); break; }
       case "p": case "P": { const e = edges().reverse().find((x) => x < t - 0.05); if (e !== undefined) seek(e); break; }
       case "r": case "R": {
+        if (range) { applyRange("reviewed"); break; }
         const before = S.labels.reviewed.filter((r) => r.start <= t).map((r) => r.end).filter((e) => e <= t);
         const from = before.length ? Math.max(...before) : 0;
         if (t > from) { S.labels.reviewed.push({ start: from, end: t >= S.dur - 1 ? S.dur : t }); changed(); }
@@ -512,7 +583,7 @@ export function createEngine(env) {
       case "-": case "_": zoomAt(2, t); break;
       case "\\": env.toggleLayout(); break;
       case "?": env.shortcuts(); break;
-      case "Escape": sel = null; pending = null; renderList(); draw(); break;
+      case "Escape": sel = null; pending = null; range = null; renderList(); draw(); break;
       default: return false;
     }
     return true;
