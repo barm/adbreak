@@ -70,6 +70,7 @@ export function createEngine(env) {
     black: "Input: how much of each second the picture was black.",
     silence: "Input: how much of each second the sound was silent.",
     edges: "Input: moments both black and silent, which networks put between ads and around breaks. Break edges snap to these.",
+    cuts: "Shot cuts: where one frame is unlike the one before, every frame checked (adbreak cuts). A cross-fade isn't one. Snapping (N) goes to them, and ↑ ↓ jump between them.",
     comskip: "For comparison, not an input: Comskip, the established open-source detector. Rarely marks programme as a break, but often ends breaks early and misses some.",
     "frames-zeroshot": "For comparison, not an input: pictures matched against text such as \"a TV commercial\", with no training. A baseline.",
     "logo-detector": "For comparison, not an input: the first, non-ML detector (black-and-silent edges plus the network's corner logo).",
@@ -92,6 +93,7 @@ export function createEngine(env) {
     r.push({ name: "black", type: "heat", track: "black", color: [200, 200, 210], h: 12 });
     r.push({ name: "silence", type: "heat", track: "silent", color: [62, 99, 221], h: 12 });
     r.push({ name: "edges", type: "ticks", h: 12 });
+    r.push({ name: "cuts", type: "ticks", track: "cuts", h: 12 });
     const cmp = COMPARE.map((n) => S.sources.find((x) => x.name === n)).filter(Boolean);
     if (cmp.length) r.push({ group: "for comparison" });
     for (const x of cmp) r.push({ name: x.name, type: "spans", spans: x.breaks, source: x.name, h: 16, dim: true });
@@ -172,9 +174,9 @@ export function createEngine(env) {
         });
         else secs((t, x) => { if (S.covered[t]) { c.fillStyle = SOURCE_COLOR.captions; c.fillRect(x, y + 4, Math.max(1, px), r.h - 8); } });
       }
-      if (r.type === "ticks" && T.edges) {
-        c.fillStyle = "#fff";
-        for (const e of T.edges) if (e >= vw[0] && e <= vw[1]) c.fillRect(g.x(e, vw) - 0.5, y, 1.5, r.h);
+      if (r.type === "ticks" && T[r.track || "edges"]) {
+        c.fillStyle = r.track === "cuts" ? "rgba(255,255,255,0.55)" : "#fff";
+        for (const e of T[r.track || "edges"]) if (e >= vw[0] && e <= vw[1]) c.fillRect(g.x(e, vw) - 0.5, y, r.track === "cuts" ? 1 : 1.5, r.h);
       }
       if (r.spans) r.spans.forEach((sp, j) => {
         if (sp.end < vw[0] || sp.start > vw[1]) return;
@@ -274,7 +276,7 @@ export function createEngine(env) {
     tl.setPointerCapture(ev.pointerId);
     if (h.ruler) {
       // Drag along the time ruler to choose a stretch (a click just moves the playhead there).
-      rangeFrom = h.t; range = null; rangeMark = null; draw(); return;
+      rangeFrom = snap(h.t); range = null; rangeMark = null; draw(); return;
     }
     const e = edgeAt(h);
     if (e) {
@@ -289,7 +291,7 @@ export function createEngine(env) {
     }
     if (h.row && h.row.label && !S.labels.breaks.some((b) => b.start <= h.t && h.t < b.end)) {
       // Empty space on the labels row: drag out a new label (a click just moves the playhead there).
-      newFrom = h.t; newTo = h.t; sel = null; resume = !v.paused; v.pause(); seek(h.t); renderList(); return;
+      newFrom = snap(h.t); newTo = newFrom; sel = null; resume = !v.paused; v.pause(); seek(newFrom); renderList(); return;
     }
     if (h.row && h.row.spans) {
       const j = h.row.spans.findIndex((s) => s.start <= h.t && h.t < s.end);
@@ -297,7 +299,7 @@ export function createEngine(env) {
       else if (h.row.label) sel = null;
     }
     scrubbing = true; resume = !v.paused; v.pause();
-    seek(h.t); renderList();
+    seek(snap(h.t)); renderList();
   });
   on(tl, "pointermove", (ev) => {
     if (!S) return;
@@ -305,12 +307,13 @@ export function createEngine(env) {
     hoverT = h.x >= NAME ? h.t : null;
     tl.style.cursor = drag || (h.x >= NAME && edgeAt(h)) ? "col-resize" : "crosshair";
     if (rangeFrom !== null) {
-      range = { a: Math.min(rangeFrom, h.t), b: Math.max(rangeFrom, h.t) };
+      const u = snap(h.t);
+      range = { a: Math.min(rangeFrom, u), b: Math.max(rangeFrom, u) };
     } else if (newFrom !== null) {
       // Not across another label: stop at the nearest one on either side.
       const prev = S.labels.breaks.filter((b) => b.end <= newFrom + 1e-6).reduce((m, b) => Math.max(m, b.end), 0);
       const next = S.labels.breaks.filter((b) => b.start >= newFrom - 1e-6).reduce((m, b) => Math.min(m, b.start), S.dur);
-      newTo = Math.max(prev, Math.min(next, h.t));
+      newTo = Math.max(prev, Math.min(next, snap(h.t)));
       seek(newTo, true);
     } else if (drag && sel) {
       // Stay a break, and stop at the neighbouring labels.
@@ -318,17 +321,19 @@ export function createEngine(env) {
       const others = S.labels.breaks.filter((x, j) => j !== sel.i && x !== mate);
       const prev = others.filter((x) => x.end <= b.start + 1e-6).reduce((m, x) => Math.max(m, x.end), 0);
       const next = others.filter((x) => x.start >= b.end - 1e-6).reduce((m, x) => Math.min(m, x.start), S.dur);
+      // Snapped, but not to the label's own edges or its mate's (they're moving with it).
+      const u = snap(h.t, b) === (mate && (drag === "start" ? mate.end : mate.start)) ? h.t : snap(h.t, b);
       if (drag === "start") {
         // With a label ending here, the shared edge moves both, keeping each at least 0.1 s.
-        b.start = mate ? Math.max(mate.start + 0.1, Math.min(h.t, b.end - 0.1)) : Math.max(prev, Math.min(h.t, b.end - 0.1));
+        b.start = mate ? Math.max(mate.start + 0.1, Math.min(u, b.end - 0.1)) : Math.max(prev, Math.min(u, b.end - 0.1));
         if (mate) mate.end = b.start;
       } else {
-        b.end = mate ? Math.min(mate.end - 0.1, Math.max(h.t, b.start + 0.1)) : Math.min(next, Math.max(h.t, b.start + 0.1));
+        b.end = mate ? Math.min(mate.end - 0.1, Math.max(u, b.start + 0.1)) : Math.min(next, Math.max(u, b.start + 0.1));
         if (mate) mate.start = b.end;
       }
       seek(b[drag], true);
     } else if (scrubbing) {
-      seek(h.t, true);
+      seek(snap(h.t), true);
     }
     draw();
   });
@@ -380,11 +385,12 @@ export function createEngine(env) {
   // Label `i`'s menu items (Astryx menu options); `at`: where it was right-clicked, offered as a split point.
   function labelMenu(i, at) {
     const b = S.labels.breaks[i], t = v.currentTime || 0;
-    const items = [{ type: "section", title: "Kind", items: KINDS.map((k) => ({ label: `${(b.kind || "ad") === k ? "✓ " : "  "}${KIND_NAME[k]}`, onClick: () => { b.kind = k; changed(); } })) }, { type: "divider" }];
+    // Each kind with its number key (the app shows `shortcut` as a key hint).
+    const items = [{ type: "section", title: "Kind", items: KINDS.map((k, n) => ({ label: `${(b.kind || "ad") === k ? "✓ " : "  "}${KIND_NAME[k]}`, shortcut: String(n + 1), onClick: () => { b.kind = k; changed(); } })) }, { type: "divider" }];
     const inside = (u) => u !== null && u !== undefined && u - b.start >= 0.5 && b.end - u >= 0.5;
     if (inside(at)) items.push({ label: `Split here (${fmt(at)})`, onClick: () => splitBreak(i, at) });
-    if (inside(t)) items.push({ label: `Split at the playhead (${fmt(t)})`, onClick: () => splitBreak(i, t) });
-    items.push({ label: "Delete", variant: "destructive", onClick: () => deleteBreak(i) });
+    if (inside(t)) items.push({ label: `Split at the playhead (${fmt(t)})`, shortcut: "S", onClick: () => splitBreak(i, t) });
+    items.push({ label: "Delete", variant: "destructive", shortcut: "⌫", onClick: () => deleteBreak(i) });
     return items;
   }
   // The time ruler's menu: exclude or include a chosen stretch, remove an exclusion, exclude before or after the playhead.
@@ -476,7 +482,25 @@ export function createEngine(env) {
     const e = [];
     for (const r of rows()) for (const s of r.spans || []) e.push(s.start, s.end);
     for (const x of (S.tracks && S.tracks.edges) || []) e.push(x);
+    for (const x of (S.tracks && S.tracks.cuts) || []) e.push(x);
     return e.sort((a, b) => a - b);
+  }
+  // Snapping, as in Final Cut Pro (N): a moved time goes to the nearest cut, black-and-silent edge or label edge
+  // within SNAP_PX of it on screen. `skip`: a label not to snap to (the one being dragged).
+  let snapping = localStorage.getItem("adbreak.snap") !== "off";
+  const SNAP_PX = 8;
+  function snap(t, skip) {
+    if (!snapping || !S) return t;
+    const g = geometry(), vw = view(), tol = SNAP_PX * (vw[1] - vw[0]) / (g.w - NAME);
+    const pts = [...((S.tracks && S.tracks.cuts) || []), ...((S.tracks && S.tracks.edges) || [])];
+    for (const b of S.labels.breaks) if (b !== skip) pts.push(b.start, b.end);
+    let best = t, d = tol;
+    for (const x of pts) if (Math.abs(x - t) < d) { d = Math.abs(x - t); best = x; }
+    return best;
+  }
+  function setSnapping(on) {
+    snapping = on; localStorage.setItem("adbreak.snap", on ? "on" : "off");
+    status(on ? "snapping on (N)" : "snapping off (N)"); env.render();
   }
   // Undo: the labels (breaks and reviewed parts) after each change, to step back and forth through.
   let undoStack = [], redoStack = [];
@@ -622,8 +646,10 @@ export function createEngine(env) {
         if (range) applyRange("excluded");
         else status("mark a stretch with [ and ] (or drag along the time ruler) to exclude it", true);
         break;
-      case "n": case "N": { const e = edges().find((x) => x > t + 0.05); if (e !== undefined) seek(e); break; }
-      case "p": case "P": { const e = edges().reverse().find((x) => x < t - 0.05); if (e !== undefined) seek(e); break; }
+      case "n": case "N": setSnapping(!snapping); break;
+      // Next and previous edit (a cut, an edge, a label's or a source's edge), as in Final Cut Pro.
+      case "ArrowDown": { const e = edges().find((x) => x > t + 0.05); if (e !== undefined) seek(e); break; }
+      case "ArrowUp": { const e = edges().reverse().find((x) => x < t - 0.05); if (e !== undefined) seek(e); break; }
       case "=": case "+": zoomAt(0.5, t); break;
       case "-": case "_": zoomAt(2, t); break;
       case "\\": env.toggleLayout(); break;
@@ -721,6 +747,8 @@ export function createEngine(env) {
     rows: () => (S ? rows().filter((r) => !r.group).map((r) => ({ name: r.name, y: r.y, h: r.h, stale: !!(r.source && isStale(r.source)) })) : []),
     info,
     menuAt,
+    snapping: () => snapping,
+    setSnapping,
     labelMenu: (i) => labelMenu(i, null),
     select(i, edge) {
       const b = S.labels.breaks[i];

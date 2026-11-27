@@ -28,10 +28,12 @@
 
 mod black;
 mod breaks;
+mod cuts;
 mod logo;
 mod silence;
 
 pub use breaks::Break;
+pub use cuts::CutDetector;
 
 /// Tuning. The defaults suit 8-bit limited-range ("TV range", 16–235) video and normal broadcast audio.
 #[derive(Clone, Debug)]
