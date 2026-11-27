@@ -240,6 +240,8 @@ struct Tracks {
     /// The other kinds' outputs (`double_box`, `ad_read`), 0–100 per second.
     kinds: std::collections::BTreeMap<String, Vec<u8>>,
     trained_on: String,
+    /// Shot cuts, seconds (`adbreak cuts`): shown, and snapped to.
+    cuts: Vec<f64>,
 }
 
 async fn inputs(State(data): State<Shared>, Path(id): Path<String>) -> Result<Json<Tracks>, Error> {
@@ -260,6 +262,10 @@ async fn inputs(State(data): State<Shared>, Path(id): Path<String>) -> Result<Js
             t.silent.push((c[5].clamp(0.0, 1.0) * 100.0).round() as u8);
         }
         t.edges = meta["edges"].as_array().map(|a| a.iter().filter_map(|v| v.as_f64()).collect()).unwrap_or_default();
+    }
+    if let Ok(text) = std::fs::read_to_string(dir.join("cuts.json")) {
+        let c: serde_json::Value = serde_json::from_str(&text)?;
+        t.cuts = c["cuts"].as_array().map(|a| a.iter().filter_map(|v| v.as_f64()).collect()).unwrap_or_default();
     }
     if let Ok(text) = std::fs::read_to_string(dir.join("model-out.json")) {
         let m: serde_json::Value = serde_json::from_str(&text)?;

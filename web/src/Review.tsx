@@ -14,6 +14,7 @@ import { Button } from "@astryxdesign/core/Button";
 import { Kbd } from "@astryxdesign/core/Kbd";
 import { Toolbar } from "@astryxdesign/core/Toolbar";
 import { Switch } from "@astryxdesign/core/Switch";
+import { ToggleButton } from "@astryxdesign/core/ToggleButton";
 import { ContextMenu } from "@astryxdesign/core/ContextMenu";
 import { DropdownMenu } from "@astryxdesign/core/DropdownMenu";
 import { Popover } from "@astryxdesign/core/Popover";
@@ -45,6 +46,14 @@ const styles: Record<string, CSSProperties> = {
 
 
 /** One recording: the video, the timeline, the toolbar and the panel of labels, notes and help. */
+type MenuItem = { shortcut?: string; items?: MenuItem[]; [k: string]: unknown };
+/** The engine's menu items with their keys shown as hints (it marks them `shortcut`; it can't make elements). */
+function withKeys(items: object[]): object[] {
+  return (items as MenuItem[]).map(({ shortcut, ...it }) =>
+    it.items ? { ...it, items: withKeys(it.items) } : shortcut ? { ...it, endContent: <Kbd keys={shortcut} /> } : it,
+  );
+}
+
 export function Review({ id }: { id: string }) {
   const video = useRef<HTMLVideoElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -102,11 +111,11 @@ export function Review({ id }: { id: string }) {
   }, [engine]);
 
   const rows = engine?.rows() ?? [];
-  const tagItems = useMemo(() => (engine && tag ? engine.labelMenu(tag.i) : []), [engine, tag, menu]);
+  const tagItems = useMemo(() => withKeys(engine && tag ? engine.labelMenu(tag.i) : []), [engine, tag, menu]);
 
   const panel = engine && engine.state() ? <Panel engine={engine} /> : null;
   const timeline = (
-    <ContextMenu items={menu.length ? (menu as never) : [{ label: "…" }]} menuWidth="260px" label="Label">
+    <ContextMenu items={menu.length ? (withKeys(menu) as never) : [{ label: "…" }]} menuWidth="260px" label="Label">
       <Stack
         style={styles.timeline}
         onContextMenuCapture={(ev: React.MouseEvent) => {
@@ -168,6 +177,9 @@ export function Review({ id }: { id: string }) {
                   value={engine.readiness() === "ready"}
                   onChange={(on, e) => { engine.setReady(on); e.target.blur(); /* back to the keys */ }}
                 />
+              )}
+              {engine?.state() && (
+                <ToggleButton label="Snap" size="sm" tooltip="Snap to cuts, edges and labels (N)" isPressed={engine.snapping()} onPressedChange={(on) => engine.setSnapping(on)} />
               )}
               <IconButton variant="ghost" size="sm" label="Zoom out (-)" icon={<Icon icon={MagnifyingGlassMinusIcon} size="sm" />} onClick={() => engine?.key("-")} />
               <IconButton variant="ghost" size="sm" label="Zoom in (=)" icon={<Icon icon={MagnifyingGlassPlusIcon} size="sm" />} onClick={() => engine?.key("=")} />

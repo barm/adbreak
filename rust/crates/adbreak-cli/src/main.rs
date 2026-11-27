@@ -8,6 +8,7 @@
 //! - `adbreak label` serves a page to review recordings against the suggestions and save labels.
 //! - `adbreak eval` scores every source against the labels.
 
+mod cuts;
 mod dataset;
 mod features;
 mod label;
@@ -91,6 +92,14 @@ enum Cmd {
         #[arg(long, env = "ADBREAK_MODEL_DIR", default_value_os_t = adbreak_db::default_model_dir())]
         model_dir: PathBuf,
         /// Compute again even if the files exist.
+        #[arg(long)]
+        force: bool,
+    },
+    /// Find the shot cuts in recordings' copies (every picture), for the labelling page: `features/cuts.json`.
+    Cuts {
+        #[arg(required = true)]
+        ids: Vec<String>,
+        /// Find them again even if the file exists.
         #[arg(long)]
         force: bool,
     },
@@ -185,6 +194,7 @@ async fn main() -> Result<()> {
                 let id = import(&data, &d, 360)?;
                 suggest(&data, &id, comskip.clone(), true)?;
                 features::compute(&data, &id, &model_dir, false)?;
+                cuts::compute(&data, &id, false)?;
                 draft(&data, &ml, &id)?;
                 if remove {
                     std::fs::remove_dir_all(&d).with_context(|| format!("removing {}", d.display()))?;
@@ -199,6 +209,11 @@ async fn main() -> Result<()> {
             }
             for name in ids {
                 suggest(&data, &data.resolve(&name)?, comskip.clone(), !quick)?;
+            }
+        }
+        Cmd::Cuts { ids, force } => {
+            for name in ids {
+                cuts::compute(&data, &data.resolve(&name)?, force)?;
             }
         }
         Cmd::Features { ids, model_dir, force } => {

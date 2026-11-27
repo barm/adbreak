@@ -103,9 +103,11 @@ adbreak ingest /path/to/export
 # Or step by step. Add a recording from an import directory (below): keeps a 360p copy and the captions in the media store.
 adbreak import /path/to/export
 
-# What the automatic sources think (Comskip if installed, the captions, the logo detector), and the model's inputs.
+# What the automatic sources think (Comskip if installed, the captions, the logo detector), the model's inputs, and the
+# shot cuts (for the labelling page to show and snap to).
 adbreak suggest 2026-11-24_2.1_32 --comskip ~/src/comskip/comskip
 adbreak features 2026-11-24_2.1_32
+adbreak cuts 2026-11-24_2.1_32
 
 # Review in a browser: the recording, every source on a timeline, the labels.
 adbreak label            # http://127.0.0.1:8585
@@ -124,8 +126,8 @@ video and AAC sound), and optionally `captions.vtt`, `suggestions.json` (sources
 its own break scan) and `labels.json`. Recordings are named by their dataset id or any unique part of it. Every command uses
 the database (`--db`, `ADBREAK_DB`); start one from the snapshot with `adbreak dataset import dataset`.
 
-On the labelling page, `I` and `O` mark a label's start and end, `A` accepts a selected suggestion and `N`/`P` jump
-between the sources' edges. `[` and `]` (or dragging along the time ruler) choose a stretch: `X` excludes it (bad
+On the labelling page, `I` and `O` mark a label's start and end, `A` accepts a selected suggestion, `↑`/`↓` jump between edits (shot cuts, edges, labels'
+and sources' edges) and `N` turns snapping to them on or off; `1`–`6` set a label's kind. `[` and `]` (or dragging along the time ruler) choose a stretch: `X` excludes it (bad
 quality: never scored or trained on), `⌫` includes it again; as many as needed. When its labels are done, the
 **Ready for training** switch at the top makes the whole recording count, less what is excluded. Kinds: `ad` (commercial break), `double_box`, `ad_read` and
 `paid_programming`; [docs/labels.md](docs/labels.md) defines them and how to place them. `adbreak eval` scores
