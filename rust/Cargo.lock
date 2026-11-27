@@ -53,6 +53,7 @@ dependencies = [
  "adbreak-model",
  "anyhow",
  "apple-coreml",
+ "serde_json",
 ]
 
 [[package]]

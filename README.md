@@ -92,6 +92,10 @@ second) and mono sound for black and silence, and one 256×256 colour picture a 
 `fmp4_scan::Scan::with_color` produces both); then `model.breaks(&extractor.inputs(captions_vtt))`. It can run
 again on what has arrived so far, so breaks can show up during a live recording.
 
+Keep the inputs (`adbreak_features::store::write(dir, "full-v1", &inputs, image_model, 256)`, a few MB an hour):
+with a new model, `store::read` and `with_captions` give them back, and `model.breaks` finds the recording's breaks
+in well under a second, with no decoding. Sent with the recording (below), they also spare ingest decoding it.
+
 ## Building the dataset
 
 ```sh
@@ -123,7 +127,8 @@ directory under a name starting with `.` and rename it when complete.
 
 An import directory holds `recording.json` (`adbreak_labels::Recording`), `media.mp4` (a fragmented MP4 with HEVC
 video and AAC sound), and optionally `captions.vtt`, `suggestions.json` (sources the recorder already has, such as
-its own break scan) and `labels.json`. Recordings are named by their dataset id or any unique part of it. Every command uses
+its own break scan), `labels.json` and `features/full-v1.{f32,json}` (the recorder's inputs, as above; ingest
+keeps them as the recording's full-resolution inputs). Recordings are named by their dataset id or any unique part of it. Every command uses
 the database (`--db`, `ADBREAK_DB`); start one from the snapshot with `adbreak dataset import dataset`.
 
 On the labelling page, `I` and `O` mark a label's start and end, `A` accepts a selected suggestion, `↑`/`↓` jump between edits (shot cuts, edges, labels'

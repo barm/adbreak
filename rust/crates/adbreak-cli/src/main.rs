@@ -287,6 +287,18 @@ fn import(data: &Dataset, dir: &Path, height: u32) -> Result<String> {
     if dir.join("captions.vtt").is_file() {
         std::fs::copy(dir.join("captions.vtt"), out.join("captions.vtt"))?;
     }
+    // The recorder's own inputs from the full-resolution recording (what it scanned), if it sent them: ingest
+    // needn't decode the recording again for them.
+    let theirs = dir.join("features");
+    if adbreak_features::store::exists(&theirs, features::FULL) {
+        let ours = out.join("features");
+        std::fs::create_dir_all(&ours)?;
+        for ext in ["f32", "json"] {
+            let f = format!("{}.{ext}", features::FULL);
+            std::fs::copy(theirs.join(&f), ours.join(&f)).with_context(|| format!("copying the recorder's {f}"))?;
+        }
+        eprintln!("  the recorder's inputs ({}) came with it", features::FULL);
+    }
     data.save_recording(&rec)?;
     if let Some(s) = dataset::read::<Suggestions>(&dir.join("suggestions.json"))? {
         eprintln!("  suggestions from the recorder: {}", s.sources.iter().map(|s| s.name.as_str()).collect::<Vec<_>>().join(", "));
