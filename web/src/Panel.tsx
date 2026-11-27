@@ -35,8 +35,8 @@ export function Panel({ engine }: { engine: Engine }) {
     <Stack gap={3}>
       <Stack gap={1}>
         <Text type="supporting" color="secondary">
-          {S.labels.breaks.length} labels · reviewed {clock(reviewed)} of {clock(S.dur - excluded)}
-          {excluded ? ` (${clock(excluded)} excluded)` : ""}
+          {S.labels.breaks.length} labels · {engine.readiness()}{reviewed > 0 ? ` · ${clock(reviewed)} counts` : ""}
+          {excluded ? ` · ${clock(excluded)} excluded` : ""}
         </Text>
         <Table
           data={data}
