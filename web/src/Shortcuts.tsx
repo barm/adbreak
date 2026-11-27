@@ -17,7 +17,7 @@ export const HELP: [string, string][] = [
   ["K", "commercial break → double box → ad read → paid programming"],
   ["⌫", "delete the selected label; with a stretch chosen, include it again"],
   ["N P", "next / previous edge from any source"],
-  ["drag", "across the bottom row: choose a stretch, as [ ] do"],
+  ["drag", "along the time ruler: choose a stretch, as [ ] do"],
   ["X", "exclude the chosen stretch: bad quality, never scored or trained on"],
   ["- =", "zoom the timeline out, in"],
   ["⌘Z ⌘⇧Z", "undo, redo"],
@@ -53,7 +53,7 @@ export function Shortcuts({ isOpen, onOpenChange, children }: { isOpen: boolean;
           Click a label's start or end to close in on that edge, its length to frame it. Drag anywhere on the timeline to scrub; click a span
           to select it; drag a label's start or end to move it (where two labels touch, both move; hold ⌥ to move one). Pinch, or ⌥-scroll,
           on the timeline zooms around the pointer, anywhere else around the playhead; swipe sideways to pan. Right-click a label for its
-          kind, split and delete; the reviewed row to exclude bad stretches. Changes save as you go.
+          kind, split and delete; the time ruler to exclude bad stretches. Changes save as you go.
         </Text>
         </Stack>
       }>

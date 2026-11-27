@@ -40,7 +40,7 @@ export function createEngine(env) {
   let scrubbing = false, hoverT = null, resume = false;
   let S = null; // { id, labels, sources, cues, covered, dur }
   let sel = null, pending = null, saveTimer = null, drag = null, dragMate = null;
-  // A stretch chosen on the reviewed row (drag across it): R marks it reviewed, X excludes it, ⌫ clears both.
+  // A stretch chosen with [ and ] or a drag along the time ruler: X excludes it, ⌫ includes it again.
   let range = null, rangeFrom = null, rangeMark = null;
 
   function status(msg, err) { env.status(msg, !!err); }
@@ -71,7 +71,6 @@ export function createEngine(env) {
     comskip: "For comparison, not an input: Comskip, the established open-source detector. Rarely marks programme as a break, but often ends breaks early and misses some.",
     "frames-zeroshot": "For comparison, not an input: pictures matched against text such as \"a TV commercial\", with no training. A baseline.",
     "logo-detector": "For comparison, not an input: the first, non-ML detector (black-and-silent edges plus the network's corner logo).",
-    reviewed: "Green when the recording is ready for training (the switch at the top): then all of it is scored and trained on, except hatched parts, which are excluded (bad quality, say). Press [ and ] at a stretch's start and end, or drag across this row, then X excludes it and ⌫ includes it again; as many stretches as you like. Right-click for the same, to remove an exclusion, or to exclude everything before or after the playhead.",
   };
   // The comparison sources shown (the others in suggestions.json are superseded or duplicates).
   const COMPARE = ["comskip", "frames-zeroshot", "logo-detector"];
@@ -94,7 +93,6 @@ export function createEngine(env) {
     const cmp = COMPARE.map((n) => S.sources.find((x) => x.name === n)).filter(Boolean);
     if (cmp.length) r.push({ group: "for comparison" });
     for (const x of cmp) r.push({ name: x.name, type: "spans", spans: x.breaks, source: x.name, h: 16, dim: true });
-    r.push({ name: "reviewed", type: "reviewed", h: 10 });
     let y = TOP;
     for (const row of r) { row.y = y; y += row.group ? 14 : row.h + 2; }
     return r;
@@ -176,25 +174,6 @@ export function createEngine(env) {
         c.fillStyle = "#fff";
         for (const e of T.edges) if (e >= vw[0] && e <= vw[1]) c.fillRect(g.x(e, vw) - 0.5, y, 1.5, r.h);
       }
-      if (r.type === "reviewed") {
-        c.fillStyle = "#30a46c";
-        for (const rv of S.labels.reviewed) {
-          const x0 = Math.max(NAME, g.x(rv.start, vw)), x1 = Math.min(g.w - 6, g.x(rv.end, vw));
-          if (x1 > x0) c.fillRect(x0, y + 2, x1 - x0, r.h - 4);
-        }
-        // Excluded parts: hatched grey over the whole timeline height, so it's clear nothing there counts.
-        for (const x of S.labels.excluded || []) {
-          const x0 = Math.max(NAME, g.x(x.start, vw)), x1 = Math.min(g.w - 6, g.x(x.end, vw));
-          if (x1 <= x0) continue;
-          c.fillStyle = "rgba(20,20,24,0.55)"; c.fillRect(x0, TOP, x1 - x0, y + r.h - TOP);
-          c.strokeStyle = "rgba(255,255,255,0.12)"; c.beginPath();
-          for (let hx = x0 - (y + r.h); hx < x1; hx += 8) { c.moveTo(Math.max(hx, x0), TOP + Math.max(0, x0 - hx)); c.lineTo(Math.min(hx + (y + r.h - TOP), x1), TOP + Math.min(y + r.h - TOP, x1 - hx)); }
-          c.stroke();
-          c.fillStyle = cssVar("var(--dim)"); c.font = "11px -apple-system, system-ui, sans-serif";
-          if (x1 - x0 > 90) c.fillText("excluded", x0 + 6, y + r.h / 2);
-          c.font = "12px -apple-system, system-ui, sans-serif";
-        }
-      }
       if (r.spans) r.spans.forEach((sp, j) => {
         if (sp.end < vw[0] || sp.start > vw[1]) return;
         const x0 = Math.max(NAME, g.x(sp.start, vw)), x1 = Math.min(g.w - 6, g.x(sp.end, vw));
@@ -214,6 +193,19 @@ export function createEngine(env) {
         const isSel = sel && ((sel.label && r.label && sel.i === j) || (sel.source && sel.source === r.source && sel.i === j && !r.label));
         if (isSel) { c.strokeStyle = "#fff"; c.lineWidth = 2; c.strokeRect(x0, top - 1, Math.max(2, x1 - x0), hh + 2); c.lineWidth = 1; }
       });
+    }
+    // Excluded parts: hatched grey over the whole timeline, so it's clear nothing there counts.
+    for (const x of S.labels.excluded || []) {
+      const x0 = Math.max(NAME, g.x(x.start, vw)), x1 = Math.min(g.w - 6, g.x(x.end, vw));
+      if (x1 <= x0) continue;
+      const hh = g.h - TOP;
+      c.fillStyle = "rgba(20,20,24,0.55)"; c.fillRect(x0, TOP, x1 - x0, hh);
+      c.strokeStyle = "rgba(255,255,255,0.12)"; c.beginPath();
+      for (let hx = x0 - hh; hx < x1; hx += 8) { c.moveTo(Math.max(hx, x0), TOP + Math.max(0, x0 - hx)); c.lineTo(Math.min(hx + hh, x1), TOP + Math.min(hh, x1 - hx)); }
+      c.stroke();
+      c.fillStyle = cssVar("var(--dim)"); c.font = "11px -apple-system, system-ui, sans-serif";
+      if (x1 - x0 > 90) c.fillText("excluded", x0 + 6, TOP + 10);
+      c.font = "12px -apple-system, system-ui, sans-serif";
     }
     // The chosen stretch: a band over the whole timeline, with its edges.
     if (range) {
@@ -245,7 +237,8 @@ export function createEngine(env) {
     const t = Math.min(S.dur, Math.max(0, g.t(x, vw)));
     const row = rows().find((r) => !r.group && y >= r.y && y < r.y + r.h + 2);
     const tol = 5 * (vw[1] - vw[0]) / (g.w - NAME);
-    return { t, x, row, tol };
+    // The time ruler along the top: where stretches are chosen.
+    return { t, x, row, tol, ruler: y < TOP };
   }
 
   // Pointer: drag a selected break's edge to move it; otherwise press and drag anywhere to scrub. Clicking a span
@@ -271,8 +264,8 @@ export function createEngine(env) {
     const h = hit(ev);
     if (h.x < NAME) return;
     tl.setPointerCapture(ev.pointerId);
-    if (h.row && h.row.type === "reviewed") {
-      // Drag across the reviewed row to choose a stretch (a click just moves the playhead there).
+    if (h.ruler) {
+      // Drag along the time ruler to choose a stretch (a click just moves the playhead there).
       rangeFrom = h.t; range = null; rangeMark = null; draw(); return;
     }
     const e = edgeAt(h);
@@ -340,13 +333,10 @@ export function createEngine(env) {
     const text = KIND_NAME[b.kind || "ad"];
     // About as wide as the tag draws (a small ghost button: its text and caret).
     const w = 7.5 * text.length + 44, clear = 12;
-    // Inside the label when it fits with its edges clear to grab; otherwise just past its end, or before its start.
-    let left = x0 + clear;
-    if (x1 - x0 < w + 2 * clear) {
-      if (x1 + 8 + w <= g.w - 6) left = x1 + 8;
-      else if (x0 - 8 - w >= NAME) left = x0 - 8 - w;
-    }
-    env.kindTag({ left: Math.min(left, g.w - w), top: TOP + 1, text, i: sel.i });
+    // Only inside the label, with its edges clear to grab; on one too narrow (zoomed out), none: its colour says the
+    // kind, and K, right-click or the panel change it.
+    if (x1 - x0 < w + 2 * clear) { env.kindTag(null); return; }
+    env.kindTag({ left: x0 + clear, top: TOP + 1, text, i: sel.i });
   }
   // Splits label `i` at `t` into two of the same kind and selects the second half (to change its kind, say).
   function splitBreak(i, t) {
@@ -369,7 +359,7 @@ export function createEngine(env) {
     items.push({ label: "Delete", variant: "destructive", onClick: () => deleteBreak(i) });
     return items;
   }
-  // The reviewed row's menu: leave out everything before or after the playhead (bad reception, say), or undo that.
+  // The time ruler's menu: exclude or include a chosen stretch, remove an exclusion, exclude before or after the playhead.
   function excludeMenu(at) {
     const t = v.currentTime || 0, ex = S.labels.excluded || [];
     const set = (spans) => { S.labels.excluded = spans; changed(); };
@@ -390,11 +380,11 @@ export function createEngine(env) {
     if (ex.length) items.push({ label: "Clear exclusions", onClick: () => set([]) });
     return items;
   }
-  // The menu for a right-click over the timeline, or null for none: a label's (selecting it), or the reviewed row's.
+  // The menu for a right-click over the timeline, or null for none: a label's (selecting it), or the time ruler's.
   function menuAt(ev) {
     if (!S) return null;
     const h = hit(ev);
-    if (h.row && h.row.type === "reviewed") return excludeMenu(h.t);
+    if (h.ruler) return excludeMenu(h.t);
     if (!h.row || !h.row.label) return null;
     const j = S.labels.breaks.findIndex((b) => b.start <= h.t && h.t < b.end);
     if (j < 0) return null;
@@ -541,7 +531,7 @@ export function createEngine(env) {
   }
 
   function key(k, shift, alt) {
-    // I and O mark a label's in and out, as in Final Cut Pro; [ and ] mark a stretch for the reviewed row.
+    // I and O mark a label's in and out, as in Final Cut Pro; [ and ] mark a stretch to exclude.
     const t = v.currentTime || 0;
     const b = sel && sel.label ? S.labels.breaks[sel.i] : null;
     switch (k) {
@@ -597,7 +587,7 @@ export function createEngine(env) {
         break;
       case "x": case "X":
         if (range) applyRange("excluded");
-        else status("mark a stretch with [ and ] (or drag across the bottom row) to exclude it", true);
+        else status("mark a stretch with [ and ] (or drag along the time ruler) to exclude it", true);
         break;
       case "n": case "N": { const e = edges().find((x) => x > t + 0.05); if (e !== undefined) seek(e); break; }
       case "p": case "P": { const e = edges().reverse().find((x) => x < t - 0.05); if (e !== undefined) seek(e); break; }
