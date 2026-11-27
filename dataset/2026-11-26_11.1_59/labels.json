@@ -1,0 +1,40 @@
+{
+  "format": 1,
+  "recording": {
+    "source": "recorder",
+    "job": 59,
+    "channel": "11.1",
+    "network": "KNTV HD",
+    "title": "Late Night With Seth Meyers - Hoda Kotb; Matt Rogers",
+    "start": "2026-11-26T08:34:00+00:00",
+    "duration": 3778.341222222207
+  },
+  "reviewed": [],
+  "breaks": [
+    {
+      "start": 0.0,
+      "end": 58.26,
+      "kind": "ad"
+    },
+    {
+      "start": 1180.430403635475,
+      "end": 1391.14,
+      "kind": "ad"
+    },
+    {
+      "start": 1952.5,
+      "end": 2194.78,
+      "kind": "ad"
+    },
+    {
+      "start": 2579.36,
+      "end": 3121.55,
+      "kind": "ad"
+    },
+    {
+      "start": 3459.26,
+      "end": 3587.2507186705416,
+      "kind": "ad"
+    }
+  ]
+}

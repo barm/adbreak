@@ -1,0 +1,35 @@
+{
+  "format": 1,
+  "recording": {
+    "source": "recorder",
+    "job": 60,
+    "channel": "5.1",
+    "network": "KPIX-TV",
+    "title": "Comics Unleashed With Byron Allen - Shayma Tash; Matt McClowry; Jared Goldstein; Rob Ward",
+    "start": "2026-11-26T07:34:00+00:00",
+    "duration": 2037.2018222222407
+  },
+  "reviewed": [
+    {
+      "start": 0.0,
+      "end": 2037.2018222222407
+    }
+  ],
+  "breaks": [
+    {
+      "start": 398.2839165298462,
+      "end": 605.71,
+      "kind": "ad"
+    },
+    {
+      "start": 903.7683443220566,
+      "end": 1133.342808221746,
+      "kind": "ad"
+    },
+    {
+      "start": 1344.51,
+      "end": 1547.7503667313047,
+      "kind": "ad"
+    }
+  ]
+}

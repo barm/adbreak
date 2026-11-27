@@ -162,7 +162,7 @@
     },
     {
       "name": "model",
-      "detail": "adbreak-model inputs (rust-v1), leave-one-recording-out over 14",
+      "detail": "adbreak-model inputs (rust-v1), trained on the 16 training recordings, in its training",
       "breaks": [
         {
           "start": 15.87,
@@ -170,7 +170,7 @@
           "kind": "ad"
         },
         {
-          "start": 765.5,
+          "start": 735.4,
           "end": 876.0,
           "kind": "ad"
         },
@@ -200,11 +200,11 @@
           "kind": "ad"
         }
       ],
-      "trained_on": "654f5f31f8b6ef3d"
+      "trained_on": "c79e0e172a971732"
     },
     {
       "name": "model-new-network",
-      "detail": "adbreak-model inputs (rust-v1), trained on the 12 recordings from other networks",
+      "detail": "adbreak-model inputs (rust-v1), trained on the 18 recordings from other networks",
       "breaks": [
         {
           "start": 15.87,
@@ -242,7 +242,7 @@
           "kind": "ad"
         }
       ],
-      "trained_on": "654f5f31f8b6ef3d"
+      "trained_on": "d4df691ecec0f786"
     },
     {
       "name": "recorder",

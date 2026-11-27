@@ -84,7 +84,7 @@
     },
     {
       "name": "model",
-      "detail": "adbreak-model inputs (rust-v1), trained on all 14 labelled recordings",
+      "detail": "adbreak-model inputs (rust-v1), trained on the 16 training recordings, in its training",
       "breaks": [
         {
           "start": 0.0,
@@ -93,13 +93,18 @@
         },
         {
           "start": 58.26,
-          "end": 67.0,
+          "end": 66.0,
           "kind": "ad_read"
         },
         {
           "start": 103.0,
-          "end": 112.0,
+          "end": 113.0,
           "kind": "ad_read"
+        },
+        {
+          "start": 113.0,
+          "end": 119.0,
+          "kind": "bumper"
         },
         {
           "start": 1180.41,
@@ -108,7 +113,7 @@
         },
         {
           "start": 1952.4,
-          "end": 2195.0,
+          "end": 2197.0,
           "kind": "ad"
         },
         {
@@ -118,8 +123,45 @@
         },
         {
           "start": 3121.55,
-          "end": 3126.0,
+          "end": 3128.0,
           "kind": "ad_read"
+        },
+        {
+          "start": 3465.91,
+          "end": 3574.0,
+          "kind": "ad"
+        },
+        {
+          "start": 3639.65,
+          "end": 3645.0,
+          "kind": "credits"
+        }
+      ],
+      "trained_on": "c79e0e172a971732"
+    },
+    {
+      "name": "model-new-network",
+      "detail": "adbreak-model inputs (rust-v1), trained on the 16 recordings from other networks",
+      "breaks": [
+        {
+          "start": 0.0,
+          "end": 58.26,
+          "kind": "ad"
+        },
+        {
+          "start": 1180.41,
+          "end": 1391.41,
+          "kind": "ad"
+        },
+        {
+          "start": 1952.4,
+          "end": 2198.0,
+          "kind": "ad"
+        },
+        {
+          "start": 2579.36,
+          "end": 3121.55,
+          "kind": "ad"
         },
         {
           "start": 3465.91,
@@ -127,7 +169,7 @@
           "kind": "ad"
         }
       ],
-      "trained_on": "654f5f31f8b6ef3d"
+      "trained_on": "d4df691ecec0f786"
     },
     {
       "name": "recorder",

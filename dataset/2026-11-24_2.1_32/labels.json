@@ -17,6 +17,11 @@
   ],
   "breaks": [
     {
+      "start": 284.2899721447239,
+      "end": 292.3630362273284,
+      "kind": "ad_read"
+    },
+    {
       "start": 455.2,
       "end": 526.9782020908439,
       "kind": "ad"
@@ -27,19 +32,44 @@
       "kind": "ad"
     },
     {
+      "start": 1292.2524759582311,
+      "end": 1301.3,
+      "kind": "bumper"
+    },
+    {
       "start": 1301.3,
       "end": 1401.3,
       "kind": "ad"
     },
     {
+      "start": 2017.4164748,
+      "end": 2025.4,
+      "kind": "bumper"
+    },
+    {
       "start": 2025.4,
-      "end": 2115.5,
+      "end": 2115.9530489729245,
       "kind": "ad"
     },
     {
-      "start": 2127.0,
+      "start": 2115.9530489729245,
+      "end": 2127.536492202407,
+      "kind": "ad"
+    },
+    {
+      "start": 2127.536492202407,
       "end": 2278.2965056493404,
       "kind": "ad"
+    },
+    {
+      "start": 2278.2965056493404,
+      "end": 2283.4396464656197,
+      "kind": "bumper"
+    },
+    {
+      "start": 2623.10447650676,
+      "end": 2625.8854111281603,
+      "kind": "bumper"
     },
     {
       "start": 2625.9,
@@ -47,13 +77,43 @@
       "kind": "ad"
     },
     {
-      "start": 2811.5,
-      "end": 2883.5,
+      "start": 2806.9,
+      "end": 2812.4240548228126,
+      "kind": "bumper"
+    },
+    {
+      "start": 2812.4240548228126,
+      "end": 2885.512552039558,
       "kind": "ad"
+    },
+    {
+      "start": 2885.512552039558,
+      "end": 2890.3468069967803,
+      "kind": "bumper"
+    },
+    {
+      "start": 2963.7137563745937,
+      "end": 2966.1,
+      "kind": "bumper"
     },
     {
       "start": 2966.1,
       "end": 3131.8951869066154,
+      "kind": "ad"
+    },
+    {
+      "start": 3131.8951869066154,
+      "end": 3134.4579929,
+      "kind": "bumper"
+    },
+    {
+      "start": 3172.6895971259873,
+      "end": 3201.0259462,
+      "kind": "credits"
+    },
+    {
+      "start": 3822.9646842500038,
+      "end": 3837.39749036917,
       "kind": "ad"
     },
     {
@@ -67,14 +127,44 @@
       "kind": "paid_programming"
     },
     {
+      "start": 3981.0,
+      "end": 3984.1495956034532,
+      "kind": "bumper"
+    },
+    {
+      "start": 4119.333767583905,
+      "end": 4121.517330756954,
+      "kind": "bumper"
+    },
+    {
       "start": 4121.517330756954,
       "end": 4331.7480322595175,
       "kind": "ad"
     },
     {
+      "start": 4331.7480322595175,
+      "end": 4334.079530464422,
+      "kind": "bumper"
+    },
+    {
+      "start": 4561.7589771376415,
+      "end": 4564.332694983026,
+      "kind": "bumper"
+    },
+    {
       "start": 4564.332694983026,
       "end": 4834.7,
       "kind": "ad"
+    },
+    {
+      "start": 4834.7,
+      "end": 4837.995161500028,
+      "kind": "bumper"
+    },
+    {
+      "start": 5659.572365782563,
+      "end": 5660.5,
+      "kind": "bumper"
     },
     {
       "start": 5660.5,
@@ -83,12 +173,22 @@
     },
     {
       "start": 5666.536905924569,
-      "end": 5917.9,
+      "end": 5917.854604156134,
       "kind": "ad"
     },
     {
+      "start": 5917.854604156134,
+      "end": 5919.699654782009,
+      "kind": "bumper"
+    },
+    {
+      "start": 6102.4258455349045,
+      "end": 6104.1,
+      "kind": "bumper"
+    },
+    {
       "start": 6104.1,
-      "end": 6326.5,
+      "end": 6331.5,
       "kind": "ad"
     },
     {
@@ -97,12 +197,37 @@
       "kind": "ad"
     },
     {
+      "start": 6377.0,
+      "end": 6379.191369171378,
+      "kind": "bumper"
+    },
+    {
       "start": 6513.3778625413315,
       "end": 6633.52415665931,
       "kind": "ad"
     },
     {
-      "start": 7209.5,
+      "start": 6633.52415665931,
+      "end": 6635.551039200645,
+      "kind": "bumper"
+    },
+    {
+      "start": 6764.049478080743,
+      "end": 6797.200398160928,
+      "kind": "credits"
+    },
+    {
+      "start": 6797.200398160928,
+      "end": 6801.574661578009,
+      "kind": "ad"
+    },
+    {
+      "start": 6899.72526140213,
+      "end": 6916.2380796123525,
+      "kind": "bumper"
+    },
+    {
+      "start": 7207.677687149635,
       "end": 7215.987419985012,
       "kind": "ad_read"
     },
@@ -112,9 +237,29 @@
       "kind": "ad"
     },
     {
+      "start": 7366.0,
+      "end": 7370.930639713622,
+      "kind": "bumper"
+    },
+    {
+      "start": 7639.33625154839,
+      "end": 7647.951226093293,
+      "kind": "ad_read"
+    },
+    {
       "start": 7647.951226093293,
       "end": 7813.288394074948,
       "kind": "ad"
+    },
+    {
+      "start": 7813.288394074948,
+      "end": 7823.000262289642,
+      "kind": "ad_read"
+    },
+    {
+      "start": 8091.771103290604,
+      "end": 8101.158443068118,
+      "kind": "ad_read"
     },
     {
       "start": 8101.158443068118,
@@ -122,24 +267,69 @@
       "kind": "ad"
     },
     {
+      "start": 8221.2,
+      "end": 8225.297525217231,
+      "kind": "bumper"
+    },
+    {
+      "start": 8495.288607716073,
+      "end": 8511.3,
+      "kind": "credits"
+    },
+    {
       "start": 8511.3,
       "end": 8601.3,
       "kind": "ad"
     },
     {
-      "start": 9011.66884442601,
+      "start": 9011.694188058445,
+      "end": 9017.839322159589,
+      "kind": "bumper"
+    },
+    {
+      "start": 9017.839322159589,
       "end": 9201.0,
       "kind": "ad"
     },
     {
-      "start": 9476.5,
+      "start": 9201.0,
+      "end": 9205.009952580365,
+      "kind": "bumper"
+    },
+    {
+      "start": 9474.015976974271,
+      "end": 9477.319126730692,
+      "kind": "bumper"
+    },
+    {
+      "start": 9477.319126730692,
       "end": 9717.3,
       "kind": "ad"
     },
     {
-      "start": 10015.5,
+      "start": 9717.3,
+      "end": 9721.38164620673,
+      "kind": "bumper"
+    },
+    {
+      "start": 10012.41451710917,
+      "end": 10016.563656294244,
+      "kind": "bumper"
+    },
+    {
+      "start": 10016.563656294244,
       "end": 10256.511279902661,
       "kind": "ad"
+    },
+    {
+      "start": 10256.511279902661,
+      "end": 10260.63920658336,
+      "kind": "bumper"
+    },
+    {
+      "start": 10376.735584549966,
+      "end": 10401.5,
+      "kind": "credits"
     },
     {
       "start": 10401.5,
@@ -157,5 +347,9 @@
       "kind": "paid_programming"
     }
   ],
-  "notes": "Labelled by Claude from frames (contact sheets every 10 s, then 1 s around each edge), 2026-11-24. Edges to about half a second. Show bumpers, title cards and 'coming up' teases count as programme, so a few breaks are split around 5-11 s bumpers. Not yet checked by a person."
+  "notes": "Labelled by Claude from frames (contact sheets every 10 s, then 1 s around each edge), 2026-11-24. Edges to about half a second. Show bumpers, title cards and 'coming up' teases count as programme, so a few breaks are split around 5-11 s bumpers. Not yet checked by a person.",
+  "labelled_kinds": [
+    "bumper",
+    "credits"
+  ]
 }

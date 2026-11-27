@@ -1,0 +1,51 @@
+{
+  "format": 1,
+  "recording": {
+    "source": "recorder",
+    "job": 61,
+    "channel": "7.1",
+    "network": "KGO-HD",
+    "title": "Jimmy Kimmel Live! - John Mulaney; Jordan Firstman; Sam and the Pink Notes; Sara Niemietz",
+    "start": "2026-11-26T07:34:00+00:00",
+    "duration": 3957.32004444445
+  },
+  "reviewed": [
+    {
+      "start": 0.0,
+      "end": 3840.6790145816503
+    }
+  ],
+  "breaks": [
+    {
+      "start": 0.0,
+      "end": 63.227087697121554,
+      "kind": "ad"
+    },
+    {
+      "start": 803.7819165258314,
+      "end": 1060.06,
+      "kind": "ad"
+    },
+    {
+      "start": 1717.1774828447142,
+      "end": 1982.61,
+      "kind": "ad"
+    },
+    {
+      "start": 2299.25,
+      "end": 2879.44,
+      "kind": "ad"
+    },
+    {
+      "start": 3490.7346075444525,
+      "end": 3595.7301731906455,
+      "kind": "ad"
+    }
+  ],
+  "excluded": [
+    {
+      "start": 2023.6963413226613,
+      "end": 3957.32
+    }
+  ]
+}

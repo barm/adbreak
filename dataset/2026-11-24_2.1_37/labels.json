@@ -27,9 +27,24 @@
       "kind": "ad"
     },
     {
+      "start": 1644.7906407134662,
+      "end": 1649.3766583597896,
+      "kind": "bumper"
+    },
+    {
       "start": 1649.3766583597896,
       "end": 1898.5629692168955,
       "kind": "ad"
+    },
+    {
+      "start": 1898.5629692168955,
+      "end": 1901.3276772421234,
+      "kind": "bumper"
+    },
+    {
+      "start": 2051.6199100242443,
+      "end": 2055.4793359603354,
+      "kind": "bumper"
     },
     {
       "start": 2055.4793359603354,
@@ -37,42 +52,112 @@
       "kind": "ad"
     },
     {
-      "start": 2597.2856678450107,
-      "end": 2836.722646807666,
+      "start": 2239.0,
+      "end": 2241.795350457065,
+      "kind": "bumper"
+    },
+    {
+      "start": 2594.0054292946916,
+      "end": 2599.525660389614,
+      "kind": "bumper"
+    },
+    {
+      "start": 2599.525660389614,
+      "end": 2834.0114435188293,
       "kind": "ad"
     },
     {
-      "start": 3432.899717892307,
-      "end": 3688.5658271907555,
+      "start": 2834.0114435188293,
+      "end": 2836.81414980962,
+      "kind": "bumper"
+    },
+    {
+      "start": 3431.5232437562186,
+      "end": 3436.324914940933,
+      "kind": "bumper"
+    },
+    {
+      "start": 3436.324914940933,
+      "end": 3685.9780978420713,
       "kind": "ad"
+    },
+    {
+      "start": 3685.9780978420713,
+      "end": 3688.546201859021,
+      "kind": "bumper"
     },
     {
       "start": 3900.8569526507026,
-      "end": 4074.0206802918196,
+      "end": 4073.9182802085356,
       "kind": "ad"
+    },
+    {
+      "start": 4073.9182802085356,
+      "end": 4075.0497930362576,
+      "kind": "bumper"
     },
     {
       "start": 4392.545225278024,
-      "end": 4636.194107503136,
+      "end": 4396.16637299949,
+      "kind": "bumper"
+    },
+    {
+      "start": 4396.16637299949,
+      "end": 4633.287660093059,
       "kind": "ad"
     },
     {
-      "start": 5433.435375762885,
-      "end": 5698.379314267977,
+      "start": 4633.287660093059,
+      "end": 4636.140968947169,
+      "kind": "bumper"
+    },
+    {
+      "start": 5433.310252298845,
+      "end": 5440.025503,
+      "kind": "ad_read"
+    },
+    {
+      "start": 5440.025503,
+      "end": 5693.2804876143655,
       "kind": "ad"
     },
     {
-      "start": 6038.14859973899,
-      "end": 6308.366436699826,
+      "start": 5693.2804876143655,
+      "end": 5698.380661590437,
+      "kind": "bumper"
+    },
+    {
+      "start": 6037.66081437676,
+      "end": 6040.0708153845435,
+      "kind": "bumper"
+    },
+    {
+      "start": 6040.0708153845435,
+      "end": 6303.364953630481,
       "kind": "ad"
     },
     {
-      "start": 6397.0,
-      "end": 6553.073297717929,
+      "start": 6303.364953630481,
+      "end": 6309.12078470712,
+      "kind": "bumper"
+    },
+    {
+      "start": 6395.201098239988,
+      "end": 6396.8327066,
+      "kind": "bumper"
+    },
+    {
+      "start": 6396.8327066,
+      "end": 6548.164691314361,
       "kind": "ad"
     },
     {
-      "start": 7198.388527223557,
+      "start": 6548.164691314361,
+      "end": 6553.324644698115,
+      "kind": "bumper"
+    },
+    {
+      "start": 7196.145387982905,
       "end": 7203.493884533585,
       "kind": "ad_read"
     },
@@ -94,9 +179,12 @@
   ],
   "excluded": [
     {
-      "start": 7500.0,
+      "start": 7357.952838931679,
       "end": 8981.822833333343
     }
   ],
-  "notes": "Labelled by Claude from frames, 2026-11-24: candidates from Comskip and the fusion draft, edges checked in frames at 2 s and snapped to black-and-silent moments within 3 s; some ends are good to a few seconds only. 25 Words or Less's sponsored scan-and-win (Mama Mancini's) and show bumpers count as programme; other shows' promos count as ad. Some reception glitches near the end. Not yet checked by a person.\nReviewed to 2:05:00 only: the tuner's reception goes bad after that."
+  "notes": "Labelled by Claude from frames, 2026-11-24: candidates from Comskip and the fusion draft, edges checked in frames at 2 s and snapped to black-and-silent moments within 3 s; some ends are good to a few seconds only. 25 Words or Less's sponsored scan-and-win (Mama Mancini's) and show bumpers count as programme; other shows' promos count as ad. Some reception glitches near the end. Not yet checked by a person.\nReviewed to 2:05:00 only: the tuner's reception goes bad after that.",
+  "labelled_kinds": [
+    "bumper"
+  ]
 }

@@ -22,9 +22,19 @@
       "kind": "ad"
     },
     {
+      "start": 404.7,
+      "end": 406.24431461775254,
+      "kind": "bumper"
+    },
+    {
       "start": 954.2,
       "end": 1095.3239298159208,
       "kind": "ad"
+    },
+    {
+      "start": 1095.3239298159208,
+      "end": 1096.7050802310011,
+      "kind": "bumper"
     },
     {
       "start": 1146.5720415143805,
@@ -37,6 +47,11 @@
       "kind": "ad"
     },
     {
+      "start": 2146.8,
+      "end": 2148.3109644322126,
+      "kind": "bumper"
+    },
+    {
       "start": 2750.7,
       "end": 2891.6038564679684,
       "kind": "ad"
@@ -47,14 +62,34 @@
       "kind": "ad"
     },
     {
+      "start": 3119.2,
+      "end": 3120.5634564946063,
+      "kind": "bumper"
+    },
+    {
       "start": 3870.7,
       "end": 4011.6,
       "kind": "ad"
     },
     {
+      "start": 4011.6,
+      "end": 4013.049489231912,
+      "kind": "bumper"
+    },
+    {
       "start": 4555.8,
       "end": 4696.265076564136,
       "kind": "ad"
+    },
+    {
+      "start": 4696.265076564136,
+      "end": 4698.068114903989,
+      "kind": "bumper"
+    },
+    {
+      "start": 4770.546125,
+      "end": 4779.3,
+      "kind": "credits"
     },
     {
       "start": 4779.3,
@@ -67,14 +102,34 @@
       "kind": "ad"
     },
     {
+      "start": 5450.390829969828,
+      "end": 5452.109097530145,
+      "kind": "bumper"
+    },
+    {
       "start": 5684.4,
       "end": 5877.511618563299,
       "kind": "ad"
     },
     {
-      "start": 6074.9850203570695,
+      "start": 5877.511618563299,
+      "end": 5879.081571136158,
+      "kind": "bumper"
+    },
+    {
+      "start": 6072.025019435619,
       "end": 6285.300163248046,
       "kind": "ad"
+    },
+    {
+      "start": 6285.300163248046,
+      "end": 6287.220672695435,
+      "kind": "bumper"
+    },
+    {
+      "start": 6652.484344042314,
+      "end": 6693.263320249339,
+      "kind": "credits"
     },
     {
       "start": 6693.263320249339,
@@ -87,9 +142,19 @@
       "kind": "ad"
     },
     {
+      "start": 7200.977112143406,
+      "end": 7202.767852208744,
+      "kind": "bumper"
+    },
+    {
       "start": 7451.850314736295,
       "end": 7645.029296987181,
       "kind": "ad"
+    },
+    {
+      "start": 7645.029296987181,
+      "end": 7646.916833365428,
+      "kind": "bumper"
     },
     {
       "start": 7832.9,
@@ -97,10 +162,29 @@
       "kind": "ad"
     },
     {
+      "start": 8046.3,
+      "end": 8048.055768073377,
+      "kind": "bumper"
+    },
+    {
+      "start": 8447.250601100319,
+      "end": 8488.564687243741,
+      "kind": "credits"
+    },
+    {
       "start": 8488.564687243741,
-      "end": 8519.43578767877,
+      "end": 8519.888231742856,
       "kind": "ad"
+    },
+    {
+      "start": 8519.888231742856,
+      "end": 8520.93855518227,
+      "kind": "bumper"
     }
   ],
-  "notes": "Labelled by Claude from frames, 2026-11-24: candidates were the union of Comskip and the fusion draft; every edge and each break's middle checked in frames, edges snapped to black-and-silent moments within 3 s. KRON's viewer-recipe segments and show 'coming up' teases count as programme. Gaps between candidates were not skimmed in full. Not yet checked by a person."
+  "notes": "Labelled by Claude from frames, 2026-11-24: candidates were the union of Comskip and the fusion draft; every edge and each break's middle checked in frames, edges snapped to black-and-silent moments within 3 s. KRON's viewer-recipe segments and show 'coming up' teases count as programme. Gaps between candidates were not skimmed in full. Not yet checked by a person.",
+  "labelled_kinds": [
+    "bumper",
+    "credits"
+  ]
 }
