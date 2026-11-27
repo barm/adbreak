@@ -235,7 +235,8 @@ impl Model {
 
     /// Commercial breaks and the other kinds as one list, in time order. A double box takes its time from a
     /// commercial break it overlaps (it is often the break's tail); an ad read loses any part inside a commercial
-    /// break or a double box; pieces shorter than their kind's `min_len` are dropped.
+    /// break or a double box; credits any part inside those or an ad read, and a bumper also inside credits; pieces shorter than their kind's
+    /// `min_len` are dropped.
     pub fn kind_breaks(&self, inputs: &Inputs) -> Vec<KindBreak> {
         let spans = |b: Vec<Break>| -> Vec<(f64, f64)> { b.into_iter().map(|b| (b.start, b.end)).collect() };
         let ad = spans(self.breaks(inputs));
@@ -251,7 +252,15 @@ impl Model {
         let ads: Vec<(f64, f64)> = subtract(ad, &db).into_iter().filter(|(s, e)| e - s >= self.m.post.min_len).collect();
         let cuts: Vec<(f64, f64)> = ads.iter().chain(&db).copied().collect();
         let reads: Vec<(f64, f64)> = subtract(reads, &cuts).into_iter().filter(|(s, e)| e - s >= read_min).collect();
-        let mut out: Vec<KindBreak> = [(ads, "ad"), (db, "double_box"), (reads, "ad_read")]
+        // Credits and bumpers are the show's own: they lose any part inside the others (advertising decides), and a
+        // bumper any part inside credits.
+        let taken: Vec<(f64, f64)> = cuts.iter().chain(&reads).copied().collect();
+        let (credits, credits_min) = runs("credits");
+        let credits: Vec<(f64, f64)> = subtract(credits, &taken).into_iter().filter(|(s, e)| e - s >= credits_min).collect();
+        let (bumps, bump_min) = runs("bumper");
+        let taken: Vec<(f64, f64)> = taken.iter().chain(&credits).copied().collect();
+        let bumps: Vec<(f64, f64)> = subtract(bumps, &taken).into_iter().filter(|(s, e)| e - s >= bump_min).collect();
+        let mut out: Vec<KindBreak> = [(ads, "ad"), (db, "double_box"), (reads, "ad_read"), (credits, "credits"), (bumps, "bumper")]
             .into_iter()
             .flat_map(|(v, k)| v.into_iter().map(move |(start, end)| KindBreak { start, end, kind: k.into() }))
             .collect();

@@ -63,7 +63,9 @@ POST = {"threshold": 0.5, "min_len": 30.0, "max_gap": 15.0, "snap": 20.0, "snap_
 # gaps closed, nearer edges; thresholds from leave-one-out.
 KIND_SMOOTH = 5
 KIND_POST = {"double_box": {"threshold": 0.5, "min_len": 4.0, "max_gap": 3.0, "snap": 3.0},
-             "ad_read": {"threshold": 0.4, "min_len": 4.0, "max_gap": 3.0, "snap": 3.0}}
+             "ad_read": {"threshold": 0.4, "min_len": 4.0, "max_gap": 3.0, "snap": 3.0},
+             "bumper": {"threshold": 0.5, "min_len": 2.0, "max_gap": 2.0, "snap": 3.0},
+             "credits": {"threshold": 0.5, "min_len": 5.0, "max_gap": 3.0, "snap": 3.0}}
 
 
 def target(d: "Data", kind: str) -> np.ndarray:
@@ -182,12 +184,16 @@ def subtract(spans: list, cuts: list) -> list:
 def combine(ad: list, minor: dict, probs: dict) -> list[tuple[float, float, str]]:
     """Commercial breaks and the other kinds' runs as one list, as adbreak_model::Model::kind_breaks. A double box
     takes its time from a commercial break it overlaps (it is often the break's tail, which the break output also
-    covers); an ad read loses any part inside a commercial break or a double box. Pieces shorter than their kind's
+    covers); an ad read loses any part inside a commercial break or a double box; credits any part inside those or an ad
+    read, and a bumper also inside credits. Pieces shorter than their kind's
     min_len are dropped, and commercial breaks shorter than POST's min_len."""
     db = [(s, e) for s, e in minor.get("double_box", []) if e - s >= KIND_POST["double_box"]["min_len"]]
     ads = [(s, e) for s, e in subtract(list(ad), db) if e - s >= POST["min_len"]]
     reads = [(s, e) for s, e in subtract(minor.get("ad_read", []), ads + db) if e - s >= KIND_POST["ad_read"]["min_len"]]
-    return sorted([(s, e, "ad") for s, e in ads] + [(s, e, "double_box") for s, e in db] + [(s, e, "ad_read") for s, e in reads])
+    credits = [(s, e) for s, e in subtract(minor.get("credits", []), ads + db + reads) if e - s >= KIND_POST["credits"]["min_len"]]
+    bumps = [(s, e) for s, e in subtract(minor.get("bumper", []), ads + db + reads + credits) if e - s >= KIND_POST["bumper"]["min_len"]]
+    return sorted([(s, e, "ad") for s, e in ads] + [(s, e, "double_box") for s, e in db] + [(s, e, "ad_read") for s, e in reads]
+                  + [(s, e, "credits") for s, e in credits] + [(s, e, "bumper") for s, e in bumps])
 
 
 def trees_json(clf: HistGradientBoostingClassifier) -> tuple[float, list]:

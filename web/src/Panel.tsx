@@ -5,7 +5,8 @@ import { Text } from "@astryxdesign/core/Text";
 import { Button } from "@astryxdesign/core/Button";
 import { Selector } from "@astryxdesign/core/Selector";
 import { TextArea } from "@astryxdesign/core/TextArea";
-import { KINDS, KIND_NAME, fmt } from "./editor/engine";
+import { Switch } from "@astryxdesign/core/Switch";
+import { KINDS, KIND_NAME, OPTIONAL_KINDS, fmt } from "./editor/engine";
 import type { Engine } from "./Review";
 
 type Label = { start: number; end: number; kind?: string; i: number };
@@ -63,6 +64,18 @@ export function Panel({ engine }: { engine: Engine }) {
             { key: "del", header: "", renderCell: (b: Label) => <Button label="Delete" isIconOnly icon={<Text>✕</Text>} size="sm" variant="ghost" tooltip="Delete" onClick={() => engine.deleteBreak(b.i)} /> },
           ]}
         />
+      </Stack>
+      <Stack direction="horizontal" gap={4} wrap="wrap">
+        {OPTIONAL_KINDS.map((k) => (
+          <Switch
+            key={k}
+            size="sm"
+            label={`${KIND_NAME[k as keyof typeof KIND_NAME][0].toUpperCase()}${KIND_NAME[k as keyof typeof KIND_NAME].slice(1)} labelled`}
+            labelTooltip={`On: every ${KIND_NAME[k as keyof typeof KIND_NAME]} in this recording is labelled (none means there are none), so training can learn them from it. Turns on by itself when you use the kind.`}
+            value={engine.labelsKind(k)}
+            onChange={(on, e) => { engine.setLabelsKind(k, on); e.target.blur(); }}
+          />
+        ))}
       </Stack>
       <TextArea label="Notes" value={notes} rows={2} onChange={(v: string) => { setNotes(v); engine.setNotes(v); }} />
     </Stack>

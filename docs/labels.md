@@ -14,10 +14,12 @@ Everything in reviewed time that isn't labelled is **programme**.
 
 | Kind | `kind` | On screen | Examples |
 |---|---|---|---|
-| Programme | *(no label)* | The programme, with no advertising | Play, the studio, the show's scenes, credits |
-| Commercial break | `ad` | The programme is gone; advertising fills the screen | Commercials, the network's promos for its own shows, station spots and bumpers, full-screen sponsor billboards ("brought to you by…" with no programme on screen) |
+| Programme | *(no label)* | The programme, with no advertising | Play, the studio, the show's scenes |
+| Commercial break | `ad` | The programme is gone; advertising fills the screen | Commercials, the network's promos for its own shows, station spots and IDs ("You're watching…"), full-screen sponsor billboards ("brought to you by…" with no programme on screen) |
 | Double box | `double_box` | The programme, shrunk beside or under an ad | A game in a corner box while an ad fills the rest (a squeeze-back) |
 | Ad read | `ad_read` | The programme, full screen, with advertising over it or spoken over it | An announcer's "brought to you by…" after a break, a sponsor graphic or banner over play, "coming up next on…" over the programme |
+| Bumper | `bumper` | The show's own short transition into or out of a break, nothing advertised | SNL's photo cards with music, a news open or "we'll be right back" card, a talk show's "welcome back" clip |
+| Credits | `credits` | The show's closing credits and studio or production cards, full screen | End credits, the production company's logo card |
 | Paid programming | `paid_programming` | A programme that is itself an advertisement | An infomercial |
 
 ## Deciding
@@ -37,7 +39,17 @@ Ask, for each moment: **is the programme on screen, and how much of it?**
    - a segment in which the hosts present products to buy (a shopping segment);
    - content a sponsor paid for that is programme itself (a "presented by" feature). The read or graphic naming
      the sponsor is an ad read.
-5. The whole programme is an advertisement: **paid programming**.
+5. The show's own transition into or out of a break, with nothing advertised: **bumper**. With a sponsor read,
+   graphic or "brought to you by" over it, it's an **ad read** instead (a sponsored bumper, as sports often have),
+   from its first moment.
+6. The show's closing credits or studio cards, full screen: **credits**. Credits squeezed beside a promo are a
+   **double box**.
+7. The whole programme is an advertisement: **paid programming**.
+
+Bumpers and credits were added after many recordings were labelled. A recording says whether it has them labelled
+throughout (the **Bumpers labelled** and **Credits labelled** switches under the timeline; they turn on by themselves
+when you use the kind): only those teach the model what a bumper or credits look like. For commercial-break scoring
+both are neither break nor programme, like a double box, and a break's edge anywhere across one counts as right.
 
 Sponsor billboards ("coverage presented by …", a sponsor's logo filling the screen) go with what they're next to:
 part of the commercial break when one is beside them (even across the programme's own sting), an **ad read**
@@ -70,9 +82,11 @@ Two things that look like advertising but are programme:
 | Commercial break | What a detector must find | Its main output: picture, captions, black, silence and edges |
 | Double box | Left out; a break's edge anywhere across an adjacent double box counts as right | An output of its own (scored as `model · double box`), from the picture alone |
 | Ad read | Programme: marking it as break is a false positive | An output of its own (`model · ad read`), from the picture alone |
+| Bumper | Left out; a break's edge anywhere across an adjacent bumper counts as right | An output of its own (`model · bumper`), from the picture alone, learned only from recordings with bumpers labelled |
+| Credits | Left out, like a bumper | An output of its own (`model · credits`), likewise |
 | Paid programming | Left out | Left out |
 
-The double box and ad read outputs learn from far fewer examples than commercial breaks (minutes, against hours),
+The double box, ad read, bumper and credits outputs learn from far fewer examples than commercial breaks (minutes, against hours),
 so they are weak until more are labelled; every labelled one helps.
 
 ## Format

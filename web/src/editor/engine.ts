@@ -5,8 +5,10 @@
 
 import Hls from "hls.js";
 
-export const KINDS = ["ad", "double_box", "ad_read", "paid_programming"];
-export const KIND_NAME = { ad: "commercial break", double_box: "double box", ad_read: "ad read", paid_programming: "paid programming" };
+export const KINDS = ["ad", "double_box", "ad_read", "bumper", "credits", "paid_programming"];
+export const KIND_NAME = { ad: "commercial break", double_box: "double box", ad_read: "ad read", bumper: "bumper", credits: "credits", paid_programming: "paid programming" };
+/** Kinds labelled only in newer recordings: a recording lists the ones it has labelled throughout (labelled_kinds). */
+export const OPTIONAL_KINDS = ["bumper", "credits"];
 
 export function fmt(t) {
   // In tenths first, so 179.96 s reads 0:03:00.0, not 0:02:60.0.
@@ -28,8 +30,8 @@ export function createEngine(env) {
   const offs = [];
   function on(target, type, fn, opts) { target.addEventListener(type, fn, opts); offs.push(() => target.removeEventListener(type, fn, opts)); }
   function renderList() { env.render(); }
-  const KIND_RGB = { double_box: [76, 177, 245], ad_read: [245, 165, 36] };
-  const KIND_COLOR = { ad: "var(--ad)", double_box: "var(--double)", ad_read: "var(--adread)", paid_programming: "var(--paid)" };
+  const KIND_RGB = { double_box: [76, 177, 245], ad_read: [245, 165, 36], bumper: [214, 64, 159], credits: [151, 131, 101] };
+  const KIND_COLOR = { ad: "var(--ad)", double_box: "var(--double)", ad_read: "var(--adread)", bumper: "var(--bumper)", credits: "var(--credits)", paid_programming: "var(--paid)" };
   const SOURCE_COLOR = { comskip: "#3e63dd", captions: "#12a594", "logo-detector": "#ad7f58", recorder: "#8b8d98" };
   // The visible stretch of the timeline: from vs, vspan seconds long (continuous zoom; see zoomAt).
   const MIN_SPAN = 5;
@@ -42,7 +44,7 @@ export function createEngine(env) {
   let range = null, rangeFrom = null, rangeMark = null;
 
   function status(msg, err) { env.status(msg, !!err); }
-  const VARS = { "--ad": "#e5484d", "--double": "#4cb1f5", "--adread": "#f5a524", "--paid": "#8e4ec6", "--dim": "#9a9aa6", "--line": "#2c2c34", "--warn": "#f5a524", "--accent": "#3e63dd" };
+  const VARS = { "--ad": "#e5484d", "--double": "#4cb1f5", "--adread": "#f5a524", "--paid": "#8e4ec6", "--bumper": "#d6409f", "--credits": "#978365", "--dim": "#9a9aa6", "--line": "#2c2c34", "--warn": "#f5a524", "--accent": "#3e63dd" };
   function cssVar(c) { const m = /^var\((--[a-z]+)\)$/.exec(c); if (m) return VARS[m[1]] || c; return c; }
   function cssVarOld(c) { return c.startsWith("var(") ? getComputedStyle(document.documentElement).getPropertyValue(c.slice(4, -1)).trim() : c; }
 
@@ -82,7 +84,7 @@ export function createEngine(env) {
     // Its outputs, each second: commercial break, then the other kinds.
     r.push({ name: "break", type: "heat", track: "probability", color: [229, 72, 77], h: 10 });
     // The other kinds' outputs, when the model has them: their probability, each second.
-    for (const k of ["double_box", "ad_read"]) if (S.tracks && S.tracks.kinds && S.tracks.kinds[k]) r.push({ name: KIND_NAME[k], type: "heat", kindTrack: k, color: KIND_RGB[k], h: 10 });
+    for (const k of ["double_box", "ad_read", "bumper", "credits"]) if (S.tracks && S.tracks.kinds && S.tracks.kinds[k]) r.push({ name: KIND_NAME[k], type: "heat", kindTrack: k, color: KIND_RGB[k], h: 10 });
     r.push({ group: "inputs" });
     r.push({ name: "picture", type: "heat", track: "picture", color: [229, 72, 77], h: 14 });
     r.push({ name: "captions", type: "captions", h: 14 });
@@ -460,13 +462,13 @@ export function createEngine(env) {
   }
   // Undo: the labels (breaks and reviewed parts) after each change, to step back and forth through.
   let undoStack = [], redoStack = [];
-  function snapshot() { return JSON.stringify({ breaks: S.labels.breaks, reviewed: S.labels.reviewed, excluded: S.labels.excluded || [] }); }
+  function snapshot() { return JSON.stringify({ breaks: S.labels.breaks, reviewed: S.labels.reviewed, excluded: S.labels.excluded || [], labelled_kinds: S.labels.labelled_kinds || [] }); }
   function undo(redo) {
     const from = redo ? redoStack : undoStack, to = redo ? undoStack : redoStack;
     if (!from.length) return status(redo ? "nothing to redo" : "nothing to undo");
     to.push(snapshot());
     const s = JSON.parse(from.pop());
-    S.labels.breaks = s.breaks; S.labels.reviewed = s.reviewed; S.labels.excluded = s.excluded;
+    S.labels.breaks = s.breaks; S.labels.reviewed = s.reviewed; S.labels.excluded = s.excluded; S.labels.labelled_kinds = s.labelled_kinds;
     sel = null; pending = null; closeMenu();
     last = snapshot();
     renderList(); draw();
@@ -475,6 +477,10 @@ export function createEngine(env) {
   }
   let last = null;
   function changed() {
+    // Using bumper or credits in a recording says it labels them throughout (switch it off in the panel if not).
+    const used = OPTIONAL_KINDS.filter((k) => S.labels.breaks.some((b) => b.kind === k));
+    const have = S.labels.labelled_kinds || [];
+    if (used.some((k) => !have.includes(k))) S.labels.labelled_kinds = [...new Set([...have, ...used])];
     const now = snapshot();
     if (last !== null && now !== last) { undoStack.push(last); redoStack = []; if (undoStack.length > 200) undoStack.shift(); }
     last = now;
@@ -697,6 +703,14 @@ export function createEngine(env) {
     setKind(i, k) { S.labels.breaks[i].kind = k; changed(); },
     deleteBreak,
     setNotes(text) { S.labels.notes = text; changed(); },
+    /** Whether an optional kind (bumper, credits) is labelled throughout this recording. */
+    labelsKind: (k) => !!S && (S.labels.labelled_kinds || []).includes(k),
+    setLabelsKind(k, on) {
+      const have = (S.labels.labelled_kinds || []).filter((x) => x !== k);
+      S.labels.labelled_kinds = on ? [...have, k] : have;
+      if (!on && S.labels.breaks.some((b) => b.kind === k)) status(`${KIND_NAME[k]} labels remain; they'll switch it back on`, true);
+      changed();
+    },
     readiness: () => (S ? readiness() : ""),
     setReady,
     stale: (name) => isStale(name),
