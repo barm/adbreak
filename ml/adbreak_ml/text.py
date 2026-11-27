@@ -6,13 +6,13 @@ two small learned scores per second (see `TextHeads`):
   back", "stay with us", ...), learned from the labels, not listed.
 
 Tokens: lowercased runs of letters, digits and apostrophes, single words and adjacent pairs, FNV-1a 32 of their
-UTF-8 bytes modulo BUCKETS; present or not.
+UTF-8 bytes modulo BUCKETS; present or not. Parsing, tokens and scores are adbreak-model's (through adbreak_rs), the
+code a recorder runs; fitting is here.
 """
 
 from __future__ import annotations
 
-import re
-
+import adbreak_rs as R
 import numpy as np
 from scipy import sparse
 from sklearn.linear_model import LogisticRegression
@@ -20,80 +20,26 @@ from sklearn.linear_model import LogisticRegression
 BUCKETS = 1 << 14
 TRAIL = 20
 AHEAD = 30
-WORD = re.compile(r"[a-z0-9']+")
-
-
-def fnv32(s: str) -> int:
-    h = 0x811C9DC5
-    for b in s.encode():
-        h = ((h ^ b) * 0x01000193) & 0xFFFFFFFF
-    return h
-
-
-_LOWER = str.maketrans("ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz")
 
 
 def tokens(text: str) -> set[int]:
-    w = WORD.findall(text.translate(_LOWER))  # ASCII only, as the Rust side lowercases
-    return {fnv32(t) % BUCKETS for t in w + [a + " " + b for a, b in zip(w, w[1:])]}
+    return set(R.tokens(text, BUCKETS))
 
 
 def cues(vtt: str) -> list[tuple[float, float, str]]:
-    """(start, end, text) of each WebVTT cue, exactly as adbreak_captions::parse_vtt reads them (the text: its lines,
-    trimmed, joined with a space)."""
-
-    def stamp(x: str) -> float | None:
-        secs = 0.0
-        for part in x.split(":"):
-            try:
-                secs = secs * 60 + float(part)
-            except ValueError:
-                return None
-        return secs
-
-    out = []
-    lines = vtt.splitlines()
-    i = 0
-    while i < len(lines):
-        line = lines[i]
-        i += 1
-        if "-->" not in line:
-            continue
-        a, b = line.split("-->", 1)
-        start, end = stamp(a.strip()), stamp((b.split() or [""])[0])
-        if start is None or end is None:
-            continue
-        text = []
-        while i < len(lines) and lines[i].strip():
-            text.append(lines[i].strip())
-            i += 1
-        out.append((start, end, " ".join(text)))
-    return out
+    """(start, end, text) of each WebVTT cue, by adbreak_captions::parse_vtt (the text: its lines, trimmed, joined with a
+    space)."""
+    return R.parse_vtt(vtt)
 
 
 def per_second(cue_list: list[tuple[float, float, str]], n: int) -> tuple[sparse.csr_matrix, sparse.csr_matrix]:
-    """For each second: the tokens on screen during it, and the tokens of cues that started in the last TRAIL seconds."""
-    now = [set() for _ in range(n)]
-    started = [set() for _ in range(n)]
-    for a, b, text in cue_list:
-        tk = tokens(text)
-        for t in range(max(int(a), 0), min(int(np.ceil(b)), n)):
-            now[t] |= tk
-        if 0 <= int(a) < n:
-            started[int(a)] |= tk
-    trail = []
-    for t in range(n):
-        s = set()
-        for u in range(max(t - TRAIL + 1, 0), t + 1):
-            s |= started[u]
-        trail.append(s)
+    """For each second: the tokens on screen during it, and the tokens of cues that started in the last TRAIL seconds
+    (adbreak_model::text::per_second)."""
+    def matrix(indptr, indices):
+        return sparse.csr_matrix((np.ones(len(indices), np.float32), np.array(indices, np.int64), np.array(indptr, np.int64)), shape=(n, BUCKETS))
 
-    def matrix(rows):
-        ind = [sorted(r) for r in rows]
-        indptr = np.cumsum([0] + [len(r) for r in ind])
-        return sparse.csr_matrix((np.ones(indptr[-1], np.float32), np.concatenate([np.array(r, np.int64) for r in ind]) if indptr[-1] else np.array([], np.int64), indptr), shape=(n, BUCKETS))
-
-    return matrix(now), matrix(trail)
+    now, trail = R.text_per_second([tuple(c) for c in cue_list], n, BUCKETS, TRAIL)
+    return matrix(*now), matrix(*trail)
 
 
 def ahead_target(y: np.ndarray, break_cls: int, programme_cls: int) -> np.ndarray:
@@ -136,18 +82,9 @@ class TextHeads:
 
 
 def score(X: sparse.csr_matrix, head: dict) -> np.ndarray:
-    """A text score from exported weights (`model.json` "text"), as adbreak-model computes it: the weights of the
+    """A text score from exported weights (`model.json` "text"), by adbreak_model::text::score_with: the weights of the
     tokens present, in bucket order, plus the intercept, through the logistic; 0 for a second with no tokens."""
-    coef = np.asarray(head["coef"], np.float32).astype(np.float64)
-    out = np.zeros(X.shape[0])
-    for i in range(X.shape[0]):
-        idx = X.indices[X.indptr[i]:X.indptr[i + 1]]
-        if len(idx):
-            z = 0.0
-            for j in np.sort(idx):
-                z += coef[j]
-            out[i] = 1 / (1 + np.exp(-(z + head["intercept"])))
-    return out
+    return R.text_score(X.indptr.astype(np.int64).tolist(), X.indices.astype(np.int64).tolist(), [float(c) for c in head["coef"]], float(head["intercept"]))
 
 
 def export(heads: TextHeads) -> dict:

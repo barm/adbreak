@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import adbreak_rs as R
 import numpy as np
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression
@@ -18,6 +19,7 @@ from sklearn.linear_model import LogisticRegression
 from .data import BREAK, IGNORE, MINOR_KINDS, PROGRAMME, Recording, kind_labels
 from .embed import NAME as EMBED, MODEL as IMAGE_MODEL
 from .data import second_labels
+
 from .fusion import WINDOWS, window_mean
 
 RUST = "rust-v1"
@@ -92,10 +94,7 @@ def target(d: "Data", kind: str) -> np.ndarray:
 
 
 def feature_names() -> list[str]:
-    v = ["p", "has_captions", "visible", "roll_up", "new_cue", "black", "silent", "edge_dist", "edge_here"]
-    for w in WINDOWS:
-        v += [f"p_w{w}", f"visible_w{w}", f"roll_up_w{w}", f"edges_w{w}"]
-    return v + ["p_std15", "text_now", "text_trail", "text_now_w7", "text_now_w30"] + [f"text_trail_max{w}" for w in TEXT_MAX]
+    return R.feature_names(WINDOWS, True)
 
 
 def inputs(d: Data, drop_captions: bool = False):
@@ -106,30 +105,15 @@ def inputs(d: Data, drop_captions: bool = False):
 
 
 def table(d: Data, p: np.ndarray, drop_captions: bool = False) -> np.ndarray:
+    """The trees' inputs, by adbreak_model::table (through adbreak_rs): the code a recorder runs."""
     has, vis, roll, new, black, silent, edges = inputs(d, drop_captions)
-    t = np.arange(len(p), dtype=np.float64)
-    if edges:
-        e = np.sort(np.array(edges))
-        j = np.searchsorted(e, t)
-        dd = np.minimum(np.abs(t - e[np.clip(j - 1, 0, len(e) - 1)]), np.abs(t - e[np.clip(j, 0, len(e) - 1)]))
-    else:
-        dd = np.full(len(t), np.inf)
-    dist, here = np.minimum(dd, EDGE_CAP) / EDGE_CAP, (dd < 1.0).astype(np.float64)
-    cols = [p, has, vis, roll, new, black, silent, dist, here]
-    for w in WINDOWS:
-        cols += [window_mean(p, w), window_mean(vis, w), window_mean(roll, w), window_mean(here, w) * (2 * w + 1)]
-    m1, m2 = window_mean(p, 15), window_mean(p * p, 15)
-    cols.append(np.sqrt(np.maximum(m2 - m1 * m1, 0)))
-    # Caption text (text.py): the score of what's on screen, and of what was said in the last 20 s, with context.
     tnow, ttrail = getattr(d, "tnow", None), getattr(d, "ttrail", None)
     if tnow is None or drop_captions:
         tnow = ttrail = np.zeros(len(p))
-    cols += [tnow, ttrail, window_mean(tnow, 7), window_mean(tnow, 30)]
-    for w in TEXT_MAX:  # the trailing score's recent maximum: a cue said a little while ago
-        cols.append(np.array([ttrail[max(k - w, 0):k + 1].max() for k in range(len(p))]))
-    # Rounded to float32: Rust and NumPy can differ in the last bit of float64 arithmetic, which would send a value
-    # sitting on a tree threshold the other way.
-    return np.stack([np.asarray(c, np.float64) for c in cols], 1).astype(np.float32).astype(np.float64)
+    def f(a):
+        return np.ascontiguousarray(a, np.float64)
+
+    return R.table(f(p), f(has), f(vis), f(roll), f(new), f(black), f(silent), edges, WINDOWS, EDGE_CAP, f(tnow), f(ttrail))
 
 
 class Never:
@@ -196,26 +180,13 @@ def has_kind(train: list[Data], kind: str) -> bool:
     return any((target(d, kind) == BREAK).any() for d in train)
 
 
-def subtract(spans: list, cuts: list) -> list:
-    """`spans` with every part inside `cuts` taken out."""
-    for x, y in cuts:
-        spans = [q for (s, e) in spans for q in ((s, min(e, x)), (max(s, y), e)) if q[1] > q[0]]
-    return spans
-
-
-def combine(ad: list, minor: dict, probs: dict) -> list[tuple[float, float, str]]:
-    """Commercial breaks and the other kinds' runs as one list, as adbreak_model::Model::kind_breaks. A double box
-    takes its time from a commercial break it overlaps (it is often the break's tail, which the break output also
-    covers); an ad read loses any part inside a commercial break or a double box; credits any part inside those or an ad
-    read, and a bumper also inside credits. Pieces shorter than their kind's
-    min_len are dropped, and commercial breaks shorter than POST's min_len."""
-    db = [(s, e) for s, e in minor.get("double_box", []) if e - s >= KIND_POST["double_box"]["min_len"]]
-    ads = [(s, e) for s, e in subtract(list(ad), db) if e - s >= POST["min_len"]]
-    reads = [(s, e) for s, e in subtract(minor.get("ad_read", []), ads + db) if e - s >= KIND_POST["ad_read"]["min_len"]]
-    credits = [(s, e) for s, e in subtract(minor.get("credits", []), ads + db + reads) if e - s >= KIND_POST["credits"]["min_len"]]
-    bumps = [(s, e) for s, e in subtract(minor.get("bumper", []), ads + db + reads + credits) if e - s >= KIND_POST["bumper"]["min_len"]]
-    return sorted([(s, e, "ad") for s, e in ads] + [(s, e, "double_box") for s, e in db] + [(s, e, "ad_read") for s, e in reads]
-                  + [(s, e, "credits") for s, e in credits] + [(s, e, "bumper") for s, e in bumps])
+def combine(ad: list, minor: dict, probs: dict | None = None) -> list[tuple[float, float, str]]:
+    """Commercial breaks and the other kinds' runs as one list, by adbreak_model::combine (as Model::kind_breaks): a
+    double box takes its time from a commercial break it overlaps; an ad read loses any part inside a commercial break
+    or a double box; credits any part inside those or an ad read, and a bumper also inside credits. Pieces shorter
+    than their kind's min_len are dropped, and commercial breaks shorter than POST's min_len."""
+    runs = {k: ([tuple(b) for b in v], KIND_POST[k]["min_len"]) for k, v in minor.items()}
+    return R.combine([tuple(b) for b in ad], runs, POST["min_len"])
 
 
 def trees_json(clf: HistGradientBoostingClassifier) -> tuple[float, list]:
@@ -231,63 +202,21 @@ def trees_json(clf: HistGradientBoostingClassifier) -> tuple[float, list]:
 
 
 def black_points(black: np.ndarray) -> list[float]:
-    """As adbreak_model::black_points: the middle of each run of seconds with any black."""
-    pts, i, b = [], 0, np.asarray(black) > 0
-    while i < len(b):
-        if b[i]:
-            j = i
-            while j + 1 < len(b) and b[j + 1]:
-                j += 1
-            pts.append((i + j + 1) / 2)
-            i = j + 1
-        else:
-            i += 1
-    return pts
+    """adbreak_model::black_points: the middle of each run of seconds with any black."""
+    return R.black_points(np.ascontiguousarray(black, np.float64))
 
 
 def to_breaks(p: np.ndarray, edges: list[float], post: dict | None = None, black: np.ndarray | None = None) -> list[tuple[float, float]]:
-    """As adbreak_model::to_breaks (with the black points added when the settings say snap_black)."""
+    """adbreak_model::to_breaks (with the black points added when the settings say snap_black)."""
     POST = post or globals()["POST"]
     fallback = black_points(black) if POST.get("snap_black") and black is not None else []
-    spans, start = [], None
-    for i, v in enumerate(p):
-        if v >= POST["threshold"] and start is None:
-            start = float(i)
-        elif v < POST["threshold"] and start is not None:
-            spans.append([start, float(i)])
-            start = None
-    if start is not None:
-        spans.append([start, float(len(p) - 1) + 1.0])
-    merged: list[list[float]] = []
-    for s in spans:
-        if merged and s[0] - merged[-1][1] <= POST["max_gap"]:
-            merged[-1][1] = s[1]
-        else:
-            merged.append(s)
-
-    def snapped(x: float) -> float:
-        # A black-and-silent edge if one is near (its time is exact), else a black picture (to the half second).
-        for points in (edges, fallback):
-            if points:
-                e = min(points, key=lambda e: abs(e - x))
-                if abs(e - x) <= POST["snap"]:
-                    return e
-        return x
-
-    out = []
-    for a, b in merged:
-        a, b = snapped(a), snapped(b)
-        if b - a >= POST["min_len"]:
-            out.append((round(a * 100) / 100, round(b * 100) / 100))
-    return out
+    return R.to_breaks(np.ascontiguousarray(p, np.float64), [float(e) for e in edges], POST["threshold"], POST["min_len"],
+                       POST["max_gap"], POST["snap"], fallback)
 
 
 def model_version(text: str) -> str:
-    """model.json's version: FNV-1a 64 of its bytes, as `adbreak_model::version`."""
-    h = 0xCBF29CE484222325
-    for b in text.encode():
-        h = ((h ^ b) * 0x100000001B3) & 0xFFFFFFFFFFFFFFFF
-    return f"{h:016x}"
+    """model.json's version (adbreak_model::version)."""
+    return R.version(text)
 
 
 def training_info(trees: HistGradientBoostingClassifier, labelled: list[Data], version: str) -> dict:

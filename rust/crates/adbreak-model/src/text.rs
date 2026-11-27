@@ -4,6 +4,8 @@
 //!
 //! Tokens: lowercased (ASCII) runs of letters, digits and apostrophes, single words and adjacent pairs, FNV-1a 32 of
 //! their bytes modulo the number of buckets; present or not.
+//!
+//! Public so the training code computes the same through adbreak-py.
 
 use serde::Deserialize;
 use std::collections::BTreeSet;
@@ -31,7 +33,7 @@ fn fnv32(s: &str) -> u32 {
 }
 
 /// The token buckets of a caption's text.
-pub(crate) fn tokens(text: &str, buckets: usize) -> BTreeSet<usize> {
+pub fn tokens(text: &str, buckets: usize) -> BTreeSet<usize> {
     let lower = text.to_ascii_lowercase();
     let words: Vec<&str> = lower.split(|c: char| !(c.is_ascii_lowercase() || c.is_ascii_digit() || c == '\'')).filter(|w| !w.is_empty()).collect();
     let mut out: BTreeSet<usize> = words.iter().map(|w| fnv32(w) as usize % buckets).collect();
@@ -42,7 +44,7 @@ pub(crate) fn tokens(text: &str, buckets: usize) -> BTreeSet<usize> {
 }
 
 /// Per second 0..n: the tokens on screen during it, and those of cues that started in the last `trail` seconds.
-pub(crate) fn per_second(cues: &[(f64, f64, String)], n: usize, buckets: usize, trail: usize) -> (Vec<BTreeSet<usize>>, Vec<BTreeSet<usize>>) {
+pub fn per_second(cues: &[(f64, f64, String)], n: usize, buckets: usize, trail: usize) -> (Vec<BTreeSet<usize>>, Vec<BTreeSet<usize>>) {
     let mut now = vec![BTreeSet::new(); n];
     let mut started = vec![BTreeSet::new(); n];
     for (a, b, text) in cues {
@@ -70,16 +72,24 @@ pub(crate) fn per_second(cues: &[(f64, f64, String)], n: usize, buckets: usize, 
 /// The score of each second's tokens: the weights of those present, in bucket order, plus the intercept, through the
 /// logistic; 0 where there are none (no evidence either way).
 pub(crate) fn score(sets: &[BTreeSet<usize>], head: Option<&Head>) -> Vec<f64> {
+    match head {
+        Some(h) => score_with(sets, &h.coef, h.intercept),
+        None => vec![0.0; sets.len()],
+    }
+}
+
+/// [`score`] with a head's weights given directly.
+pub fn score_with(sets: &[BTreeSet<usize>], coef: &[f32], intercept: f64) -> Vec<f64> {
     sets.iter()
-        .map(|s| match head {
-            Some(h) if !s.is_empty() => {
-                let mut z = 0.0;
-                for &j in s {
-                    z += f64::from(h.coef[j]);
-                }
-                1.0 / (1.0 + (-(z + h.intercept)).exp())
+        .map(|s| {
+            if s.is_empty() {
+                return 0.0;
             }
-            _ => 0.0,
+            let mut z = 0.0;
+            for &j in s {
+                z += f64::from(coef[j]);
+            }
+            1.0 / (1.0 + (-(z + intercept)).exp())
         })
         .collect()
 }

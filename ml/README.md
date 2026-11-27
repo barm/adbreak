@@ -4,6 +4,9 @@ Python for training. Reads the adbreak database (`ADBREAK_DB`, default
 `~/Library/Application Support/adbreak/adbreak.db`: recordings, labels, suggestions; it writes its sources there) and
 the media store (`ADBREAK_MEDIA`, default `~/Movies/adbreak`); features live there too (`<id>/features/`), never in git.
 
+Whatever a recorder also computes (the trees' input table, breaks from probabilities, combining the kinds, caption
+parsing and text tokens) is adbreak-model's Rust, called through `adbreak_rs`; only the learning is Python.
+
 The shipped model trains on the inputs `adbreak features` computes in Rust (`rust-v1`), the same code a recorder
 runs, and exports for `rust/crates/adbreak-model`. A recording ingested from a recorder also has `full-v1`, the same
 inputs from the full-resolution recording (the pictures a recorder scans; the 360p copy's embeddings differ about five
@@ -13,7 +16,7 @@ half; everything else uses the full-resolution one where there is one.
 ```sh
 adbreak features <ids...>            # from the repository root: per-second inputs, Rust (avkit, Core ML)
 adbreak features <id> --full <mp4>  # the same from a full-resolution recording (`full-v1`); ingest does this itself
-cd ml && uv sync
+cd ml && uv sync                     # also builds adbreak_rs (rust/crates/adbreak-py; needs cargo)
 uv run adbreak-ml evaluate           # leave-one-recording-out ("model"), and leave-one-network-out ("model-new-network")
 uv run adbreak-ml export [DIR]       # model.json and test_vector.json (the image encoder's .mlpackage goes beside it);
                                      # DIR: ADBREAK_MODEL_DIR, default ~/Library/Application Support/adbreak/model.
