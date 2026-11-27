@@ -58,8 +58,10 @@ Two things that look like advertising but are programme:
   and so is any tag after it until the programme resumes.
 - Kinds can touch: a break often ends straight into a double box or an ad read. Label each separately, edge to
   edge, rather than stretching one over the other.
-- Mark what you've checked as **reviewed** (`R` on the labelling page). Only reviewed time is scored or trained
-  on, so a recording can be labelled a part at a time, and unlabelled reviewed time really means programme.
+- When a recording's labels are done, switch it to **Ready for training** (top of the labelling page). Until then
+  it is neither scored nor trained on; once ready, all of it counts, so unlabelled time really means programme.
+- **Exclude** stretches whose picture or sound is bad (`[` and `]` at their ends, then `X`): they are never scored
+  or trained on.
 
 ## How each kind is used
 
