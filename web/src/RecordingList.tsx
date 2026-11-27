@@ -45,6 +45,7 @@ export function RecordingList() {
   }, []);
   const scores = useMemo(() => new Map((m?.recordings ?? []).map((r) => [r.id, r])), [m]);
   const trainedOn = useMemo(() => new Set(m?.info?.trained_on ?? []), [m]);
+  const held = useMemo(() => new Set(m?.holdout ?? []), [m]);
   const s = (r: Row): RecScore | undefined => scores.get(r.id);
   const now = m?.totals.find((t) => t.kind === "commercial break" && t.source === "model");
   const labelled = rows?.filter((r) => r.reviewed > 0) ?? [];
@@ -76,7 +77,13 @@ export function RecordingList() {
       key: "role",
       header: "Model",
       width: { type: "pixel" as const, value: 150 },
-      renderCell: (r: Row) => (m?.info ? <HStack gap={1}><TrainingRole inTraining={trainedOn.has(r.id)} />{s(r)?.stale && <Badge label="stale" variant="warning" />}</HStack> : null),
+      renderCell: (r: Row) =>
+        m?.info ? (
+          <HStack gap={1}>
+            <TrainingRole role={held.has(r.id) ? "held out" : trainedOn.has(r.id) ? "training" : "not trained on"} />
+            {s(r)?.stale && <Badge label="stale" variant="warning" />}
+          </HStack>
+        ) : null,
     },
     { key: "rerun", header: "", renderCell: (r: Row) => (r.media ? <Button label="Rerun" size="sm" variant="ghost" isDisabled={busy} tooltip={`Run the model on ${r.title} again (a short run)`} onClick={() => run("evaluate", { only: r.id })} /> : null) },
   ];
@@ -99,7 +106,7 @@ export function RecordingList() {
             <HStack gap={3} vAlign="center" hAlign="between" wrap="wrap">
               <Text color="secondary">
                 {rows && `${rows.length} recordings · ${readyCount} ready for training (${hours(labelled.reduce((a, r) => a + r.reviewed, 0))}) · ${labelled.reduce((a, r) => a + r.breaks, 0)} labels`}
-                {m?.info && now && ` · ${modelName(m.info)}: F1 ${pct(now.f1)}, show cut ${perHour(now.wrongly_skipped_per_hour)} / h, ads left ${perHour(now.missed_per_hour)} / h`}
+                {m?.info && now && ` · ${modelName(m.info)}: F1 ${pct(now.f1)}, show cut ${perHour(now.wrongly_skipped_per_hour)} / h, ads left ${perHour(now.missed_per_hour)} / h${m.holdout.length ? ` on the ${m.holdout.length} held out` : ""}`}
               </Text>
               <SegmentedControl label="View" value={view} onChange={(v) => setView(v as "recordings" | "channels")} size="sm">
                 <SegmentedControlItem value="recordings" label="Recordings" />

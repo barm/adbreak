@@ -30,6 +30,7 @@ data or commit messages. A recording's source is `"recorder"`.
   it when there is none. `src/editor/engine.ts` is the editing engine (canvas timeline, keys, undo, saving), ported
   from the plain-JS page; the React components around it are Astryx. Before committing web changes:
   `cd web && npm run typecheck && npm run build`.
+- A fixed **held-out set** (`adbreak holdout add/remove`, table `holdout`) is never trained on, the installed model included; every model is scored on it (`evaluate` trains once on the rest; `adbreak eval` and the app score only it). Without one, scoring falls back to leave-one-recording-out.
 - The dataset is a SQLite database (`crates/adbreak-db`; `ADBREAK_DB`, default
   `~/Library/Application Support/adbreak/adbreak.db`): recordings, labels (with every save in `label_history`) and
   sources, shared by the app and `ml/` (WAL, so both can write). Don't commit day-to-day changes: `dataset/` is a
