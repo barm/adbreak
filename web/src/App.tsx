@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { RecordingList } from "./RecordingList";
-import { ModelPage } from "./ModelPage";
+import { ModelsPage } from "./ModelsPage";
+import { RunsPage } from "./RunsPage";
 import { Review } from "./Review";
 
-/** Routes by the hash: `#/model` is the Model page, `#/<recording id>` reviews a recording, anything else lists them. */
+/** Routes by the hash: `#/models`, `#/runs`, `#/<recording id>` reviews a recording, anything else lists them. */
 export function App() {
   const [hash, setHash] = useState(location.hash);
   useEffect(() => {
@@ -11,7 +12,8 @@ export function App() {
     addEventListener("hashchange", on);
     return () => removeEventListener("hashchange", on);
   }, []);
-  if (hash === "#/model") return <ModelPage />;
+  if (hash === "#/models" || hash === "#/model") return <ModelsPage />;
+  if (hash === "#/runs") return <RunsPage />;
   const m = hash.match(/^#\/(.+)/);
   return m ? <Review key={m[1]} id={decodeURIComponent(m[1])} /> : <RecordingList />;
 }
