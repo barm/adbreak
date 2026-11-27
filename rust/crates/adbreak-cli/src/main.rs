@@ -94,6 +94,9 @@ enum Cmd {
         /// Compute again even if the files exist.
         #[arg(long)]
         force: bool,
+        /// The full-resolution recording (one id only): its inputs are written as `full-v1`.
+        #[arg(long)]
+        full: Option<PathBuf>,
     },
     /// Find the shot cuts in recordings' copies (every picture), for the labelling page: `features/cuts.json`.
     Cuts {
@@ -193,7 +196,8 @@ async fn main() -> Result<()> {
             for d in dirs {
                 let id = import(&data, &d, 360)?;
                 suggest(&data, &id, comskip.clone(), true)?;
-                features::compute(&data, &id, &model_dir, false)?;
+                features::compute(&data, &id, &model_dir, None, false)?;
+                features::compute(&data, &id, &model_dir, Some(&d.join("media.mp4")), false)?;
                 cuts::compute(&data, &id, false)?;
                 draft(&data, &ml, &id)?;
                 if remove {
@@ -216,9 +220,12 @@ async fn main() -> Result<()> {
                 cuts::compute(&data, &data.resolve(&name)?, force)?;
             }
         }
-        Cmd::Features { ids, model_dir, force } => {
+        Cmd::Features { ids, model_dir, force, full } => {
+            if full.is_some() && ids.len() != 1 {
+                bail!("--full is one recording's media: give one id");
+            }
             for name in ids {
-                features::compute(&data, &data.resolve(&name)?, &model_dir, force)?;
+                features::compute(&data, &data.resolve(&name)?, &model_dir, full.as_deref(), force)?;
             }
         }
         Cmd::Label { bind, web, model, ml, inbox } => {

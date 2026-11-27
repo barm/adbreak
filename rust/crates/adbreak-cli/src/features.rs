@@ -1,6 +1,10 @@
 //! `adbreak features`: the model's per-second inputs from a recording's copy, through the same code a recorder uses to detect breaks
 //! (avkit's decoder, adbreak-features), written for training: `features/rust-v1.f32` (rows of the embedding then
 //! has_captions, visible, roll_up, new_cue, black, silent; little-endian f32) and `rust-v1.json` (shape, edges).
+//!
+//! From the full-resolution recording as well, when there is one (ingest has it until it is removed): the same files
+//! named `full-v1`. These are the pictures a recorder scans, which the small copy only approximates (its embeddings
+//! differ about five times as much as the recorder's own compression changes them), so training uses both.
 
 use crate::dataset::Dataset;
 use adbreak_features::{CoreMlEmbedder, Extractor};
@@ -8,6 +12,8 @@ use anyhow::{Context, Result};
 use std::path::Path;
 
 pub const NAME: &str = "rust-v1";
+/// The inputs from the full-resolution recording.
+pub const FULL: &str = "full-v1";
 const SIZE: usize = 256;
 
 struct Feed(Extractor<CoreMlEmbedder>, Option<anyhow::Error>);
@@ -26,17 +32,19 @@ impl fmp4_scan::Sink for Feed {
     }
 }
 
-pub fn compute(data: &Dataset, id: &str, model_dir: &Path, force: bool) -> Result<()> {
+/// From the recording's copy (`rust-v1`), or from `full`, the full-resolution recording (`full-v1`).
+pub fn compute(data: &Dataset, id: &str, model_dir: &Path, full: Option<&Path>, force: bool) -> Result<()> {
     let dir = data.media_dir(id);
     let out = dir.join("features");
-    if !force && out.join(format!("{NAME}.json")).exists() {
-        eprintln!("{id}: features already computed");
+    let name = if full.is_some() { FULL } else { NAME };
+    if !force && out.join(format!("{name}.json")).exists() {
+        eprintln!("{id}: {name} features already computed");
         return Ok(());
     }
     let started = std::time::Instant::now();
     let embedder = CoreMlEmbedder::load(&model_dir.join("mobileclip2-s0-image.mlpackage"), SIZE)?;
     let mut feed = Feed(Extractor::new(embedder), None);
-    let media = dir.join("media.mp4");
+    let media = full.map_or_else(|| dir.join("media.mp4"), Path::to_path_buf);
     let (init, fragments) = fmp4::stream::open(&media, 16 << 20)?;
     let mut scan = fmp4_scan::Scan::new(&init, 480, 270, 10.0)?.with_color(SIZE);
     for batch in fragments {
@@ -68,12 +76,17 @@ pub fn compute(data: &Dataset, id: &str, model_dir: &Path, force: bool) -> Resul
         }
     }
     std::fs::create_dir_all(&out)?;
-    std::fs::write(out.join(format!("{NAME}.f32")), bytes)?;
+    std::fs::write(out.join(format!("{name}.f32")), bytes)?;
     let meta = serde_json::json!({
         "rows": inputs.rows.len(), "dim": dim, "columns": ["has_captions", "visible", "roll_up", "new_cue", "black", "silent"],
         "edges": inputs.edges, "image_model": "mobileclip2-s0", "size": SIZE,
     });
-    std::fs::write(out.join(format!("{NAME}.json")), serde_json::to_string(&meta)?).context("writing features")?;
-    eprintln!("{id}: {} s, {} edges, {missing} seconds without a picture, in {:.0} s", inputs.rows.len(), inputs.edges.len(), started.elapsed().as_secs_f64());
+    std::fs::write(out.join(format!("{name}.json")), serde_json::to_string(&meta)?).context("writing features")?;
+    eprintln!(
+        "{id} ({name}): {} s, {} edges, {missing} seconds without a picture, in {:.0} s",
+        inputs.rows.len(),
+        inputs.edges.len(),
+        started.elapsed().as_secs_f64()
+    );
     Ok(())
 }

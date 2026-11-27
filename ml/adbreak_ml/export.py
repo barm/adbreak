@@ -21,22 +21,40 @@ from .data import second_labels
 from .fusion import WINDOWS, window_mean
 
 RUST = "rust-v1"
+FULL = "full-v1"
+
+
+def embeddings(raw: np.ndarray, dim: int) -> np.ndarray:
+    """The embedding columns of a features file; a second without a picture takes the previous second's (adbreak-model
+    carries the previous probability)."""
+    x = raw[:, :dim].copy()
+    for i in range(len(x)):
+        if np.isnan(x[i, 0]):
+            x[i] = x[i - 1] if i else 0.0
+    return x
 
 
 class Data:
-    """A recording's per-second inputs as `adbreak features` computes them (the code a recorder runs), and its labels."""
+    """A recording's per-second inputs as `adbreak features` computes them (the code a recorder runs), and its labels.
+
+    `views` are its picture embeddings from each version of the recording it has: the full-resolution recording's
+    (`full-v1`, what a recorder scans) when ingest had it, and the small copy's (`rust-v1`, every recording). `x` is
+    the first: the pictures nearest to what the model will see."""
 
     def __init__(self, rec: Recording, _name: str = RUST):
         self.rec = rec
         d = rec.features(RUST).parent
         meta = json.loads((d / f"{RUST}.json").read_text())
         raw = np.fromfile(d / f"{RUST}.f32", np.float32).reshape(meta["rows"], meta["dim"] + 6)
-        x = raw[:, : meta["dim"]].copy()
-        # Seconds without a picture: the previous second's (adbreak-model carries the previous probability).
-        for i in range(len(x)):
-            if np.isnan(x[i, 0]):
-                x[i] = x[i - 1] if i else 0.0
-        self.x = x
+        self.views = [embeddings(raw, meta["dim"])]
+        if (d / f"{FULL}.json").is_file():
+            fm = json.loads((d / f"{FULL}.json").read_text())
+            full = embeddings(np.fromfile(d / f"{FULL}.f32", np.float32).reshape(fm["rows"], fm["dim"] + 6), fm["dim"])
+            # The same clock, but either may end a second or so earlier: cut or pad to the copy's rows.
+            if len(full) < len(raw):
+                full = np.concatenate([full, np.repeat(full[-1:], len(raw) - len(full), 0)])
+            self.views.insert(0, full[: len(raw)])
+        self.x = self.views[0]
         self.t = np.arange(meta["rows"], dtype=np.float64)
         self.y = second_labels(rec, self.t)
         self.ys = {k: kind_labels(rec, self.t, k) for k in MINOR_KINDS}
@@ -124,12 +142,16 @@ class Never:
 
 
 def frame_model(train: list[Data], kind: str = "ad"):
-    X = np.concatenate([d.x[target(d, kind) != IGNORE] for d in train])
-    Y = np.concatenate([target(d, kind)[target(d, kind) != IGNORE] == BREAK for d in train])
+    """The picture model, on every version of each recording's pictures (each version weighted so a recording counts
+    once): it learns the sharp pictures a recorder sees without the recordings that have them counting twice."""
+    keep = [target(d, kind) != IGNORE for d in train]
+    X = np.concatenate([v[k] for d, k in zip(train, keep) for v in d.views])
+    Y = np.concatenate([target(d, kind)[k] == BREAK for d, k in zip(train, keep) for _ in d.views])
+    W = np.concatenate([np.full(int(k.sum()), 1.0 / len(d.views)) for d, k in zip(train, keep) for _ in d.views])
     if not Y.any():
         return Never()
     # The other kinds are rare (minutes in hours): weighted so they count as much as everything else.
-    return LogisticRegression(C=1.0, max_iter=3000, class_weight=None if kind == "ad" else "balanced").fit(X, Y)
+    return LogisticRegression(C=1.0, max_iter=3000, class_weight=None if kind == "ad" else "balanced").fit(X, Y, sample_weight=W)
 
 
 def fit_trees(train: list[Data], oof: dict, kind: str = "ad") -> HistGradientBoostingClassifier:
