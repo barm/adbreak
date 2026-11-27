@@ -336,7 +336,8 @@ export function createEngine(env) {
     // Only inside the label, with its edges clear to grab; on one too narrow (zoomed out), none: its colour says the
     // kind, and K, right-click or the panel change it.
     if (x1 - x0 < w + 2 * clear) { env.kindTag(null); return; }
-    env.kindTag({ left: x0 + clear, top: TOP + 1, text, i: sel.i });
+    // top: the label bar's centre line (the app centres the tag on it).
+    env.kindTag({ left: x0 + clear, top: TOP + ROW / 2, text, i: sel.i });
   }
   // Splits label `i` at `t` into two of the same kind and selects the second half (to change its kind, say).
   function splitBreak(i, t) {

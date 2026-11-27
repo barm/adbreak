@@ -117,7 +117,7 @@ export function Review({ id }: { id: string }) {
         }}>
         <canvas ref={canvas} style={styles.canvas} />
         {tag && (
-          <Stack style={{ ...styles.overlay, left: tag.left, top: tag.top }}>
+          <Stack style={{ ...styles.overlay, left: tag.left, top: tag.top, transform: "translateY(-50%)" }}>
             <DropdownMenu
               button={{ label: tag.text, size: "sm", variant: "ghost" }}
               items={tagItems as never}
