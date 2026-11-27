@@ -14,16 +14,17 @@ export const HELP: [string, string][] = [
   ["[ ]", "mark a stretch's start and end here, in either order, for X or ⌫; with one chosen, move that end"],
   ["A", "accept the selected suggestion as a label"],
   ["S", "split the selected label at the playhead: say, an ad read at the end of a break"],
-  ["K", "commercial break → double box → ad read → paid programming"],
+  ["1 – 6", "set the selected label's kind: 1 commercial break, 2 double box, 3 ad read, 4 bumper, 5 credits, 6 paid programming"],
+  ["K", "cycle the selected label's kind through those"],
   ["⌫", "delete the selected label; with a stretch chosen, include it again"],
   ["N P", "next / previous edge from any source"],
-  ["drag", "along the time ruler: choose a stretch, as [ ] do"],
+  ["drag", "on empty space in the labels row: a new label; along the time ruler: choose a stretch, as [ ] do; a label's edge: move it (paused while you drag)"],
   ["X", "exclude the chosen stretch: bad quality, never scored or trained on"],
   ["- =", "zoom the timeline out, in"],
   ["⌘Z ⌘⇧Z", "undo, redo"],
   ["\\", "hide or show this panel"],
   ["?", "show these shortcuts"],
-  ["Esc", "clear the selection"],
+  ["Esc", "cancel a stretch or a half-marked label; otherwise stop playback (and clear the selection)"],
 ];
 /** Every key and gesture, in a popover: press ? (or click its trigger). */
 export function Shortcuts({ isOpen, onOpenChange, children }: { isOpen: boolean; onOpenChange: (open: boolean) => void; children: ReactNode }) {
