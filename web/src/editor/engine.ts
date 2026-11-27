@@ -39,7 +39,7 @@ export function createEngine(env) {
   let S = null; // { id, labels, sources, cues, covered, dur }
   let sel = null, pending = null, saveTimer = null, drag = null, dragMate = null;
   // A stretch chosen on the reviewed row (drag across it): R marks it reviewed, X excludes it, ⌫ clears both.
-  let range = null, rangeFrom = null;
+  let range = null, rangeFrom = null, rangeMark = null;
 
   function status(msg, err) { env.status(msg, !!err); }
   const VARS = { "--ad": "#e5484d", "--double": "#4cb1f5", "--adread": "#f5a524", "--paid": "#8e4ec6", "--dim": "#9a9aa6", "--line": "#2c2c34", "--warn": "#f5a524", "--accent": "#3e63dd" };
@@ -69,7 +69,7 @@ export function createEngine(env) {
     comskip: "For comparison, not an input: Comskip, the established open-source detector. Rarely marks programme as a break, but often ends breaks early and misses some.",
     "frames-zeroshot": "For comparison, not an input: pictures matched against text such as \"a TV commercial\", with no training. A baseline.",
     "logo-detector": "For comparison, not an input: the first, non-ML detector (black-and-silent edges plus the network's corner logo).",
-    reviewed: "The parts whose labels have been checked (green). Only reviewed time is scored. Hatched parts are excluded (bad quality, say): never scored or trained on, and not counted as left to review. Drag across this row to choose a stretch, then R marks it reviewed, X excludes it, ⌫ clears both; as many stretches as you like. Right-click for the same, to remove an exclusion, or to exclude everything before or after the playhead.",
+    reviewed: "The parts whose labels have been checked (green). Only reviewed time is scored. Hatched parts are excluded (bad quality, say): never scored or trained on, and not counted as left to review. Drag across this row (or press [ and ] at its start and end) to choose a stretch, then R marks it reviewed, X excludes it, ⌫ clears both; as many stretches as you like. Right-click for the same, to remove an exclusion, or to exclude everything before or after the playhead.",
   };
   // The comparison sources shown (the others in suggestions.json are superseded or duplicates).
   const COMPARE = ["comskip", "frames-zeroshot", "logo-detector"];
@@ -221,6 +221,8 @@ export function createEngine(env) {
         c.strokeStyle = "rgba(120,170,255,0.9)"; c.beginPath(); c.moveTo(x0, TOP); c.lineTo(x0, g.h); c.moveTo(x1, TOP); c.lineTo(x1, g.h); c.stroke();
       }
     }
+    // A stretch's one marked end, waiting for the other.
+    if (rangeMark && !range) { c.strokeStyle = "rgba(120,170,255,0.9)"; c.setLineDash([4, 3]); const mx = g.x(rangeMark.t, vw); c.beginPath(); c.moveTo(mx, TOP); c.lineTo(mx, g.h); c.stroke(); c.setLineDash([]); }
     // pending start, playhead
     if (pending !== null) { c.strokeStyle = cssVar("var(--ad)"); c.setLineDash([4, 3]); const x = g.x(pending.t, vw); c.beginPath(); c.moveTo(x, TOP); c.lineTo(x, g.h); c.stroke(); c.setLineDash([]); }
     const x = g.x(v.currentTime || 0, vw); c.strokeStyle = "#fff"; c.beginPath(); c.moveTo(x, 0); c.lineTo(x, g.h); c.stroke();
@@ -269,7 +271,7 @@ export function createEngine(env) {
     tl.setPointerCapture(ev.pointerId);
     if (h.row && h.row.type === "reviewed") {
       // Drag across the reviewed row to choose a stretch (a click just moves the playhead there).
-      rangeFrom = h.t; range = null; draw(); return;
+      rangeFrom = h.t; range = null; rangeMark = null; draw(); return;
     }
     const e = edgeAt(h);
     if (e) {
@@ -523,13 +525,11 @@ export function createEngine(env) {
     if (what === "excluded") S.labels.excluded = addSpan(ex, a, b);
     if (what === "clear") { S.labels.reviewed = cutSpan(S.labels.reviewed, a, b); S.labels.excluded = cutSpan(ex, a, b); }
     status(`${fmt(a)}–${fmt(b)}: ${what === "reviewed" ? "marked reviewed" : what === "excluded" ? "excluded" : "cleared"}`);
-    range = null; changed();
+    range = null; rangeMark = null; changed();
   }
 
   function key(k, shift, alt) {
-    // I and O mark in and out, as in Final Cut Pro: the same as [ and ].
-    if (k === "i" || k === "I") k = "[";
-    if (k === "o" || k === "O") k = "]";
+    // I and O mark a label's in and out, as in Final Cut Pro; [ and ] mark a stretch for the reviewed row.
     const t = v.currentTime || 0;
     const b = sel && sel.label ? S.labels.breaks[sel.i] : null;
     switch (k) {
@@ -539,7 +539,24 @@ export function createEngine(env) {
       case ",": v.pause(); seek(t - 1 / 29.97); break;
       case ".": v.pause(); seek(t + 1 / 29.97); break;
       case "[": case "]": {
-        const edge = k === "[" ? "start" : "end";
+        // A stretch's start or end at the playhead: with the other end marked (or a stretch chosen), it's chosen.
+        const which = k === "[" ? "a" : "b";
+        if (range) {
+          const a = which === "a" ? t : range.a, e = which === "b" ? t : range.b;
+          range = a < e - 0.5 ? { a, b: e } : null;
+          if (!range) rangeMark = { which, t };
+        } else if (rangeMark && rangeMark.which !== which && Math.abs(rangeMark.t - t) >= 0.5) {
+          range = { a: Math.min(rangeMark.t, t), b: Math.max(rangeMark.t, t) }; rangeMark = null;
+        } else {
+          rangeMark = { which, t };
+        }
+        if (range) status(`${fmt(range.a)}–${fmt(range.b)} chosen: R reviewed · X exclude (bad quality) · ⌫ clear · Esc cancel`);
+        else status(`stretch ${which === "a" ? "start" : "end"} at ${fmt(t)}: press ${which === "a" ? "]" : "["} at its ${which === "a" ? "end" : "start"}`);
+        draw();
+        break;
+      }
+      case "i": case "I": case "o": case "O": {
+        const edge = k === "i" || k === "I" ? "start" : "end";
         // A new break marked by one edge: the other key completes it (either order).
         if (pending !== null && pending.edge !== edge) { const p = pending.t; pending = null; addBreak(Math.min(p, t), Math.max(p, t)); break; }
         // With a break selected, move its edge here, if that leaves it a break (start before end, no overlap);
@@ -549,7 +566,7 @@ export function createEngine(env) {
           if (a2 < b2 && !overlaps(a2, b2, sel.i)) { b[edge] = t; changed(); break; }
         }
         pending = { edge, t }; sel = null; renderList();
-        status(`new break ${edge}s at ${fmt(t)}: press ${edge === "start" ? "]" : "["} at its ${edge === "start" ? "end" : "start"}`); draw();
+        status(`new label ${edge}s at ${fmt(t)}: press ${edge === "start" ? "O" : "I"} at its ${edge === "start" ? "end" : "start"}`); draw();
         break;
       }
       case "a": case "A":
@@ -583,7 +600,7 @@ export function createEngine(env) {
       case "-": case "_": zoomAt(2, t); break;
       case "\\": env.toggleLayout(); break;
       case "?": env.shortcuts(); break;
-      case "Escape": sel = null; pending = null; range = null; renderList(); draw(); break;
+      case "Escape": sel = null; pending = null; range = null; rangeMark = null; renderList(); draw(); break;
       default: return false;
     }
     return true;
