@@ -56,32 +56,7 @@ pub fn compute(data: &Dataset, id: &str, model_dir: &Path, full: Option<&Path>, 
     feed.0.finish();
     let captions = std::fs::read_to_string(dir.join("captions.vtt")).unwrap_or_default();
     let inputs = feed.0.inputs(&captions);
-    let dim = inputs.rows.iter().map(|r| r.embedding.len()).max().unwrap_or(0);
-    let mut bytes = Vec::with_capacity(inputs.rows.len() * (dim + 6) * 4);
-    let mut missing = 0;
-    for r in &inputs.rows {
-        if r.embedding.len() != dim {
-            missing += 1;
-        }
-        let e = if r.embedding.len() == dim { r.embedding.clone() } else { vec![f32::NAN; dim] };
-        for v in e.iter().chain(&[
-            f32::from(u8::from(r.has_captions)),
-            f32::from(u8::from(r.caption_visible)),
-            f32::from(u8::from(r.caption_roll_up)),
-            f32::from(u8::from(r.caption_new)),
-            r.black,
-            r.silent,
-        ]) {
-            bytes.extend_from_slice(&v.to_le_bytes());
-        }
-    }
-    std::fs::create_dir_all(&out)?;
-    std::fs::write(out.join(format!("{name}.f32")), bytes)?;
-    let meta = serde_json::json!({
-        "rows": inputs.rows.len(), "dim": dim, "columns": ["has_captions", "visible", "roll_up", "new_cue", "black", "silent"],
-        "edges": inputs.edges, "image_model": "mobileclip2-s0", "size": SIZE,
-    });
-    std::fs::write(out.join(format!("{name}.json")), serde_json::to_string(&meta)?).context("writing features")?;
+    let missing = adbreak_features::store::write(&out, name, &inputs, "mobileclip2-s0", SIZE).context("writing features")?;
     eprintln!(
         "{id} ({name}): {} s, {} edges, {missing} seconds without a picture, in {:.0} s",
         inputs.rows.len(),
