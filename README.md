@@ -125,7 +125,7 @@ its own break scan) and `labels.json`. Recordings are named by their dataset id 
 the database (`--db`, `ADBREAK_DB`); start one from the snapshot with `adbreak dataset import dataset`.
 
 On the labelling page, `I` and `O` mark a label's start and end, `A` accepts a selected suggestion and `N`/`P` jump
-between the sources' edges. `[` and `]` (or dragging across the bottom row) choose a stretch: `X` excludes it (bad
+between the sources' edges. `[` and `]` (or dragging along the time ruler) choose a stretch: `X` excludes it (bad
 quality: never scored or trained on), `⌫` includes it again; as many as needed. When its labels are done, the
 **Ready for training** switch at the top makes the whole recording count, less what is excluded. Kinds: `ad` (commercial break), `double_box`, `ad_read` and
 `paid_programming`; [docs/labels.md](docs/labels.md) defines them and how to place them. `adbreak eval` scores

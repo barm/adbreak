@@ -47,7 +47,7 @@ Ask, for each moment: **is the programme on screen, and how much of it?**
 7. The whole programme is an advertisement: **paid programming**.
 
 Bumpers and credits were added after many recordings were labelled. A recording says whether it has them labelled
-throughout (the **Bumpers labelled** and **Credits labelled** switches under the timeline; they turn on by themselves
+throughout (the **Bumpers labelled** and **Credits labelled** switches in the panel; they turn on by themselves
 when you use the kind): only those teach the model what a bumper or credits look like. For commercial-break scoring
 both are neither break nor programme, like a double box, and a break's edge anywhere across one counts as right.
 
