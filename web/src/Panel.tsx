@@ -21,8 +21,11 @@ export function Panel({ engine }: { engine: Engine }) {
   const [notes, setNotes] = useState(S.labels.notes || "");
   useEffect(() => setNotes(S.labels.notes || ""), [S.id]);
   const data: Label[] = S.labels.breaks.map((b: Label, i: number) => ({ ...b, i }));
-  const reviewed = S.labels.reviewed.reduce((a: number, r: Label) => a + r.end - r.start, 0);
-  const excluded = (S.labels.excluded || []).reduce((a: number, r: Label) => a + r.end - r.start, 0);
+  const ex: Label[] = S.labels.excluded || [];
+  const excluded = ex.reduce((a: number, r: Label) => a + r.end - r.start, 0);
+  // Reviewed time that counts: what isn't excluded.
+  const overlap = (r: Label) => ex.reduce((a: number, x: Label) => a + Math.max(0, Math.min(r.end, x.end) - Math.max(r.start, x.start)), 0);
+  const reviewed = S.labels.reviewed.reduce((a: number, r: Label) => a + r.end - r.start - overlap(r), 0);
   const edge = (b: Label, e: "start" | "end") => (
     <Button label={`Jump to the ${e}`} size="sm" variant="ghost" onClick={() => engine.select(b.i, e)}>
       {short(b[e])}
