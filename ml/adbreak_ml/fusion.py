@@ -21,11 +21,10 @@ WINDOWS = [2, 7, 15, 30, 60, 150]
 
 
 def window_mean(x: np.ndarray, half: int) -> np.ndarray:
-    k = 2 * half + 1
-    c = np.cumsum(np.concatenate([[0.0], x]))
-    i = np.arange(len(x))
-    lo, hi = np.clip(i - half, 0, len(x)), np.clip(i + half + 1, 0, len(x))
-    return (c[hi] - c[lo]) / np.maximum(hi - lo, 1) if k else x
+    """Mean over ±half seconds, clipped at the ends (adbreak_model::window_mean)."""
+    import adbreak_rs
+
+    return adbreak_rs.window_mean(np.ascontiguousarray(x, np.float64), half)
 
 
 class Data:

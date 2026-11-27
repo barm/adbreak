@@ -10,6 +10,9 @@ data or commit messages. A recording's source is `"recorder"`.
 
 - `rust/` Cargo workspace (run cargo there):
   - `crates/adbreak-model` the model (`model.json` from `ml/`): per-second `Row`s to probabilities and breaks.
+  - `crates/adbreak-py` the Python module `adbreak_rs` (PyO3, built by `uv sync` in `ml/`): the model's table, breaks,
+    kinds, caption parsing and text tokens for the training code. Anything a recorder and training must compute
+    alike lives in Rust and is called from Python through it; don't add a Python copy.
     Pure Rust. Its test checks it against the Python export (`ADBREAK_MODEL_DIR` with model.json and
     test_vector.json from `uv run adbreak-ml export DIR`): keep them identical; change both sides together.
   - `crates/adbreak-features` the per-second inputs from decoded pictures, sound and captions; Core ML embeddings

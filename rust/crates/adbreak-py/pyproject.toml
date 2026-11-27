@@ -1,0 +1,26 @@
+[project]
+name = "adbreak-rs"
+version = "0.1.0"
+description = "adbreak's Rust code for its Python training"
+requires-python = ">=3.12"
+dependencies = ["numpy>=2"]
+
+[build-system]
+requires = ["maturin>=1.9,<2"]
+build-backend = "maturin"
+
+[tool.maturin]
+features = ["extension-module"]
+module-name = "adbreak_rs"
+
+# Rebuilt (uv sync) when this crate or the Rust it wraps changes.
+[tool.uv]
+cache-keys = [
+  { file = "pyproject.toml" },
+  { file = "Cargo.toml" },
+  { file = "src/**/*.rs" },
+  { file = "../adbreak-model/Cargo.toml" },
+  { file = "../adbreak-model/src/**/*.rs" },
+  { file = "../adbreak-captions/Cargo.toml" },
+  { file = "../adbreak-captions/src/**/*.rs" },
+]

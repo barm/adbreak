@@ -12,11 +12,13 @@
 //!    moment nearby.
 //!
 //! The trees and weights come from `model.json`, written by `adbreak-ml export` (adbreak's `ml/`), which also writes
-//! test vectors this crate's tests check against, so the Python training and this code compute the same thing.
+//! test vectors this crate's tests check against. The training code computes the trees' inputs, breaks and caption
+//! tokens with this crate's own functions ([`table`], [`to_breaks_snapping`], [`combine`], [`text`]) through
+//! adbreak-py, so only the learned weights cross over.
 
 #![forbid(unsafe_code)]
 
-mod text;
+pub mod text;
 
 use serde::Deserialize;
 
@@ -239,79 +241,26 @@ impl Model {
     /// `min_len` are dropped.
     pub fn kind_breaks(&self, inputs: &Inputs) -> Vec<KindBreak> {
         let spans = |b: Vec<Break>| -> Vec<(f64, f64)> { b.into_iter().map(|b| (b.start, b.end)).collect() };
-        let ad = spans(self.breaks(inputs));
-        let runs = |kind: &str| -> (Vec<(f64, f64)>, f64) {
-            match (self.m.kinds.get(kind), self.kind_probabilities(kind, &inputs.rows)) {
-                (Some(h), Some(p)) => (spans(to_breaks(&p, &inputs.edges, h.post.threshold, h.post.min_len, h.post.max_gap, h.post.snap)), h.post.min_len),
-                _ => (vec![], 0.0),
-            }
-        };
-        let (db, db_min) = runs("double_box");
-        let (reads, read_min) = runs("ad_read");
-        let db: Vec<(f64, f64)> = db.into_iter().filter(|(s, e)| e - s >= db_min).collect();
-        let ads: Vec<(f64, f64)> = subtract(ad, &db).into_iter().filter(|(s, e)| e - s >= self.m.post.min_len).collect();
-        let cuts: Vec<(f64, f64)> = ads.iter().chain(&db).copied().collect();
-        let reads: Vec<(f64, f64)> = subtract(reads, &cuts).into_iter().filter(|(s, e)| e - s >= read_min).collect();
-        // Credits and bumpers are the show's own: they lose any part inside the others (advertising decides), and a
-        // bumper any part inside credits.
-        let taken: Vec<(f64, f64)> = cuts.iter().chain(&reads).copied().collect();
-        let (credits, credits_min) = runs("credits");
-        let credits: Vec<(f64, f64)> = subtract(credits, &taken).into_iter().filter(|(s, e)| e - s >= credits_min).collect();
-        let (bumps, bump_min) = runs("bumper");
-        let taken: Vec<(f64, f64)> = taken.iter().chain(&credits).copied().collect();
-        let bumps: Vec<(f64, f64)> = subtract(bumps, &taken).into_iter().filter(|(s, e)| e - s >= bump_min).collect();
-        let mut out: Vec<KindBreak> = [(ads, "ad"), (db, "double_box"), (reads, "ad_read"), (credits, "credits"), (bumps, "bumper")]
-            .into_iter()
-            .flat_map(|(v, k)| v.into_iter().map(move |(start, end)| KindBreak { start, end, kind: k.into() }))
+        let runs = self
+            .m
+            .kinds
+            .iter()
+            .filter_map(|(k, h)| {
+                let p = self.kind_probabilities(k, &inputs.rows)?;
+                Some((k.clone(), (spans(to_breaks(&p, &inputs.edges, h.post.threshold, h.post.min_len, h.post.max_gap, h.post.snap)), h.post.min_len)))
+            })
             .collect();
-        out.sort_by(|a, b| a.start.total_cmp(&b.start).then(a.end.total_cmp(&b.end)).then(a.kind.cmp(&b.kind)));
-        out
+        combine(spans(self.breaks(inputs)), &runs, self.m.post.min_len)
     }
 
     /// The trees' input table: one row per second, columns as [`feature_names`].
     pub fn table(&self, inputs: &Inputs, p: &[f64]) -> Vec<Vec<f64>> {
         let n = inputs.rows.len();
-        let col = |f: &dyn Fn(&Row) -> f64| -> Vec<f64> { inputs.rows.iter().map(f).collect() };
-        let has = col(&|r| f64::from(u8::from(r.has_captions)));
-        let vis = col(&|r| f64::from(u8::from(r.caption_visible)));
-        let roll = col(&|r| f64::from(u8::from(r.caption_roll_up)));
-        let new = col(&|r| f64::from(u8::from(r.caption_new)));
-        let black = col(&|r| f64::from(r.black));
-        let silent = col(&|r| f64::from(r.silent));
-        let mut edges = inputs.edges.clone();
-        edges.sort_by(f64::total_cmp);
-        let (mut dist, mut here) = (vec![0.0; n], vec![0.0; n]);
-        for s in 0..n {
-            let t = s as f64;
-            let d = edges.iter().map(|e| (t - e).abs()).fold(f64::INFINITY, f64::min);
-            dist[s] = d.min(self.m.edge_cap) / self.m.edge_cap;
-            here[s] = f64::from(u8::from(d < 1.0));
-        }
-        let mut cols: Vec<Vec<f64>> = vec![p.to_vec(), has, vis.clone(), roll.clone(), new, black, silent, dist, here.clone()];
-        for &w in &self.m.windows {
-            cols.push(window_mean(p, w));
-            cols.push(window_mean(&vis, w));
-            cols.push(window_mean(&roll, w));
-            cols.push(window_mean(&here, w).into_iter().map(|v| v * (2 * w + 1) as f64).collect());
-        }
-        let p2: Vec<f64> = p.iter().map(|v| v * v).collect();
-        let (m1, m2) = (window_mean(p, 15), window_mean(&p2, 15));
-        cols.push(m1.iter().zip(&m2).map(|(a, b)| (b - a * a).max(0.0).sqrt()).collect());
-        if let Some(t) = &self.m.text {
+        let scores = self.m.text.as_ref().map(|t| {
             let (now_sets, trail_sets) = text::per_second(&inputs.captions, n, t.buckets, t.trail);
-            let now = text::score(&now_sets, t.now.as_ref());
-            let trail = text::score(&trail_sets, t.trail_head.as_ref());
-            cols.push(now.clone());
-            cols.push(trail.clone());
-            cols.push(window_mean(&now, 7));
-            cols.push(window_mean(&now, 30));
-            for w in TEXT_MAX {
-                cols.push((0..n).map(|k| trail[k.saturating_sub(w)..=k].iter().copied().fold(f64::NEG_INFINITY, f64::max)).collect());
-            }
-        }
-        // Rounded to f32, as in training: Rust and NumPy can differ in the last bit of f64 arithmetic, which would send
-        // a value sitting on a tree threshold the other way.
-        (0..n).map(|i| cols.iter().map(|c| f64::from(c[i] as f32)).collect()).collect()
+            (text::score(&now_sets, t.now.as_ref()), text::score(&trail_sets, t.trail_head.as_ref()))
+        });
+        table(&Columns::of(&inputs.rows), &inputs.edges, p, &self.m.windows, self.m.edge_cap, scores.as_ref().map(|(a, b)| (a.as_slice(), b.as_slice())))
     }
 
     fn tree(&self, nodes: &[Node], x: &[f64]) -> f64 {
@@ -343,6 +292,100 @@ impl Model {
         let p = &self.m.post;
         to_breaks_snapping(&self.probabilities(inputs), &inputs.edges, &black, p.threshold, p.min_len, p.max_gap, p.snap)
     }
+}
+
+/// The per-second inputs the trees read besides the picture score, as columns (0/1 for the caption flags).
+#[derive(Clone, Debug, Default)]
+pub struct Columns {
+    pub has_captions: Vec<f64>,
+    pub visible: Vec<f64>,
+    pub roll_up: Vec<f64>,
+    pub new_cue: Vec<f64>,
+    pub black: Vec<f64>,
+    pub silent: Vec<f64>,
+}
+
+impl Columns {
+    pub fn of(rows: &[Row]) -> Self {
+        let col = |f: &dyn Fn(&Row) -> f64| -> Vec<f64> { rows.iter().map(f).collect() };
+        Columns {
+            has_captions: col(&|r| f64::from(u8::from(r.has_captions))),
+            visible: col(&|r| f64::from(u8::from(r.caption_visible))),
+            roll_up: col(&|r| f64::from(u8::from(r.caption_roll_up))),
+            new_cue: col(&|r| f64::from(u8::from(r.caption_new))),
+            black: col(&|r| f64::from(r.black)),
+            silent: col(&|r| f64::from(r.silent)),
+        }
+    }
+}
+
+/// The trees' input table, one row per second (columns as [`feature_names_with`]): what [`Model::table`] computes, and
+/// what training computes through adbreak-py, so the two can't drift. `p` is the picture score; `text` the caption
+/// text scores (now, trail) for a model with text inputs.
+pub fn table(c: &Columns, edges: &[f64], p: &[f64], windows: &[usize], edge_cap: f64, text: Option<(&[f64], &[f64])>) -> Vec<Vec<f64>> {
+    let n = p.len();
+    let mut edges = edges.to_vec();
+    edges.sort_by(f64::total_cmp);
+    let (mut dist, mut here) = (vec![0.0; n], vec![0.0; n]);
+    for s in 0..n {
+        let t = s as f64;
+        let d = edges.iter().map(|e| (t - e).abs()).fold(f64::INFINITY, f64::min);
+        dist[s] = d.min(edge_cap) / edge_cap;
+        here[s] = f64::from(u8::from(d < 1.0));
+    }
+    let (vis, roll) = (&c.visible, &c.roll_up);
+    let mut cols: Vec<Vec<f64>> =
+        vec![p.to_vec(), c.has_captions.clone(), vis.clone(), roll.clone(), c.new_cue.clone(), c.black.clone(), c.silent.clone(), dist, here.clone()];
+    for &w in windows {
+        cols.push(window_mean(p, w));
+        cols.push(window_mean(vis, w));
+        cols.push(window_mean(roll, w));
+        cols.push(window_mean(&here, w).into_iter().map(|v| v * (2 * w + 1) as f64).collect());
+    }
+    let p2: Vec<f64> = p.iter().map(|v| v * v).collect();
+    let (m1, m2) = (window_mean(p, 15), window_mean(&p2, 15));
+    cols.push(m1.iter().zip(&m2).map(|(a, b)| (b - a * a).max(0.0).sqrt()).collect());
+    if let Some((now, trail)) = text {
+        cols.push(now.to_vec());
+        cols.push(trail.to_vec());
+        cols.push(window_mean(now, 7));
+        cols.push(window_mean(now, 30));
+        for w in TEXT_MAX {
+            cols.push((0..n).map(|k| trail[k.saturating_sub(w)..=k].iter().copied().fold(f64::NEG_INFINITY, f64::max)).collect());
+        }
+    }
+    // Rounded to f32: Rust and NumPy can differ in the last bit of f64 arithmetic, which would send a value sitting
+    // on a tree threshold the other way.
+    (0..n).map(|i| cols.iter().map(|c| f64::from(c[i] as f32)).collect()).collect()
+}
+
+/// The other kinds' runs, by kind: the runs and the kind's `min_len`.
+pub type KindRuns = std::collections::BTreeMap<String, (Vec<(f64, f64)>, f64)>;
+
+/// Commercial breaks (`ad`, shorter than `ad_min` dropped) and the other kinds' runs (by kind: the runs and the kind's
+/// `min_len`) as one list, in time order: see [`Model::kind_breaks`].
+pub fn combine(ad: Vec<(f64, f64)>, runs: &KindRuns, ad_min: f64) -> Vec<KindBreak> {
+    let run = |kind: &str| runs.get(kind).cloned().unwrap_or((vec![], 0.0));
+    let (db, db_min) = run("double_box");
+    let (reads, read_min) = run("ad_read");
+    let db: Vec<(f64, f64)> = db.into_iter().filter(|(s, e)| e - s >= db_min).collect();
+    let ads: Vec<(f64, f64)> = subtract(ad, &db).into_iter().filter(|(s, e)| e - s >= ad_min).collect();
+    let cuts: Vec<(f64, f64)> = ads.iter().chain(&db).copied().collect();
+    let reads: Vec<(f64, f64)> = subtract(reads, &cuts).into_iter().filter(|(s, e)| e - s >= read_min).collect();
+    // Credits and bumpers are the show's own: they lose any part inside the others (advertising decides), and a
+    // bumper any part inside credits.
+    let taken: Vec<(f64, f64)> = cuts.iter().chain(&reads).copied().collect();
+    let (credits, credits_min) = run("credits");
+    let credits: Vec<(f64, f64)> = subtract(credits, &taken).into_iter().filter(|(s, e)| e - s >= credits_min).collect();
+    let (bumps, bump_min) = run("bumper");
+    let taken: Vec<(f64, f64)> = taken.iter().chain(&credits).copied().collect();
+    let bumps: Vec<(f64, f64)> = subtract(bumps, &taken).into_iter().filter(|(s, e)| e - s >= bump_min).collect();
+    let mut out: Vec<KindBreak> = [(ads, "ad"), (db, "double_box"), (reads, "ad_read"), (credits, "credits"), (bumps, "bumper")]
+        .into_iter()
+        .flat_map(|(v, k)| v.into_iter().map(move |(start, end)| KindBreak { start, end, kind: k.into() }))
+        .collect();
+    out.sort_by(|a, b| a.start.total_cmp(&b.start).then(a.end.total_cmp(&b.end)).then(a.kind.cmp(&b.kind)));
+    out
 }
 
 /// `spans` with every part inside `cuts` taken out.
@@ -443,12 +486,17 @@ impl Model {
 /// The middle of each run of seconds with any black picture: where a break can start or end on a channel that marks
 /// it with a black frame but no silence.
 pub fn black_points(rows: &[Row]) -> Vec<f64> {
+    black_points_of(&rows.iter().map(|r| f64::from(r.black)).collect::<Vec<_>>())
+}
+
+/// [`black_points`] from each second's share of black.
+pub fn black_points_of(black: &[f64]) -> Vec<f64> {
     let mut pts = vec![];
     let mut i = 0;
-    while i < rows.len() {
-        if rows[i].black > 0.0 {
+    while i < black.len() {
+        if black[i] > 0.0 {
             let mut j = i;
-            while j + 1 < rows.len() && rows[j + 1].black > 0.0 {
+            while j + 1 < black.len() && black[j + 1] > 0.0 {
                 j += 1;
             }
             pts.push((i + j + 1) as f64 / 2.0);

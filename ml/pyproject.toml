@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Training for adbreak: frame embeddings, per-second labels, baselines, later fusion and Core ML export"
 requires-python = ">=3.12"
 dependencies = [
+  "adbreak-rs",
   "numpy>=2",
   "open_clip_torch>=3",
   "pillow>=11",
@@ -18,6 +19,10 @@ adbreak-ml = "adbreak_ml.cli:main"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+# adbreak's Rust code (rust/crates/adbreak-py), built by uv sync: the pieces a recorder computes the same way.
+[tool.uv.sources]
+adbreak-rs = { path = "../rust/crates/adbreak-py" }
 
 [tool.hatch.build.targets.wheel]
 packages = ["adbreak_ml"]

@@ -7,6 +7,7 @@ name = "adbreak-ml"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "adbreak-rs" },
     { name = "numpy" },
     { name = "open-clip-torch" },
     { name = "pillow" },
@@ -17,6 +18,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "adbreak-rs", directory = "../rust/crates/adbreak-py" },
     { name = "numpy", specifier = ">=2" },
     { name = "open-clip-torch", specifier = ">=3" },
     { name = "pillow", specifier = ">=11" },
@@ -24,6 +26,17 @@ requires-dist = [
     { name = "timm", specifier = ">=1" },
     { name = "torch", specifier = ">=2.6" },
 ]
+
+[[package]]
+name = "adbreak-rs"
+version = "0.1.0"
+source = { directory = "../rust/crates/adbreak-py" }
+dependencies = [
+    { name = "numpy" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "numpy", specifier = ">=2" }]
 
 [[package]]
 name = "anyio"

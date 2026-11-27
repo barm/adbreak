@@ -1,0 +1,25 @@
+[package]
+name = "adbreak-py"
+version = "0.1.0"
+edition = "2024"
+description = "adbreak's Rust code for its Python training (ml/), as the module adbreak_rs: the trees' input table, breaks from probabilities, caption parsing and text tokens, so training and a recorder compute them with the same code."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/barm/adbreak"
+publish = false
+
+[lib]
+name = "adbreak_rs"
+crate-type = ["cdylib", "rlib"]
+# Tested from Python (ml/): a test binary would need libpython.
+test = false
+doctest = false
+
+[features]
+# Set by maturin (pyproject.toml): an extension module doesn't link libpython.
+extension-module = ["pyo3/extension-module"]
+
+[dependencies]
+adbreak-captions = { path = "../adbreak-captions" }
+adbreak-model = { path = "../adbreak-model" }
+numpy = "0.30"
+pyo3 = { version = "0.30", features = ["abi3-py39"] }
