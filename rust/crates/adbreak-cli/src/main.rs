@@ -8,7 +8,11 @@
 //! - `adbreak label` serves a page to review recordings against the suggestions and save labels.
 //! - `adbreak eval` scores every source against the labels.
 
+<<<<<<< HEAD
 mod cuts;
+=======
+mod bench;
+>>>>>>> f332fa1 (adbreak bench: time the break scan against Comskip on the same file)
 mod dataset;
 mod features;
 mod label;
@@ -128,11 +132,22 @@ enum Cmd {
         #[arg(long, env = "ADBREAK_INBOX")]
         inbox: Option<PathBuf>,
     },
+<<<<<<< HEAD
     /// The held-out set: recordings never trained on, which every model is scored on. With none, models are scored
     /// leave-one-recording-out.
     Holdout {
         #[command(subcommand)]
         cmd: Option<HoldoutCmd>,
+=======
+    /// Time the break scan on a media file against Comskip on the same file (see `bench.rs`).
+    Bench {
+        /// A recording's media: a fragmented MP4 (HEVC, AAC), a recorder's or a copy in the media store.
+        media: PathBuf,
+        #[arg(long, env = "ADBREAK_COMSKIP")]
+        comskip: Option<PathBuf>,
+        #[arg(long, env = "ADBREAK_MODEL_DIR", default_value_os_t = adbreak_db::default_model_dir())]
+        model_dir: PathBuf,
+>>>>>>> f332fa1 (adbreak bench: time the break scan against Comskip on the same file)
     },
     /// Score each source against the labels.
     Eval {
@@ -233,6 +248,7 @@ async fn main() -> Result<()> {
             label::serve(data, &bind, &web, &model, &ml, inbox).await?
         }
         Cmd::Eval { each } => eval(&data, each)?,
+<<<<<<< HEAD
         Cmd::Holdout { cmd } => {
             match cmd {
                 Some(HoldoutCmd::Add { ids }) => ids.iter().try_for_each(|i| data.db.set_holdout(&data.resolve(i)?, true))?,
@@ -246,6 +262,9 @@ async fn main() -> Result<()> {
             }
             println!("{} held out, {:.1} h", held.len(), secs / 3600.0);
         }
+=======
+        Cmd::Bench { media, comskip, model_dir } => bench::run(&media, &model_dir, tools::find(comskip.as_deref(), "comskip").as_deref())?,
+>>>>>>> f332fa1 (adbreak bench: time the break scan against Comskip on the same file)
         Cmd::Dataset { cmd: DatasetCmd::Export { dir } } => {
             let n = data.db.export_dir(&dir)?;
             eprintln!("wrote {n} recordings to {}", dir.display());
