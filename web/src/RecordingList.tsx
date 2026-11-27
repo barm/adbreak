@@ -28,6 +28,8 @@ type Row = {
 };
 
 const clock = (t: number) => fmt(t).replace(/\.\d$/, "");
+const ready = (r: Row) => r.reviewed >= r.duration - 1;
+const status = (r: Row) => (ready(r) ? "ready" : r.reviewed > 0 ? `${pct(Math.min(1, r.reviewed / r.duration))} reviewed` : r.breaks > 0 ? "labelling" : "not started");
 const when = (s: string) => new Date(s).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 
 /** Every imported recording, newest first, with how the model does on each; or the same by channel. */
@@ -46,6 +48,7 @@ export function RecordingList() {
   const s = (r: Row): RecScore | undefined => scores.get(r.id);
   const now = m?.totals.find((t) => t.kind === "commercial break" && t.source === "model");
   const labelled = rows?.filter((r) => r.reviewed > 0) ?? [];
+  const readyCount = rows?.filter(ready).length ?? 0;
 
   const columns = [
     {
@@ -59,8 +62,8 @@ export function RecordingList() {
         </VStack>
       ),
     },
-    // Of what there is to review: excluded parts (bad reception) don't count.
-    { key: "reviewed", header: "Reviewed", align: "end" as const, renderCell: (r: Row) => (r.usable && r.reviewed ? pct(Math.min(1, r.reviewed / r.usable)) : "") },
+    // Ready for training (the switch on its page), partly reviewed (from before the switch), being labelled, or not yet.
+    { key: "status", header: "Status", renderCell: (r: Row) => <Text color={ready(r) ? "primary" : "secondary"}>{status(r)}</Text> },
     { key: "breaks", header: "Labels", align: "end" as const, renderCell: (r: Row) => r.breaks || "" },
     { key: "f1", header: "F1", align: "end" as const, renderCell: (r: Row) => (s(r)?.model ? pct(s(r)!.model!.f1) : "") },
     { key: "nn", header: "New network", align: "end" as const, renderCell: (r: Row) => (s(r)?.new_network ? pct(s(r)!.new_network!.f1) : "") },
@@ -95,7 +98,7 @@ export function RecordingList() {
             {error && <Text color="accent">{error}</Text>}
             <HStack gap={3} vAlign="center" hAlign="between" wrap="wrap">
               <Text color="secondary">
-                {rows && `${rows.length} recordings · ${labelled.length} labelled, ${hours(labelled.reduce((a, r) => a + r.reviewed, 0))} reviewed · ${labelled.reduce((a, r) => a + r.breaks, 0)} labels`}
+                {rows && `${rows.length} recordings · ${readyCount} ready for training (${hours(labelled.reduce((a, r) => a + r.reviewed, 0))}) · ${labelled.reduce((a, r) => a + r.breaks, 0)} labels`}
                 {m?.info && now && ` · ${modelName(m.info)}: F1 ${pct(now.f1)}, show cut ${perHour(now.wrongly_skipped_per_hour)} / h, ads left ${perHour(now.missed_per_hour)} / h`}
               </Text>
               <SegmentedControl label="View" value={view} onChange={(v) => setView(v as "recordings" | "channels")} size="sm">

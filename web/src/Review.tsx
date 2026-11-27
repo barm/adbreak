@@ -13,6 +13,7 @@ import { Text, Heading } from "@astryxdesign/core/Text";
 import { Button } from "@astryxdesign/core/Button";
 import { Kbd } from "@astryxdesign/core/Kbd";
 import { Toolbar } from "@astryxdesign/core/Toolbar";
+import { Switch } from "@astryxdesign/core/Switch";
 import { ContextMenu } from "@astryxdesign/core/ContextMenu";
 import { DropdownMenu } from "@astryxdesign/core/DropdownMenu";
 import { Popover } from "@astryxdesign/core/Popover";
@@ -158,6 +159,16 @@ export function Review({ id }: { id: string }) {
           }
           endContent={
             <>
+              {engine?.state() && (
+                <Switch
+                  label={engine.readiness().endsWith("reviewed") ? `Ready for training · ${engine.readiness()}` : "Ready for training"}
+                  labelTooltip="On: the whole recording counts for scoring and training, except excluded stretches. Turn it on when its labels are done."
+                  size="sm"
+                  labelPosition="start"
+                  value={engine.readiness() === "ready"}
+                  onChange={(on, e) => { engine.setReady(on); e.target.blur(); /* back to the keys */ }}
+                />
+              )}
               <IconButton variant="ghost" size="sm" label="Zoom out (-)" icon={<Icon icon={MagnifyingGlassMinusIcon} size="sm" />} onClick={() => engine?.key("-")} />
               <IconButton variant="ghost" size="sm" label="Zoom in (=)" icon={<Icon icon={MagnifyingGlassPlusIcon} size="sm" />} onClick={() => engine?.key("=")} />
               <IconButton variant="ghost" size="sm" label="Undo (⌘Z)" icon={<Icon icon={ArrowUturnLeftIcon} size="sm" />} onClick={() => engine?.undo()} />
