@@ -152,7 +152,8 @@ struct Coverage {
     new_network: Option<Score>,
 }
 
-const KINDS: [(Kind, &str); 3] = [(Kind::Ad, "commercial break"), (Kind::DoubleBox, "double box"), (Kind::AdRead, "ad read")];
+const KINDS: [(Kind, &str); 5] =
+    [(Kind::Ad, "commercial break"), (Kind::DoubleBox, "double box"), (Kind::AdRead, "ad read"), (Kind::Bumper, "bumper"), (Kind::Credits, "credits")];
 
 /// Writes `scores.json` beside the installed model: the commercial-break totals of the scores just computed (its
 /// leave-one-out and new-network runs, and Comskip's for comparison).

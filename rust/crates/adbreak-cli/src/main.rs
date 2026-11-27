@@ -370,7 +370,7 @@ fn eval(data: &Dataset, each: bool) -> Result<()> {
             }
             totals.entry(s.name.clone()).or_default().add(&sc);
             // A source that tells the kinds apart: each kind scored as its own row.
-            let kinds: &[Kind] = if kinded.contains(&s.name) { &[Kind::DoubleBox, Kind::AdRead] } else { &[] };
+            let kinds: &[Kind] = if kinded.contains(&s.name) { &[Kind::DoubleBox, Kind::AdRead, Kind::Bumper, Kind::Credits] } else { &[] };
             for &k in kinds {
                 let sc = adbreak_labels::score_kind(labels, k, &s.spans(k));
                 let name = format!("{} · {}", s.name, kind_name(k));
@@ -401,6 +401,8 @@ fn kind_name(k: Kind) -> &'static str {
         Kind::DoubleBox => "double box",
         Kind::AdRead => "ad read",
         Kind::PaidProgramming => "paid",
+        Kind::Bumper => "bumper",
+        Kind::Credits => "credits",
     }
 }
 

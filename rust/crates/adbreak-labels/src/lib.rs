@@ -54,7 +54,7 @@ impl Span {
 #[serde(rename_all = "snake_case")]
 pub enum Kind {
     /// A commercial break: the programme is gone and advertising fills the screen (commercials, the network's
-    /// promos for its own shows, station spots and bumpers). What a detector is scored on.
+    /// promos for its own shows, station spots and IDs). What a detector is scored on.
     #[default]
     Ad,
     /// The programme shrunk beside or under an ad (a squeeze-back). Not scored as break or programme, and a break's
@@ -65,11 +65,22 @@ pub enum Kind {
     AdRead,
     /// A whole programme that is an advertisement (an infomercial). Not scored either way.
     PaidProgramming,
+    /// The show's own short transition into or out of a break (its logo, a photo card, "welcome back"), with nothing
+    /// advertised. Like a double box, neither break nor programme for break scoring, and a break's edge anywhere
+    /// across an adjacent bumper counts as right: whether to skip one is the player's call.
+    Bumper,
+    /// The show's closing credits and studio or production cards, full screen (credits squeezed beside a promo are a
+    /// double box). Treated like a bumper.
+    Credits,
 }
 
 impl Kind {
     /// Every kind, in the order the labelling page offers them.
-    pub const ALL: [Kind; 4] = [Kind::Ad, Kind::DoubleBox, Kind::AdRead, Kind::PaidProgramming];
+    pub const ALL: [Kind; 6] = [Kind::Ad, Kind::DoubleBox, Kind::AdRead, Kind::Bumper, Kind::Credits, Kind::PaidProgramming];
+
+    /// Kinds labelled only in some recordings (newer ones): each recording says whether it has them
+    /// ([`Labels::labelled_kinds`]), and they're learned only from those that do.
+    pub const OPTIONAL: [Kind; 2] = [Kind::Bumper, Kind::Credits];
 
     /// Whether it is a commercial break, which a detector should find.
     pub fn scored(self) -> bool {
@@ -78,7 +89,7 @@ impl Kind {
 
     /// Whether break scoring leaves it out, counting it as neither break nor programme.
     pub fn ignored(self) -> bool {
-        matches!(self, Kind::DoubleBox | Kind::PaidProgramming)
+        matches!(self, Kind::DoubleBox | Kind::Bumper | Kind::Credits | Kind::PaidProgramming)
     }
 }
 
@@ -155,11 +166,15 @@ pub struct Labels {
     pub excluded: Vec<Span>,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub notes: String,
+    /// The optional kinds ([`Kind::OPTIONAL`]) labelled throughout this recording: training learns each only from
+    /// recordings that list it, since an older recording's unlabelled bumpers aren't programme.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub labelled_kinds: Vec<Kind>,
 }
 
 impl Labels {
     pub fn new(recording: Recording) -> Self {
-        Labels { format: FORMAT, recording, reviewed: vec![], breaks: vec![], excluded: vec![], notes: String::new() }
+        Labels { format: FORMAT, recording, reviewed: vec![], breaks: vec![], excluded: vec![], notes: String::new(), labelled_kinds: vec![] }
     }
 
     /// The reviewed parts, less any excluded: what is scored and trained on.
@@ -357,7 +372,7 @@ pub fn score_kind(labels: &Labels, kind: Kind, found: &[Span]) -> Score {
     let ignored: Vec<Span> =
         labels.breaks.iter().filter(|b| if kind == Kind::Ad { b.kind.ignored() } else { b.kind == Kind::PaidProgramming }).map(Break::span).collect();
     let (double_box, ad_read) = (of(Kind::DoubleBox), of(Kind::AdRead));
-    let tolerance = if kind == Kind::Ad { double_box.clone() } else { vec![] };
+    let tolerance = if kind == Kind::Ad { double_box.iter().chain(&of(Kind::Bumper)).chain(&of(Kind::Credits)).copied().collect() } else { vec![] };
     let mut s = Score::default();
     let within = |t: f64, v: &[Span]| v.iter().any(|x| x.contains(t));
     for r in &reviewed {
@@ -494,7 +509,7 @@ mod tests {
 
     #[test]
     fn kind_names() {
-        let k: Vec<Kind> = serde_json::from_str(r#"["ad", "double_box", "ad_read", "paid_programming"]"#).unwrap();
+        let k: Vec<Kind> = serde_json::from_str(r#"["ad", "double_box", "ad_read", "bumper", "credits", "paid_programming"]"#).unwrap();
         assert_eq!(k, Kind::ALL);
         assert!(serde_json::from_str::<Kind>(r#""sponsor""#).is_err(), "old names are gone");
     }

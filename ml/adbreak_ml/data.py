@@ -121,8 +121,8 @@ def second_labels(rec: Recording, times: np.ndarray) -> np.ndarray:
         kind = b.get("kind", "ad")
         if kind == "ad_read":
             continue
-        # Double box and paid programming are neither break nor programme: left out.
-        y[inside & (y != IGNORE)] = IGNORE if kind in ("double_box", "paid_programming") else BREAK
+        # Double box, bumper, credits and paid programming are neither break nor programme: left out.
+        y[inside & (y != IGNORE)] = IGNORE if kind in ("double_box", "bumper", "credits", "paid_programming") else BREAK
     for b in rec.labels["breaks"]:
         for edge in (b["start"], b["end"]):
             y[np.abs(times - edge) < EDGE_MARGIN] = IGNORE
@@ -130,7 +130,9 @@ def second_labels(rec: Recording, times: np.ndarray) -> np.ndarray:
 
 
 # The kinds besides commercial breaks that the model also finds, each with an output of its own.
-MINOR_KINDS = ("double_box", "ad_read")
+MINOR_KINDS = ("double_box", "ad_read", "bumper", "credits")
+# Kinds labelled only in newer recordings: learned only from recordings that list them in "labelled_kinds".
+OPTIONAL_KINDS = ("bumper", "credits")
 
 
 def kind_labels(rec: Recording, times: np.ndarray, kind: str) -> np.ndarray:
@@ -139,6 +141,9 @@ def kind_labels(rec: Recording, times: np.ndarray, kind: str) -> np.ndarray:
     EDGE_MARGIN of that kind's edges."""
     y = np.full(len(times), IGNORE, dtype=np.int8)
     if not rec.labels:
+        return y
+    # Bumpers and credits are learned only from recordings that label them: elsewhere an unlabelled one isn't programme.
+    if kind in OPTIONAL_KINDS and kind not in rec.labels.get("labelled_kinds", []):
         return y
     for r in rec.labels["reviewed"]:
         y[(times >= r["start"]) & (times < r["end"])] = PROGRAMME

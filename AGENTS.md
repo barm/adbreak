@@ -36,7 +36,7 @@ data or commit messages. A recording's source is `"recorder"`.
   sources, shared by the app and `ml/` (WAL, so both can write). Don't commit day-to-day changes: `dataset/` is a
   snapshot (`adbreak dataset export` / `import`), committed when a versioned or public copy is wanted. New recordings: `adbreak ingest <dir>` (import, suggest, features, the model's draft), which `adbreak label` also runs on each import directory dropped into its inbox (`--inbox`). Backups: `adbreak dataset backup` (local, dated) and `scripts/backup.sh` (nightly; also pushes a snapshot to the `dataset-snapshots` branch). Never rewrite that branch's history. Label kinds
   and how to place them: `docs/labels.md`; keep it, `adbreak-labels`' `Kind`, `ml/adbreak_ml/data.py` and
-  `web/src/editor/engine.ts` in step. Labels versions and the fingerprint are FNV-1a 64 over the stored labels
+  `web/src/editor/engine.ts` (KINDS, OPTIONAL_KINDS) in step; optional kinds (bumper, credits) are learned only from recordings listing them in `labelled_kinds`. Labels versions and the fingerprint are FNV-1a 64 over the stored labels
   JSON (`adbreak_db`, `ml/adbreak_ml/data.py`): keep both sides the same. The copy
   (`media.mp4`, `index.m3u8`), captions and features live in the media store (`ADBREAK_MEDIA`, default
   `~/Movies/adbreak`) and are never committed: broadcasts can't be redistributed.
