@@ -42,6 +42,8 @@ export function createEngine(env) {
   let sel = null, pending = null, saveTimer = null, drag = null, dragMate = null;
   // A stretch chosen with [ and ] or a drag along the time ruler: X excludes it, ⌫ includes it again.
   let range = null, rangeFrom = null, rangeMark = null;
+  // A new label being dragged out on the labels row: where the drag began, and where it is now.
+  let newFrom = null, newTo = null;
 
   function status(msg, err) { env.status(msg, !!err); }
   const VARS = { "--ad": "#e5484d", "--double": "#4cb1f5", "--adread": "#f5a524", "--paid": "#8e4ec6", "--bumper": "#d6409f", "--credits": "#978365", "--dim": "#9a9aa6", "--line": "#2c2c34", "--warn": "#f5a524", "--accent": "#3e63dd" };
@@ -194,6 +196,12 @@ export function createEngine(env) {
         if (isSel) { c.strokeStyle = "#fff"; c.lineWidth = 2; c.strokeRect(x0, top - 1, Math.max(2, x1 - x0), hh + 2); c.lineWidth = 1; }
       });
     }
+    // A label being dragged out: its span on the labels row.
+    if (newFrom !== null && newTo !== null && newTo !== newFrom) {
+      const lr = rows()[0], x0 = Math.max(NAME, g.x(Math.min(newFrom, newTo), vw)), x1 = Math.min(g.w - 6, g.x(Math.max(newFrom, newTo), vw));
+      c.globalAlpha = 0.55; c.fillStyle = cssVar(KIND_COLOR.ad); c.fillRect(x0, lr.y + 3, Math.max(2, x1 - x0), lr.h - 6); c.globalAlpha = 1;
+      c.strokeStyle = "#fff"; c.setLineDash([4, 3]); c.strokeRect(x0, lr.y + 3, Math.max(2, x1 - x0), lr.h - 6); c.setLineDash([]);
+    }
     // Excluded parts: hatched grey over the whole timeline, so it's clear nothing there counts.
     for (const x of S.labels.excluded || []) {
       const x0 = Math.max(NAME, g.x(x.start, vw)), x1 = Math.min(g.w - 6, g.x(x.end, vw));
@@ -275,7 +283,13 @@ export function createEngine(env) {
       const b = S.labels.breaks[e.i];
       const m = ev.altKey ? -1 : S.labels.breaks.findIndex((x, j) => j !== e.i && Math.abs(e.edge === "start" ? x.end - b.start : x.start - b.end) < 0.05);
       dragMate = m >= 0 ? S.labels.breaks[m] : null;
+      // Paused while the edge moves (the picture follows it), playing again after if it was.
+      resume = !v.paused; v.pause();
       renderList(); return;
+    }
+    if (h.row && h.row.label && !S.labels.breaks.some((b) => b.start <= h.t && h.t < b.end)) {
+      // Empty space on the labels row: drag out a new label (a click just moves the playhead there).
+      newFrom = h.t; newTo = h.t; sel = null; resume = !v.paused; v.pause(); seek(h.t); renderList(); return;
     }
     if (h.row && h.row.spans) {
       const j = h.row.spans.findIndex((s) => s.start <= h.t && h.t < s.end);
@@ -292,6 +306,12 @@ export function createEngine(env) {
     tl.style.cursor = drag || (h.x >= NAME && edgeAt(h)) ? "col-resize" : "crosshair";
     if (rangeFrom !== null) {
       range = { a: Math.min(rangeFrom, h.t), b: Math.max(rangeFrom, h.t) };
+    } else if (newFrom !== null) {
+      // Not across another label: stop at the nearest one on either side.
+      const prev = S.labels.breaks.filter((b) => b.end <= newFrom + 1e-6).reduce((m, b) => Math.max(m, b.end), 0);
+      const next = S.labels.breaks.filter((b) => b.start >= newFrom - 1e-6).reduce((m, b) => Math.min(m, b.start), S.dur);
+      newTo = Math.max(prev, Math.min(next, h.t));
+      seek(newTo, true);
     } else if (drag && sel) {
       // Stay a break, and stop at the neighbouring labels.
       const b = S.labels.breaks[sel.i], mate = dragMate;
@@ -313,12 +333,19 @@ export function createEngine(env) {
     draw();
   });
   function endPointer() {
+    if (newFrom !== null) {
+      const a = Math.min(newFrom, newTo), e = Math.max(newFrom, newTo);
+      newFrom = null; newTo = null;
+      if (e - a >= 0.5) addBreak(a, e);
+      else draw();
+      if (resume) v.play();
+    }
     if (rangeFrom !== null) {
       const from = rangeFrom; rangeFrom = null;
       if (!range || range.b - range.a < 0.5) { range = null; seek(from); draw(); }
       else { status(`${fmt(range.a)}–${fmt(range.b)} chosen: X exclude (bad quality) · ⌫ include again · Esc cancel`); draw(); }
     }
-    if (drag) { drag = null; dragMate = null; seek(v.currentTime); changed(); }
+    if (drag) { drag = null; dragMate = null; seek(v.currentTime); changed(); if (resume) v.play(); }
     if (scrubbing) { scrubbing = false; seek(v.currentTime); if (resume) v.play(); }
   }
   on(tl, "pointerup", endPointer);
@@ -579,6 +606,11 @@ export function createEngine(env) {
       case "s": case "S":
         if (b) splitBreak(sel.i, t); else status("select a label to split", true);
         break;
+      case "1": case "2": case "3": case "4": case "5": case "6":
+        // The selected label's kind, by its place in KINDS (1 commercial break … 6 paid programming).
+        if (b) { b.kind = KINDS[Number(k) - 1]; status(`${KIND_NAME[b.kind]}`); changed(); }
+        else status("select a label to set its kind", true);
+        break;
       case "k": case "K":
         if (b) { b.kind = KINDS[(KINDS.indexOf(b.kind || "ad") + 1) % KINDS.length]; changed(); }
         break;
@@ -596,7 +628,12 @@ export function createEngine(env) {
       case "-": case "_": zoomAt(2, t); break;
       case "\\": env.toggleLayout(); break;
       case "?": env.shortcuts(); break;
-      case "Escape": sel = null; pending = null; range = null; rangeMark = null; renderList(); draw(); break;
+      case "Escape":
+        // Cancel whatever was under way (a stretch, a half-marked label), and its message with it; with nothing
+        // under way, stop playback. Either way the selection goes.
+        if (pending !== null || range || rangeMark) status("");
+        else v.pause();
+        sel = null; pending = null; range = null; rangeMark = null; renderList(); draw(); break;
       default: return false;
     }
     return true;
