@@ -5,7 +5,7 @@ import type { Curve } from "./LearningCurve";
 
 export type Scored = { precision: number; recall: number; f1: number; breaks: number; found: number; matched: number; start_error: number; end_error: number; wrongly_skipped_per_hour: number; missed_per_hour: number };
 export type Total = Scored & { source: string; kind: string };
-export type RecScore = { id: string; title: string; model?: Scored; new_network?: Scored; comskip?: Scored; log_loss?: number; auc?: number; how: string; stale: boolean };
+export type RecScore = { id: string; title: string; model?: Scored; new_network?: Scored; comskip?: Scored; log_loss?: number; auc?: number; how: string; stale: boolean; held_out: boolean };
 export type Info = {
   number?: number;
   /** adbreak-0.<number>-<trees>. */
@@ -34,6 +34,8 @@ export type Run = {
 export type Overview = {
   dir: string; info: Info | null; model_bytes: number; image_model_bytes: number; image_model: string; kinds: string[];
   learning_curve: Curve | null; totals: Total[]; recordings: RecScore[]; can_run: boolean; history: Info[]; coverage: Coverage[]; runs: Run[];
+  /** The held-out set; empty: scored leave-one-recording-out. */
+  holdout: string[];
 };
 export type Job = { running: boolean; action: string; only: string | null; ok: boolean | null; log: string[] };
 export type Action = "evaluate" | "retrain" | "learning-curve" | "install";
@@ -87,3 +89,7 @@ export function useModel() {
   };
   return { m, job, active, busy: going || !m?.can_run, error, run, reload: load };
 }
+
+/** What a model's scores are over: the held-out set, or every recording leave-one-out. */
+export const scoredOn = (m: Overview) =>
+  m.holdout.length ? `the ${m.holdout.length} held-out recordings (never trained on)` : "every recording, each by a model trained on the others (leave-one-out)";

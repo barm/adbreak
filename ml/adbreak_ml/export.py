@@ -286,8 +286,11 @@ def training_info(trees: HistGradientBoostingClassifier, labelled: list[Data], v
 
 
 def export(recs: list[Recording], out: Path, vector_secs: int = 600, note: str = "", name: str = "") -> None:
+    from .data import holdout_ids
+
     data = [Data(r) for r in recs if r.features(RUST).with_suffix(".json").exists()]
-    labelled = [d for d in data if (d.y != IGNORE).any()]
+    held_ids = holdout_ids()  # never trained on: they're what every model is scored on
+    labelled = [d for d in data if (d.y != IGNORE).any() and d.rec.id not in held_ids]
     oof = {d.rec.id: frame_model([o for o in labelled if o is not d]).predict_proba(d.x)[:, 1] for d in labelled}
     oof_text(labelled)
     trees = fit_trees(labelled, oof)
@@ -365,19 +368,32 @@ def export(recs: list[Recording], out: Path, vector_secs: int = 600, note: str =
 def evaluate(recs: list[Recording], only: set[str] | None = None) -> None:
     """The shipped model's results for every recording, written as the "model" suggestion (score with `adbreak
     eval`) and, per second, as `features/model-out.json` (the picture score and the final probability, for the
-    labelling page). Labelled recordings: leave-one-recording-out, from frame and tree models trained on the others
-    only. Unlabelled ones: from models trained on every labelled recording (a first draft to label against)."""
+    labelling page).
+
+    With a held-out set (`adbreak holdout`): one model trained on the other labelled recordings gives every
+    recording's results; only the held-out ones' are fair scores (the rest were in its training). Without one: each
+    labelled recording leave-one-recording-out, from models trained on the others; unlabelled ones from models trained
+    on every labelled recording (a first draft to label against)."""
     from .baseline import save_source
     from .data import labels_fingerprint
 
     data = [Data(r) for r in recs if r.features(RUST).with_suffix(".json").exists()]
     labelled = [d for d in data if (d.y != IGNORE).any()]
     fp = labels_fingerprint()
+    # Models by the recordings they're trained on: with a held-out set, most results share one.
+    trained: dict[tuple, tuple] = {}
+
+    def heads(train: list[Data]):
+        key = tuple(sorted(o.rec.id for o in train))
+        if key not in trained:
+            trained[key] = (train_head(train, "ad"), {k: train_head(train, k) for k in MINOR_KINDS if has_kind(train, k)})
+        return trained[key]
 
     def write(d: Data, train: list[Data], how: str, source: str = "model") -> None:
-        p_frame, prob = predict_head(train_head(train, "ad"), d)
+        ad, kind_heads = heads(train)
+        p_frame, prob = predict_head(ad, d)
         edges = [float(e) for e in d.edges if e > -1e8]
-        probs = {k: predict_head(train_head(train, k), d)[1] for k in MINOR_KINDS if has_kind(train, k)}
+        probs = {k: predict_head(h, d)[1] for k, h in kind_heads.items()}
         minor = {k: to_breaks(p, edges, KIND_POST[k]) for k, p in probs.items()}
         found = combine(to_breaks(prob, edges, black=d.av[:, 0]), minor, probs)
         breaks = [{"start": a, "end": b, "kind": k} for a, b, k in found]
@@ -401,12 +417,23 @@ def evaluate(recs: list[Recording], only: set[str] | None = None) -> None:
 
     from . import runs
 
-    jobs = [(d, [o for o in labelled if o is not d], f"leave-one-recording-out over {len(labelled)}", "model") for d in labelled]
-    jobs += [(d, labelled, f"trained on all {len(labelled)} labelled recordings", "model") for d in data if d not in labelled]
-    for d in labelled:
-        others = [o for o in labelled if o.rec.network != d.rec.network]
-        if others:
-            jobs.append((d, others, f"trained on the {len(others)} recordings from other networks", "model-new-network"))
+    from .data import holdout_ids
+
+    held_ids = holdout_ids()
+    held = [d for d in labelled if d.rec.id in held_ids]
+    if held:
+        train = [d for d in labelled if d.rec.id not in held_ids]
+        jobs = [(d, train, f"trained on the {len(train)} training recordings, {'held out' if d in held else 'in its training'}", "model") for d in data]
+        others_of = lambda d: [o for o in train if o.rec.network != d.rec.network]  # noqa: E731
+        jobs += [(d, others_of(d), f"trained on the {len(others_of(d))} training recordings from other networks, held out", "model-new-network")
+                 for d in held if others_of(d)]
+    else:
+        jobs = [(d, [o for o in labelled if o is not d], f"leave-one-recording-out over {len(labelled)}", "model") for d in labelled]
+        jobs += [(d, labelled, f"trained on all {len(labelled)} labelled recordings", "model") for d in data if d not in labelled]
+        for d in labelled:
+            others = [o for o in labelled if o.rec.network != d.rec.network]
+            if others:
+                jobs.append((d, others, f"trained on the {len(others)} recordings from other networks", "model-new-network"))
     jobs = [j for j in jobs if only is None or j[0].rec.id in only]
     runs.update(recordings=len(labelled), labels=fp)
     for i, (d, train, how, source) in enumerate(jobs):

@@ -104,6 +104,9 @@ struct RecordingScore {
     /// How the model's suggestions were made (leave-one-out, or trained on all), and whether they predate the labels.
     how: String,
     stale: bool,
+    /// In the held-out set: its model scores are fair ones. With a held-out set, the others' are left out (the model
+    /// trained on them).
+    held_out: bool,
 }
 
 #[derive(Serialize)]
@@ -127,6 +130,8 @@ struct Overview {
     coverage: Vec<Coverage>,
     /// Recent training runs, newest first, from the app or the CLI (a running one first of all).
     runs: Vec<adbreak_db::Run>,
+    /// The held-out set (`adbreak holdout`); empty: models are scored leave-one-recording-out.
+    holdout: Vec<String>,
 }
 
 /// One channel's share of the labelled data, and how the model does there when it has never seen the network.
@@ -214,6 +219,8 @@ fn overview(m: &Model) -> anyhow::Result<Overview> {
     };
     let mut recordings = vec![];
     let mut coverage: Vec<Coverage> = vec![];
+    // With a held-out set, only its recordings are scored (the model trained on the rest); without, every one is.
+    let held = m.data.db.holdout().unwrap_or_default();
     for e in m.data.all()? {
         let (Some(labels), Some(sugg)) = (&e.labels, &e.suggestions) else { continue };
         if labels.reviewed.is_empty() {
@@ -230,8 +237,10 @@ fn overview(m: &Model) -> anyhow::Result<Overview> {
             auc: None,
             how: String::new(),
             stale: false,
+            held_out: held.contains(&e.id),
         };
-        if let Some(s) = src("model") {
+        let scored = held.is_empty() || row.held_out;
+        if let Some(s) = src("model").filter(|_| scored) {
             for (k, name) in KINDS {
                 let sc = score_kind(labels, k, &s.spans(k));
                 if k == Kind::Ad {
@@ -265,11 +274,17 @@ fn overview(m: &Model) -> anyhow::Result<Overview> {
         if let Some(s) = src("comskip") {
             let sc = score_kind(labels, Kind::Ad, &s.spans(Kind::Ad));
             row.comskip = Some((&sc).into());
-            add("comskip", Kind::Ad, "commercial break", &sc);
+            if scored {
+                add("comskip", Kind::Ad, "commercial break", &sc); // over the same recordings as the model
+            }
+        }
+        if let Some(s) = src("model").filter(|_| !scored) {
+            row.how = s.detail.clone();
+            row.stale = !s.trained_on.is_empty() && s.trained_on != fingerprint;
         }
         let out: Option<serde_json::Value> =
             std::fs::read_to_string(m.data.media_dir(&e.id).join("features/model-out.json")).ok().and_then(|t| serde_json::from_str(&t).ok());
-        if let Some(o) = out {
+        if let Some(o) = out.filter(|_| scored) {
             row.log_loss = o["metrics"]["log_loss"].as_f64();
             row.auc = o["metrics"]["auc"].as_f64();
         }
@@ -296,6 +311,7 @@ fn overview(m: &Model) -> anyhow::Result<Overview> {
         can_run: m.ml.join("pyproject.toml").is_file(),
         history: history(&m.dir),
         runs: m.data.db.runs(30).unwrap_or_default(),
+        holdout: held.iter().cloned().collect(),
         coverage: {
             for c in &mut coverage {
                 c.new_network_f1 = c.new_network.as_ref().map(Score::f1);

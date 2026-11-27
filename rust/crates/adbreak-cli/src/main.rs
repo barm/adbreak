@@ -116,12 +116,26 @@ enum Cmd {
         #[arg(long, env = "ADBREAK_INBOX")]
         inbox: Option<PathBuf>,
     },
+    /// The held-out set: recordings never trained on, which every model is scored on. With none, models are scored
+    /// leave-one-recording-out.
+    Holdout {
+        #[command(subcommand)]
+        cmd: Option<HoldoutCmd>,
+    },
     /// Score each source against the labels.
     Eval {
         /// Show each recording, not just the totals.
         #[arg(long)]
         each: bool,
     },
+}
+
+#[derive(Subcommand)]
+enum HoldoutCmd {
+    /// Hold recordings out (their dataset id, or a unique part of it).
+    Add { ids: Vec<String> },
+    /// Put recordings back in training.
+    Remove { ids: Vec<String> },
 }
 
 #[derive(Subcommand)]
@@ -197,6 +211,19 @@ async fn main() -> Result<()> {
             label::serve(data, &bind, &web, &model, &ml, inbox).await?
         }
         Cmd::Eval { each } => eval(&data, each)?,
+        Cmd::Holdout { cmd } => {
+            match cmd {
+                Some(HoldoutCmd::Add { ids }) => ids.iter().try_for_each(|i| data.db.set_holdout(&data.resolve(i)?, true))?,
+                Some(HoldoutCmd::Remove { ids }) => ids.iter().try_for_each(|i| data.db.set_holdout(&data.resolve(i)?, false))?,
+                None => {}
+            }
+            let held = data.db.holdout()?;
+            let secs: f64 = held.iter().filter_map(|i| data.db.recording(i).ok().flatten()).map(|r| r.duration).sum();
+            for id in &held {
+                println!("{id}  {}", data.db.recording(id)?.map(|r| r.title).unwrap_or_default());
+            }
+            println!("{} held out, {:.1} h", held.len(), secs / 3600.0);
+        }
         Cmd::Dataset { cmd: DatasetCmd::Export { dir } } => {
             let n = data.db.export_dir(&dir)?;
             eprintln!("wrote {n} recordings to {}", dir.display());
@@ -321,9 +348,14 @@ fn eval(data: &Dataset, each: bool) -> Result<()> {
     let entries = data.all()?;
     let kinded: std::collections::BTreeSet<String> =
         entries.iter().flat_map(|e| e.suggestions.iter().flat_map(|s| &s.sources)).filter(|s| !s.kinds().is_empty()).map(|s| s.name.clone()).collect();
+    // With a held-out set, only its recordings: the learned sources trained on the rest.
+    let held = data.db.holdout()?;
+    if !held.is_empty() {
+        println!("scored on the {} held-out recordings (adbreak holdout)", held.len());
+    }
     for e in entries {
         let (Some(labels), Some(sugg)) = (&e.labels, &e.suggestions) else { continue };
-        if labels.reviewed.is_empty() {
+        if labels.reviewed.is_empty() || (!held.is_empty() && !held.contains(&e.id)) {
             continue;
         }
         labelled += 1;

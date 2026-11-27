@@ -1,15 +1,16 @@
 import { Badge } from "@astryxdesign/core/Badge";
 import { Tooltip } from "@astryxdesign/core/Tooltip";
 
-/** Whether the installed model was trained on a recording, as a badge with what that means for its numbers. */
-export function TrainingRole({ inTraining }: { inTraining: boolean }) {
-  return inTraining ? (
-    <Tooltip content="The installed model was trained on this recording. Its scores here come from a separate model trained on the other recordings (held out), so they show how the model does on a show it hasn't seen.">
-      <Badge label="training" variant="blue" />
-    </Tooltip>
-  ) : (
-    <Tooltip content="Not in the installed model's training: no reviewed labels yet. Its model rows are a draft from the installed model, to label against.">
-      <Badge label="not trained on" variant="neutral" />
+/** A recording's part in the model: held out (scored, never trained on), training, or not trained on (not ready). */
+export function TrainingRole({ role }: { role: "held out" | "training" | "not trained on" }) {
+  const help = {
+    "held out": "In the held-out set: never trained on, and every model is scored on it. Its scores are fair ones.",
+    training: "The model trains on this recording, so it isn't scored on it (it would score itself). With no held-out set, scores come from a model trained on the other recordings.",
+    "not trained on": "Not ready for training yet. Its model rows are a draft from the installed model, to label against.",
+  }[role];
+  return (
+    <Tooltip content={help}>
+      <Badge label={role} variant={role === "held out" ? "purple" : role === "training" ? "blue" : "neutral"} />
     </Tooltip>
   );
 }

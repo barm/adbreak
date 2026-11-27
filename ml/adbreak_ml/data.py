@@ -85,6 +85,15 @@ def save_source(rec_id: str, source: dict) -> None:
         )
 
 
+def holdout_ids() -> set[str]:
+    """The held-out recordings (adbreak holdout): never trained on, and what every model is scored on."""
+    try:
+        with connect() as c:
+            return {i for (i,) in c.execute("SELECT id FROM holdout")}
+    except sqlite3.OperationalError:  # a database from before the held-out set
+        return set()
+
+
 def labels_fingerprint() -> str:
     """Which labels a model was trained against: FNV-1a 64 over every recording's labels JSON in id order, as
     adbreak_db::Db::fingerprint. The app marks sources trained on other labels as stale."""

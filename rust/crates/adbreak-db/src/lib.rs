@@ -40,6 +40,11 @@ CREATE TABLE IF NOT EXISTS sources (
     updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     PRIMARY KEY (id, name)
 );
+-- The held-out set: recordings kept out of training, every model scored on them.
+CREATE TABLE IF NOT EXISTS holdout (
+    id       TEXT PRIMARY KEY REFERENCES recordings(id) ON DELETE CASCADE,
+    added_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+);
 -- Training runs (also created by the ML project's adbreak_ml/runs.py, which keeps the same columns).
 CREATE TABLE IF NOT EXISTS runs (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -263,6 +268,24 @@ impl Db {
             }
         }
         Ok(ids.len())
+    }
+
+    /// The held-out recordings: never trained on; every model is scored on them.
+    pub fn holdout(&self) -> Result<std::collections::BTreeSet<String>> {
+        let c = self.conn();
+        let mut q = c.prepare("SELECT id FROM holdout ORDER BY id")?;
+        Ok(q.query_map([], |r| r.get(0))?.collect::<std::result::Result<_, _>>()?)
+    }
+
+    /// Puts a recording in the held-out set, or takes it out.
+    pub fn set_holdout(&self, id: &str, held: bool) -> Result<()> {
+        let c = self.conn();
+        if held {
+            c.execute("INSERT OR IGNORE INTO holdout (id) VALUES (?1)", [id])?;
+        } else {
+            c.execute("DELETE FROM holdout WHERE id = ?1", [id])?;
+        }
+        Ok(())
     }
 
     /// Starts a run owned by process `pid`. Returns its id.

@@ -13,7 +13,7 @@ import { ArrowDownIcon, ArrowUpIcon } from "@heroicons/react/20/solid";
 import { AppHeader } from "./AppHeader";
 import { LearningCurve } from "./LearningCurve";
 import { HowItWorks } from "./HowItWorks";
-import { useModel, kept, modelName, pct, secs, perHour, hours, mb, type Info, type Total } from "./model";
+import { useModel, kept, modelName, scoredOn, pct, secs, perHour, hours, mb, type Info, type Total } from "./model";
 
 /** One headline number of the installed model, with how it changed from the model it replaced. */
 function Metric({ label, value, unseen, change, better, up, help }: { label: string; value: string; unseen?: string; change?: string; better?: boolean; up?: boolean; help: string }) {
@@ -91,14 +91,14 @@ export function ModelsPage() {
             )}
             {m && (
               <Text type="supporting" color="secondary">
-                Each recording is scored by a model trained on the others (leave-one-out), over its reviewed time; scores per recording are on the Recordings page.
+                {`Scored on ${scoredOn(m)}, over their reviewed time; per recording on the Recordings page.`}
               </Text>
             )}
             {m && versions.length > 0 && (
               <Card>
                 <VStack gap={3}>
                   <Heading level={4}>Versions</Heading>
-                  <Text type="supporting" color="secondary">Newest first, each with its scores from when it was trained (over the recordings labelled then). Reinstalling one puts it back for recorders; they pick it up on their own.</Text>
+                  <Text type="supporting" color="secondary">Newest first, each with its scores from when it was trained: on the held-out set from adbreak-0.5 on, leave-one-out before (over the recordings labelled then, so not quite comparable). Reinstalling one puts it back for recorders; they pick it up on their own.</Text>
                   <Table
                     data={versions}
                     idKey="version"
@@ -125,7 +125,7 @@ export function ModelsPage() {
                 <Card>
                   <VStack gap={3}>
                     <Heading level={4}>All scores</Heading>
-                    <Text type="supporting" color="secondary">The installed model's outputs and Comskip, leave-one-out. model-new-network trains only on other networks: the closer test of a channel it hasn't seen.</Text>
+                    <Text type="supporting" color="secondary">{`The installed model's outputs and Comskip, on ${scoredOn(m)}. model-new-network trains only on other networks: the closer test of a channel it hasn't seen.`}</Text>
                     <Table
                       data={m.totals.map((t, i) => ({ ...t, i }))}
                       idKey="i"
