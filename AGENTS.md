@@ -21,7 +21,7 @@ data or commit messages. A recording's source is `"recorder"`.
     `suggest`, `features`, `label`, `eval`); macOS, decoding through barm/avkit (pinned by rev). No ffmpeg.
   - New self-contained functionality gets its own crate.
 - `ml/` Python (uv): `features`/`baseline`/`fusion` (experiments on Python-computed features), `evaluate` and
-  `export` (the shipped model, on the Rust-computed `rust-v1` features). See `ml/README.md`.
+  `export` (the shipped model, on the Rust-computed `rust-v1` features, and `full-v1` from the full-resolution recording where ingest had it). See `ml/README.md`.
 - `web/` the Adbreak app: Recordings (labelling; each recording's scores; by channel), Models (the installed model's
   headline scores against the one it replaced, every version with Reinstall, the learning curve) and Runs (start a
   run of `adbreak-ml` in `ml/` through uv, follow it, and every past run: `adbreak label --ml`, `--model`;
