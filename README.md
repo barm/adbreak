@@ -124,10 +124,10 @@ video and AAC sound), and optionally `captions.vtt`, `suggestions.json` (sources
 its own break scan) and `labels.json`. Recordings are named by their dataset id or any unique part of it. Every command uses
 the database (`--db`, `ADBREAK_DB`); start one from the snapshot with `adbreak dataset import dataset`.
 
-On the labelling page, `[` and `]` mark a break's start and end, `A` accepts a selected suggestion, `N`/`P` jump
+On the labelling page, `I` and `O` mark a label's start and end, `A` accepts a selected suggestion, `N`/`P` jump
 between the sources' edges and `R` marks everything up to the playhead as reviewed: only reviewed time is scored,
-so a recording can be labelled a part at a time. Dragging across the reviewed row chooses a stretch: `R` marks it
-reviewed, `X` excludes it (bad quality: never scored or trained on), `⌫` clears it; as many as needed. Kinds: `ad` (commercial break), `double_box`, `ad_read` and
+so a recording can be labelled a part at a time. Dragging across the reviewed row, or `[` and `]` at its ends, chooses a stretch: `R`
+marks it reviewed, `X` excludes it (bad quality: never scored or trained on), `⌫` clears it; as many as needed. Kinds: `ad` (commercial break), `double_box`, `ad_read` and
 `paid_programming`; [docs/labels.md](docs/labels.md) defines them and how to place them. `adbreak eval` scores
 commercial breaks, and shows how much double box and ad read time each source marked.
 
